@@ -2,21 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Building2, 
-  FileText, 
-  GitMerge, 
-  Scissors, 
-  Settings as SettingsIcon, 
+import {
+  LayoutDashboard,
+  Building2,
+  FileText,
+  GitMerge,
+  Scissors,
+  Settings as SettingsIcon,
   FileBarChart,
   Search,
-  Settings
+  Settings,
+  Upload
 } from 'lucide-react';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: Building2, label: 'Entity Setup', href: '/entity-setup' },
+  { icon: Upload, label: 'Upload', href: '/upload' },
   { icon: FileText, label: 'Chart of Accounts', href: '/chart-of-accounts' },
   { icon: GitMerge, label: 'Mapping', href: '/mapping' },
   { icon: Scissors, label: 'Eliminations', href: '/eliminations' },

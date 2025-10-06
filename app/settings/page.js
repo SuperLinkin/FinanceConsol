@@ -173,7 +173,7 @@ export default function Settings() {
                         setCurrencyForm({...currencyForm, currency_code: e.target.value.toUpperCase()});
                         setHasChanges(true);
                       }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="USD"
                     />
                   </div>
@@ -186,7 +186,7 @@ export default function Settings() {
                         setCurrencyForm({...currencyForm, currency_name: e.target.value});
                         setHasChanges(true);
                       }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="US Dollar"
                     />
                   </div>
@@ -199,7 +199,7 @@ export default function Settings() {
                         setCurrencyForm({...currencyForm, symbol: e.target.value});
                         setHasChanges(true);
                       }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="$"
                     />
                   </div>
@@ -211,7 +211,7 @@ export default function Settings() {
                         setCurrencyForm({...currencyForm, decimal_precision: parseInt(e.target.value)});
                         setHasChanges(true);
                       }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       {[0,1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
@@ -256,7 +256,7 @@ export default function Settings() {
                       setCurrencyForm({...currencyForm, rate_source: e.target.value});
                       setHasChanges(true);
                     }}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                   >
                     <option>ECB</option>
                     <option>Manual</option>
@@ -278,7 +278,7 @@ export default function Settings() {
                         setCurrencyForm({...currencyForm, approved_by: e.target.value});
                         setHasChanges(true);
                       }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="Controller name"
                     />
                   </div>
@@ -350,7 +350,7 @@ export default function Settings() {
                       type="text"
                       value={regionForm.region_code}
                       onChange={(e) => setRegionForm({...regionForm, region_code: e.target.value.toUpperCase()})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="EU"
                     />
                   </div>
@@ -360,7 +360,7 @@ export default function Settings() {
                       type="text"
                       value={regionForm.region_name}
                       onChange={(e) => setRegionForm({...regionForm, region_name: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="Europe"
                     />
                   </div>
@@ -371,7 +371,7 @@ export default function Settings() {
                   <textarea
                     value={regionForm.description}
                     onChange={(e) => setRegionForm({...regionForm, description: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     rows="2"
                     placeholder="Regional description"
                   />
@@ -383,7 +383,7 @@ export default function Settings() {
                     <select
                       value={regionForm.associated_currency}
                       onChange={(e) => setRegionForm({...regionForm, associated_currency: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option value="">Select...</option>
                       {currencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)}
@@ -394,7 +394,7 @@ export default function Settings() {
                     <select
                       value={regionForm.reporting_calendar}
                       onChange={(e) => setRegionForm({...regionForm, reporting_calendar: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option>Jan-Dec</option>
                       <option>Apr-Mar</option>
@@ -406,7 +406,7 @@ export default function Settings() {
                     <select
                       value={regionForm.regulatory_framework}
                       onChange={(e) => setRegionForm({...regionForm, regulatory_framework: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option>IFRS</option>
                       <option>Dutch GAAP</option>
@@ -418,7 +418,7 @@ export default function Settings() {
                     <select
                       value={regionForm.parent_region_id || ''}
                       onChange={(e) => setRegionForm({...regionForm, parent_region_id: e.target.value || null})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option value="">None</option>
                       {regions.map(r => (
@@ -431,7 +431,7 @@ export default function Settings() {
                     <select
                       value={regionForm.controller_id || ''}
                       onChange={(e) => setRegionForm({...regionForm, controller_id: e.target.value || null})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option value="">Select...</option>
                       {controllers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -497,7 +497,7 @@ export default function Settings() {
                     type="text"
                     value={controllerForm.name}
                     onChange={(e) => setControllerForm({...controllerForm, name: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     placeholder="John Doe"
                   />
                 </div>
@@ -509,7 +509,7 @@ export default function Settings() {
                       type="email"
                       value={controllerForm.email}
                       onChange={(e) => setControllerForm({...controllerForm, email: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                       placeholder="john.doe@example.com"
                     />
                   </div>
@@ -518,7 +518,7 @@ export default function Settings() {
                     <select
                       value={controllerForm.role}
                       onChange={(e) => setControllerForm({...controllerForm, role: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option>Group Controller</option>
                       <option>Entity Controller</option>
@@ -531,7 +531,7 @@ export default function Settings() {
                   <select
                     value={controllerForm.reporting_to || ''}
                     onChange={(e) => setControllerForm({...controllerForm, reporting_to: e.target.value || null})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                   >
                     <option value="">Select...</option>
                     {controllers.map(c => (
@@ -636,7 +636,7 @@ export default function Settings() {
                   <select
                     value={systemParams.currency_rules?.group_presentation_currency || 'USD'}
                     onChange={(e) => updateSystemParam('currency_rules', 'group_presentation_currency', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     {currencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code} - {c.currency_name}</option>)}
                   </select>
@@ -648,7 +648,7 @@ export default function Settings() {
                     step="0.1"
                     value={systemParams.currency_rules?.rate_variance_tolerance || '2.0'}
                     onChange={(e) => updateSystemParam('currency_rules', 'rate_variance_tolerance', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   />
                 </div>
                 <div>
@@ -656,7 +656,7 @@ export default function Settings() {
                   <select
                     value={systemParams.currency_rules?.rounding_precision || 'group'}
                     onChange={(e) => updateSystemParam('currency_rules', 'rounding_precision', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     <option value="entity">Entity Level</option>
                     <option value="group">Group Level</option>
@@ -674,7 +674,7 @@ export default function Settings() {
                   <select
                     value={systemParams.translation_rules?.assets_liabilities_method || 'Closing Rate'}
                     onChange={(e) => updateSystemParam('translation_rules', 'assets_liabilities_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     <option>Closing Rate</option>
                     <option>Average Rate</option>
@@ -686,7 +686,7 @@ export default function Settings() {
                   <select
                     value={systemParams.translation_rules?.revenue_expenses_method || 'Average Rate'}
                     onChange={(e) => updateSystemParam('translation_rules', 'revenue_expenses_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     <option>Average Rate</option>
                     <option>Closing Rate</option>
@@ -698,7 +698,7 @@ export default function Settings() {
                   <select
                     value={systemParams.translation_rules?.equity_method || 'Historical'}
                     onChange={(e) => updateSystemParam('translation_rules', 'equity_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     <option>Historical</option>
                     <option>Closing Rate</option>
@@ -716,7 +716,7 @@ export default function Settings() {
                   <select
                     value={systemParams.consolidation_settings?.default_method || 'Full'}
                     onChange={(e) => updateSystemParam('consolidation_settings', 'default_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     <option>Full</option>
                     <option>Proportionate</option>
@@ -728,7 +728,7 @@ export default function Settings() {
                   <select
                     value={systemParams.consolidation_settings?.ic_elimination_logic || 'Automatic'}
                     onChange={(e) => updateSystemParam('consolidation_settings', 'ic_elimination_logic', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
                   >
                     <option>Automatic</option>
                     <option>Manual</option>

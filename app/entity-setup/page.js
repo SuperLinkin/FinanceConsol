@@ -159,91 +159,110 @@ export default function EntitySetup() {
 
   if (loading) {
     return (
-      <div className="p-8 bg-white min-h-screen flex items-center justify-center">
-        <div className="text-gray-600 text-lg">Loading entities...</div>
+      <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center">
+        <div className="text-[#101828] text-lg">Loading entities...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-12 bg-white min-h-screen">
-      <div className="flex justify-between items-center mb-10">
-        <h1 className="text-4xl font-bold text-black">Entity Setup</h1>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-          className="px-6 py-2.5 bg-[#2d2d2d] text-white rounded font-medium hover:bg-black transition-colors"
-        >
-          Add Entity
-        </button>
-      </div>
-
-      <div className="flex gap-4 mb-8">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search entities..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-600 placeholder-gray-400"
-          />
+    <div className="min-h-screen bg-[#f7f5f2]">
+      <div className="max-w-[1600px] mx-auto px-12 py-10">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-5xl font-bold text-[#101828] mb-2">Entity Setup</h1>
+            <p className="text-lg text-gray-600">Manage organizational entities and hierarchy</p>
+          </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1a2233] transition-colors"
+          >
+            Add Entity
+          </button>
         </div>
-        <select
-          value={filterRegion}
-          onChange={(e) => setFilterRegion(e.target.value)}
-          className="px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 bg-white min-w-[140px]"
-        >
-          {availableRegions.map(region => (
-            <option key={region} value={region}>{region}</option>
-          ))}
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 bg-white min-w-[130px]"
-        >
-          {statuses.map(status => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-      </div>
 
-      <div className="border border-gray-300 rounded overflow-hidden">
+        {/* Filters */}
+        <div className="bg-white rounded-[14px] p-6 shadow-sm border border-gray-200 mb-6">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search entities..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] placeholder-gray-400"
+              />
+            </div>
+            <select
+              value={filterRegion}
+              onChange={(e) => setFilterRegion(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] bg-white min-w-[160px]"
+            >
+              {availableRegions.map(region => (
+                <option key={region} value={region}>{region}</option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] bg-white min-w-[150px]"
+            >
+              {statuses.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Table Container */}
+        <div className="bg-white border border-gray-200 rounded-[14px] shadow-sm overflow-hidden">
         <table className="w-full">
-          <thead className="bg-[#f0ede5]">
+          <thead className="bg-[#101828]">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Entity Code</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Entity Name</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Region</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Currency</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Ownership %</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Status</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-black uppercase">Actions</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Entity Code</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Entity Name</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Region</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Currency</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Ownership %</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Status</th>
+              <th className="px-6 py-4 text-left text-sm font-bold text-white">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredEntities.map((entity, index) => (
-              <tr key={entity.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-6 py-4 text-sm font-semibold text-black">{entity.entity_code}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{entity.entity_name}</td>
+              <tr key={entity.id} className={`border-b border-gray-200 hover:bg-[#faf8f4] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-[#faf9f7]'}`}>
+                <td className="px-6 py-4 text-sm font-semibold text-[#101828]">{entity.entity_code}</td>
+                <td className="px-6 py-4 text-base font-medium text-[#101828]">{entity.entity_name}</td>
                 <td className="px-6 py-4 text-sm text-gray-700">{entity.region || '-'}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{entity.functional_currency}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{entity.ownership_percentage.toFixed(2)}</td>
+                <td className="px-6 py-4 text-sm text-[#101828]">{entity.functional_currency}</td>
+                <td className="px-6 py-4 text-sm text-[#101828]">{entity.ownership_percentage.toFixed(2)}</td>
                 <td className="px-6 py-4">
-                  <span className="px-3 py-1 bg-[#7fa989] text-white text-xs font-medium rounded">
+                  <span className={`px-3 py-1 text-xs font-semibold rounded ${
+                    entity.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
                     {entity.status}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <button 
-                    onClick={() => handleEdit(entity)} 
-                    className="text-sm text-black font-medium hover:underline"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEdit(entity)}
+                      className="px-4 py-2 bg-[#101828] text-white text-sm font-medium rounded-lg hover:bg-[#1a2233] transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(entity.id)}
+                      className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -258,184 +277,255 @@ export default function EntitySetup() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#3a3b3e] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-gray-700 px-8 py-5 flex justify-between items-center sticky top-0 bg-[#3a3b3e] z-10">
-              <h2 className="text-xl font-bold text-white">Entity Setup - Enhanced Configuration</h2>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-end">
+          <div className="bg-white h-full w-[800px] shadow-2xl animate-slideRight overflow-y-auto">
+            <div className="p-8">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-bold text-[#101828]">
+                  {editingEntity ? 'Edit Entity' : 'Add New Entity'}
+                </h2>
+                <button
+                  onClick={() => { setShowModal(false); resetForm(); }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
 
-            <div className="mx-8 mt-6 px-4 py-3 bg-blue-900 bg-opacity-30 border border-blue-600 rounded flex items-start gap-3">
-              <div className="text-blue-400 mt-0.5">ℹ</div>
-              <p className="text-sm text-blue-200">Complete entity configuration for consolidation purposes</p>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-8">
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Entity Code <span className="text-red-400">*</span>
-                  </label>
-                  <input type="text" name="entity_code" value={formData.entity_code} onChange={handleChange}
-                    placeholder="e.g., US-001" required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Entity Type <span className="text-red-400">*</span>
-                  </label>
-                  <select name="entity_type" value={formData.entity_type} onChange={handleChange} required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="">Select type...</option>
-                    <option value="Subsidiary">Subsidiary</option>
-                    <option value="Joint Venture">Joint Venture</option>
-                    <option value="Associate">Associate</option>
-                    <option value="Branch">Branch</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Entity Name <span className="text-red-400">*</span>
-                  </label>
-                  <input type="text" name="entity_name" value={formData.entity_name} onChange={handleChange}
-                    placeholder="Full legal entity name" required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Parent Entity</label>
-                  <select name="parent_entity_id" value={formData.parent_entity_id || 'none'} onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="none">None (Ultimate Parent)</option>
-                    {entities.filter(e => e.id !== editingEntity?.id).map(entity => (
-                      <option key={entity.id} value={entity.id}>{entity.entity_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Ownership % <span className="text-red-400">*</span>
-                  </label>
-                  <input type="number" name="ownership_percentage" value={formData.ownership_percentage} onChange={handleChange}
-                    min="0" max="100" step="0.01" required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Functional Currency <span className="text-red-400">*</span>
-                  </label>
-                  <select name="functional_currency" value={formData.functional_currency} onChange={handleChange} required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="">Select currency...</option>
-                    {currencies.map(curr => (
-                      <option key={curr.id} value={curr.currency_code}>{curr.currency_code} - {curr.currency_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Presentation Currency</label>
-                  <select name="presentation_currency" value={formData.presentation_currency} onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="Same as functional">Same as functional</option>
-                    {currencies.map(curr => (
-                      <option key={curr.id} value={curr.currency_code}>{curr.currency_code}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Region <span className="text-red-400">*</span>
-                  </label>
-                  <select name="region" value={formData.region} onChange={handleChange} required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="">Select region...</option>
-                    {regions.map(reg => (
-                      <option key={reg.id} value={reg.region_name}>{reg.region_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Country of Incorporation <span className="text-red-400">*</span>
-                  </label>
-                  <input type="text" name="country_of_incorporation" value={formData.country_of_incorporation} onChange={handleChange}
-                    placeholder="e.g., United States" required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Tax Jurisdiction</label>
-                  <input type="text" name="tax_jurisdiction" value={formData.tax_jurisdiction} onChange={handleChange}
-                    placeholder="e.g., Delaware"
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Financial Year End <span className="text-red-400">*</span>
-                  </label>
-                  <input type="date" name="financial_year_end" value={formData.financial_year_end} onChange={handleChange} required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Status <span className="text-red-400">*</span>
-                  </label>
-                  <select name="status" value={formData.status} onChange={handleChange} required
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Notes / Additional Information</label>
-                  <textarea name="notes" value={formData.notes} onChange={handleChange} rows="3"
-                    placeholder="Optional notes about this entity..."
-                    className="w-full px-3 py-2.5 bg-[#2b2d31] border border-gray-600 rounded text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="include_in_consolidation" checked={formData.include_in_consolidation} onChange={handleChange}
-                      className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Entity Code *
+                    </label>
+                    <input
+                      type="text"
+                      name="entity_code"
+                      value={formData.entity_code}
+                      onChange={handleChange}
+                      placeholder="e.g., US-001"
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     />
-                    <span className="text-sm font-medium text-gray-300">Include in consolidation scope</span>
-                  </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Entity Type *
+                    </label>
+                    <select
+                      name="entity_type"
+                      value={formData.entity_type}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    >
+                      <option value="">Select type...</option>
+                      <option value="Subsidiary">Subsidiary</option>
+                      <option value="Joint Venture">Joint Venture</option>
+                      <option value="Associate">Associate</option>
+                      <option value="Branch">Branch</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Entity Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="entity_name"
+                      value={formData.entity_name}
+                      onChange={handleChange}
+                      placeholder="Full legal entity name"
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Parent Entity</label>
+                    <select
+                      name="parent_entity_id"
+                      value={formData.parent_entity_id || 'none'}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    >
+                      <option value="none">None (Ultimate Parent)</option>
+                      {entities.filter(e => e.id !== editingEntity?.id).map(entity => (
+                        <option key={entity.id} value={entity.id}>{entity.entity_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Ownership % *
+                    </label>
+                    <input
+                      type="number"
+                      name="ownership_percentage"
+                      value={formData.ownership_percentage}
+                      onChange={handleChange}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Functional Currency *
+                    </label>
+                    <select
+                      name="functional_currency"
+                      value={formData.functional_currency}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    >
+                      <option value="">Select currency...</option>
+                      {currencies.map(curr => (
+                        <option key={curr.id} value={curr.currency_code}>{curr.currency_code} - {curr.currency_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Presentation Currency</label>
+                    <select
+                      name="presentation_currency"
+                      value={formData.presentation_currency}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    >
+                      <option value="Same as functional">Same as functional</option>
+                      {currencies.map(curr => (
+                        <option key={curr.id} value={curr.currency_code}>{curr.currency_code}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Region *
+                    </label>
+                    <select
+                      name="region"
+                      value={formData.region}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    >
+                      <option value="">Select region...</option>
+                      {regions.map(reg => (
+                        <option key={reg.id} value={reg.region_name}>{reg.region_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Country of Incorporation *
+                    </label>
+                    <input
+                      type="text"
+                      name="country_of_incorporation"
+                      value={formData.country_of_incorporation}
+                      onChange={handleChange}
+                      placeholder="e.g., United States"
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tax Jurisdiction</label>
+                    <input
+                      type="text"
+                      name="tax_jurisdiction"
+                      value={formData.tax_jurisdiction}
+                      onChange={handleChange}
+                      placeholder="e.g., Delaware"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Financial Year End *
+                    </label>
+                    <input
+                      type="date"
+                      name="financial_year_end"
+                      value={formData.financial_year_end}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Status *
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Notes / Additional Information</label>
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleChange}
+                      rows="3"
+                      placeholder="Optional notes about this entity..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] resize-none"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        name="include_in_consolidation"
+                        checked={formData.include_in_consolidation}
+                        onChange={handleChange}
+                        className="w-5 h-5 rounded border-gray-300 text-[#101828] focus:ring-[#101828]"
+                      />
+                      <span className="font-medium text-gray-700">Include in consolidation scope</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex gap-3 justify-end mt-8 pt-6 border-t border-gray-700">
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }}
-                  className="px-6 py-2.5 border border-gray-500 rounded text-gray-300 font-medium hover:bg-gray-700 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit"
-                  className="px-6 py-2.5 bg-white text-black rounded font-medium hover:bg-gray-100 transition-colors">
-                  Save Entity
-                </button>
-              </div>
-            </form>
+
+                {/* Save Button */}
+                <div className="mt-8 sticky bottom-0 bg-white pt-6 border-t border-gray-200">
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#101828] text-white rounded-full font-semibold hover:bg-[#1a2233] transition-colors shadow-lg"
+                  >
+                    Save Entity
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
