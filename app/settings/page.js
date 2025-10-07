@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ChevronDown, ChevronUp, Lock, Unlock, Check, X, Save } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('currencies');
@@ -17,10 +18,14 @@ export default function Settings() {
   const [hasChanges, setHasChanges] = useState(false);
 
   const [currencyForm, setCurrencyForm] = useState({
-    currency_code: '', currency_name: '', symbol: '', decimal_precision: 2,
-    is_group_currency: false, is_functional_currency: false, rate_source: 'Manual',
-    exchange_rate: 1, approved_by: '', is_locked: false
+    currency_code: '', currency_name: '', symbol: '',
+    is_presentation_currency: false, is_functional_currency: false,
+    is_group_reporting_currency: false,
+    exchange_rate: 1.0, is_active: true
   });
+  const [worldCurrencies, setWorldCurrencies] = useState([]);
+  const [loadingRates, setLoadingRates] = useState(false);
+  const [baseCurrency, setBaseCurrency] = useState('USD');
 
   const [regionForm, setRegionForm] = useState({
     region_code: '', region_name: '', description: '', associated_currency: '',
@@ -29,7 +34,7 @@ export default function Settings() {
   });
 
   const [controllerForm, setControllerForm] = useState({
-    name: '', role: 'Entity Controller', email: '', reporting_to: null, is_active: true
+    name: '', role: 'Entity Controller', email: '', reporting_to: null, is_ultimate_owner: false, is_active: true
   });
 
   useEffect(() => {
@@ -38,8 +43,9 @@ export default function Settings() {
 
   const fetchAllData = async () => {
     try {
-      const [curr, reg, ctrl, per, params] = await Promise.all([
+      const [curr, worldCurr, reg, ctrl, per, params] = await Promise.all([
         supabase.from('currencies').select('*').order('currency_code'),
+        supabase.from('world_currencies').select('*').eq('is_active', true).order('currency_name'),
         supabase.from('regions').select('*').order('region_name'),
         supabase.from('entity_controllers').select('*').order('name'),
         supabase.from('reporting_periods').select('*').order('period_start'),
@@ -47,10 +53,11 @@ export default function Settings() {
       ]);
 
       setCurrencies(curr.data || []);
+      setWorldCurrencies(worldCurr.data || []);
       setRegions(reg.data || []);
       setControllers(ctrl.data || []);
       setPeriods(per.data || []);
-      
+
       const paramsObj = {};
       (params.data || []).forEach(p => {
         if (!paramsObj[p.parameter_category]) paramsObj[p.parameter_category] = {};
@@ -64,20 +71,80 @@ export default function Settings() {
     }
   };
 
-  const saveCurrency = async () => {
-    if (!currencyForm.currency_code || !currencyForm.currency_name) return;
+  const fetchLiveRates = async () => {
+    if (!currencyForm.currency_code) return;
+    setLoadingRates(true);
     try {
-      const { error } = await supabase.from('currencies').insert([currencyForm]);
+      const response = await fetch(`/api/exchange-rates?base=${baseCurrency}`);
+      const data = await response.json();
+      if (data.success && data.data.rates[currencyForm.currency_code]) {
+        setCurrencyForm({
+          ...currencyForm,
+          exchange_rate: data.data.rates[currencyForm.currency_code]
+        });
+        alert(`Live rate fetched: 1 ${baseCurrency} = ${data.data.rates[currencyForm.currency_code]} ${currencyForm.currency_code}`);
+      } else {
+        alert('Rate not available for this currency. Using default rate of 1.0');
+      }
+    } catch (error) {
+      console.error('Failed to fetch rates:', error);
+      alert('Failed to fetch live rates. Using default rate of 1.0');
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+
+  const saveCurrency = async () => {
+    if (!currencyForm.currency_code || !currencyForm.currency_name) {
+      alert('Please select a currency');
+      return;
+    }
+    try {
+      // If marking as group reporting currency, unset all others first
+      if (currencyForm.is_group_reporting_currency) {
+        const { error: unsetError } = await supabase.from('currencies')
+          .update({ is_group_reporting_currency: false })
+          .neq('currency_code', currencyForm.currency_code);
+
+        if (unsetError) {
+          console.error('Error unsetting group reporting currencies:', unsetError);
+          // Continue anyway - might be column doesn't exist yet
+        }
+      }
+
+      const currencyData = {
+        currency_code: currencyForm.currency_code,
+        currency_name: currencyForm.currency_name,
+        symbol: currencyForm.symbol,
+        is_presentation_currency: currencyForm.is_presentation_currency,
+        is_functional_currency: currencyForm.is_functional_currency,
+        is_group_reporting_currency: currencyForm.is_group_reporting_currency,
+        exchange_rate: currencyForm.exchange_rate || 1.0,
+        rate_date: new Date().toISOString(),
+        is_active: true
+      };
+
+      const { error } = await supabase.from('currencies').insert([currencyData]);
       if (error) throw error;
+
       setCurrencyForm({
-        currency_code: '', currency_name: '', symbol: '', decimal_precision: 2,
-        is_group_currency: false, is_functional_currency: false, rate_source: 'Manual',
-        exchange_rate: 1, approved_by: '', is_locked: false
+        currency_code: '', currency_name: '', symbol: '',
+        is_presentation_currency: false, is_functional_currency: false,
+        is_group_reporting_currency: false,
+        exchange_rate: 1.0, is_active: true
       });
       setHasChanges(false);
-      fetchAllData();
+      await fetchAllData();
+      alert('Currency added successfully!');
     } catch (error) {
-      alert('Error: ' + error.message);
+      console.error('Error saving currency:', error);
+
+      // Check if it's a column not found error
+      if (error?.message?.includes('column') || error?.code === '42703') {
+        alert('Database update required: Please run the SQL migration file (sql/01_CREATE_EVERYTHING.sql) to add the group reporting currency feature.');
+      } else {
+        alert('Error: ' + error.message);
+      }
     }
   };
 
@@ -103,7 +170,7 @@ export default function Settings() {
       const { error } = await supabase.from('entity_controllers').insert([controllerForm]);
       if (error) throw error;
       setControllerForm({
-        name: '', role: 'Entity Controller', email: '', reporting_to: null, is_active: true
+        name: '', role: 'Entity Controller', email: '', reporting_to: null, is_ultimate_owner: false, is_active: true
       });
       fetchAllData();
     } catch (error) {
@@ -123,27 +190,61 @@ export default function Settings() {
     }
   };
 
+  const setGroupReportingCurrency = async (currencyCode) => {
+    try {
+      // Unset all currencies first
+      const { error: unsetError } = await supabase.from('currencies')
+        .update({ is_group_reporting_currency: false })
+        .neq('currency_code', 'DUMMY');
+
+      if (unsetError) {
+        console.error('Error unsetting currencies:', unsetError);
+        throw unsetError;
+      }
+
+      // Set the selected one
+      const { error: setError } = await supabase.from('currencies')
+        .update({ is_group_reporting_currency: true })
+        .eq('currency_code', currencyCode);
+
+      if (setError) {
+        console.error('Error setting currency:', setError);
+        throw setError;
+      }
+
+      await fetchAllData();
+      alert(`${currencyCode} is now the group reporting currency (base)`);
+    } catch (error) {
+      console.error('Error setting group reporting currency:', error);
+
+      // Check if it's a column not found error
+      if (error?.message?.includes('column') || error?.code === '42703') {
+        alert('Database update required: Please run the SQL migration file (sql/01_CREATE_EVERYTHING.sql) to add the group reporting currency feature.');
+      } else {
+        alert(`Failed to set group reporting currency: ${error.message || 'Unknown error'}`);
+      }
+    }
+  };
+
   if (loading) {
-    return <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center"><div className="text-[#101828]">Loading...</div></div>;
+    return <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center"><div className="text-slate-900">Loading...</div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f5f2]">
-      <div className="max-w-[1400px] mx-auto px-12 py-10">
-        <div className="mb-10">
-          <h1 className="text-5xl font-bold text-[#101828] mb-2">Configuration</h1>
-          <p className="text-lg text-gray-600">IFRS Consolidation Hub</p>
-        </div>
+    <div className="h-screen flex flex-col bg-[#f7f5f2]">
+      <PageHeader title="Consolidation Configuration" subtitle="Configure your consolidation settings and preferences" />
 
-        {/* Tabs */}
-        <div className="flex gap-8 border-b-2 border-gray-300 mb-10">
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-8 py-6">
+          {/* Tabs */}
+          <div className="flex gap-8 border-b-2 border-gray-300 mb-10">
           {['Currencies', 'Regions', 'Controllers', 'Reporting Periods', 'System Parameters'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_'))}
               className={`pb-4 px-2 text-base font-semibold transition-all duration-300 ${
                 activeTab === tab.toLowerCase().replace(' ', '_')
-                  ? 'text-[#101828] border-b-4 border-[#101828] -mb-0.5'
+                  ? 'text-slate-900 border-b-4 border-slate-900 -mb-0.5'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -154,193 +255,171 @@ export default function Settings() {
 
         {/* CURRENCIES TAB */}
         {activeTab === 'currencies' && (
-          <div className="grid grid-cols-3 gap-8">
-            {/* Left: Form */}
-            <div className="col-span-2 bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-[#101828] mb-6">Currency Configuration</h2>
-              
-              {/* Currency Basics */}
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-[#101828] mb-4">Currency Basics</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Currency Code</label>
-                    <input
-                      type="text"
-                      maxLength={3}
-                      value={currencyForm.currency_code}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, currency_code: e.target.value.toUpperCase()});
-                        setHasChanges(true);
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                      placeholder="USD"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Currency Name</label>
-                    <input
-                      type="text"
-                      value={currencyForm.currency_name}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, currency_name: e.target.value});
-                        setHasChanges(true);
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                      placeholder="US Dollar"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Symbol</label>
-                    <input
-                      type="text"
-                      value={currencyForm.symbol}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, symbol: e.target.value});
-                        setHasChanges(true);
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                      placeholder="$"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Decimal Precision</label>
-                    <select
-                      value={currencyForm.decimal_precision}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, decimal_precision: parseInt(e.target.value)});
-                        setHasChanges(true);
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                    >
-                      {[0,1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
+          <div className="space-y-6">
+            {/* Add Currency Form */}
+            <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Add New Currency</h2>
 
-              {/* Usage Section */}
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-[#101828] mb-4">Usage</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={currencyForm.is_group_currency}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, is_group_currency: e.target.checked});
-                        setHasChanges(true);
-                      }}
-                      className="w-5 h-5 rounded border-gray-300 text-[#101828] focus:ring-[#101828]"
-                    />
-                    <span className="font-medium text-gray-700">Is Group Presentation Currency</span>
+              <div className="grid grid-cols-3 gap-6">
+                {/* Column 1 */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Select Currency <span className="text-red-500">*</span>
                   </label>
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={currencyForm.is_functional_currency}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, is_functional_currency: e.target.checked});
-                        setHasChanges(true);
-                      }}
-                      className="w-5 h-5 rounded border-gray-300 text-[#101828] focus:ring-[#101828]"
-                    />
-                    <span className="font-medium text-gray-700">Is Functional Currency</span>
-                  </label>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Default Exchange Rate Source</label>
                   <select
-                    value={currencyForm.rate_source}
+                    value={currencyForm.currency_code}
                     onChange={(e) => {
-                      setCurrencyForm({...currencyForm, rate_source: e.target.value});
-                      setHasChanges(true);
+                      const selected = worldCurrencies.find(c => c.currency_code === e.target.value);
+                      if (selected) {
+                        setCurrencyForm({
+                          ...currencyForm,
+                          currency_code: selected.currency_code,
+                          currency_name: selected.currency_name,
+                          symbol: selected.symbol
+                        });
+                      }
                     }}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                   >
-                    <option>ECB</option>
-                    <option>Manual</option>
-                    <option>Treasury Feed</option>
+                    <option value="">Select currency...</option>
+                    {worldCurrencies.map(curr => (
+                      <option key={curr.currency_code} value={curr.currency_code}>
+                        {curr.currency_code} - {curr.symbol}
+                      </option>
+                    ))}
                   </select>
+                  {currencyForm.currency_code && (
+                    <p className="text-xs text-gray-600 mt-1">{currencyForm.currency_name}</p>
+                  )}
                 </div>
-              </div>
 
-              {/* Governance */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-[#101828] mb-4">Governance</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Approved By</label>
-                    <input
-                      type="text"
-                      value={currencyForm.approved_by}
-                      onChange={(e) => {
-                        setCurrencyForm({...currencyForm, approved_by: e.target.value});
-                        setHasChanges(true);
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                      placeholder="Controller name"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-3">
+                {/* Column 2 */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Usage
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={currencyForm.is_locked}
-                        onChange={(e) => {
-                          setCurrencyForm({...currencyForm, is_locked: e.target.checked});
-                          setHasChanges(true);
-                        }}
-                        className="w-5 h-5 rounded border-gray-300 text-[#101828] focus:ring-[#101828]"
+                        checked={currencyForm.is_group_reporting_currency}
+                        onChange={(e) => setCurrencyForm({...currencyForm, is_group_reporting_currency: e.target.checked})}
+                        className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
                       />
-                      <span className="font-medium text-gray-700">Lock Status (disable edit after approval)</span>
+                      <span className="text-sm font-semibold text-slate-900">★ Group Reporting</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={currencyForm.is_presentation_currency}
+                        onChange={(e) => setCurrencyForm({...currencyForm, is_presentation_currency: e.target.checked})}
+                        className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
+                      />
+                      <span className="text-sm text-gray-700">Presentation</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={currencyForm.is_functional_currency}
+                        onChange={(e) => setCurrencyForm({...currencyForm, is_functional_currency: e.target.checked})}
+                        className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
+                      />
+                      <span className="text-sm text-gray-700">Functional</span>
                     </label>
                   </div>
                 </div>
-              </div>
 
-              <button
-                onClick={saveCurrency}
-                className="px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1a2233] transition-colors"
-              >
-                Add Currency
-              </button>
+                {/* Column 3 */}
+                <div className="flex items-end">
+                  <button
+                    onClick={saveCurrency}
+                    disabled={!currencyForm.currency_code}
+                    className="w-full px-6 py-2.5 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Add Currency
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Right: Active Rates Summary */}
-            <div className="bg-[#faf9f7] rounded-[14px] p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-[#101828] mb-4">Active Currencies</h3>
-              <div className="space-y-3">
-                {currencies.map(curr => (
-                  <div key={curr.id} className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-bold text-[#101828]">{curr.currency_code}</div>
-                        <div className="text-sm text-gray-600">{curr.currency_name}</div>
-                      </div>
-                      {curr.is_locked && <Lock size={16} className="text-gray-500" />}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Rate: {(curr.exchange_rate || 1).toFixed(6)}
-                    </div>
-                    {curr.is_group_currency && (
-                      <div className="mt-2">
-                        <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded">Group Currency</span>
-                      </div>
-                    )}
+            {/* Active Currencies Table */}
+            <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-xl font-bold text-slate-900">Active Currencies ({currencies.length})</h3>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-[#101828] text-white">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Code</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Name</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Symbol</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Usage</th>
+                      <th className="px-6 py-3 text-center text-sm font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {currencies.map((curr, index) => (
+                      <tr key={curr.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-900">{curr.currency_code}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-700">{curr.currency_name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-lg font-bold text-gray-700">{curr.symbol}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex gap-1 flex-wrap">
+                            {curr.is_group_reporting_currency && (
+                              <span className="px-2 py-1 bg-slate-900 text-white text-xs font-bold rounded">
+                                ★ BASE
+                              </span>
+                            )}
+                            {curr.is_presentation_currency && (
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs font-semibold rounded">
+                                Pres
+                              </span>
+                            )}
+                            {curr.is_functional_currency && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+                                Func
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {!curr.is_group_reporting_currency && (
+                            <button
+                              onClick={() => setGroupReportingCurrency(curr.currency_code)}
+                              className="px-3 py-1.5 bg-slate-100 text-slate-900 text-xs font-semibold rounded hover:bg-slate-200 transition-colors"
+                            >
+                              Set as Base
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {currencies.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    No currencies added yet. Add your first currency above.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
         )}
-
         {/* REGIONS TAB */}
         {activeTab === 'regions' && (
           <div className="grid grid-cols-3 gap-8">
             {/* Left: Add Region Form */}
             <div className="col-span-2 bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-[#101828] mb-6">Add New Region</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Add New Region</h2>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -350,7 +429,7 @@ export default function Settings() {
                       type="text"
                       value={regionForm.region_code}
                       onChange={(e) => setRegionForm({...regionForm, region_code: e.target.value.toUpperCase()})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                       placeholder="EU"
                     />
                   </div>
@@ -360,7 +439,7 @@ export default function Settings() {
                       type="text"
                       value={regionForm.region_name}
                       onChange={(e) => setRegionForm({...regionForm, region_name: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                       placeholder="Europe"
                     />
                   </div>
@@ -371,7 +450,7 @@ export default function Settings() {
                   <textarea
                     value={regionForm.description}
                     onChange={(e) => setRegionForm({...regionForm, description: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     rows="2"
                     placeholder="Regional description"
                   />
@@ -383,7 +462,7 @@ export default function Settings() {
                     <select
                       value={regionForm.associated_currency}
                       onChange={(e) => setRegionForm({...regionForm, associated_currency: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     >
                       <option value="">Select...</option>
                       {currencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)}
@@ -394,7 +473,7 @@ export default function Settings() {
                     <select
                       value={regionForm.reporting_calendar}
                       onChange={(e) => setRegionForm({...regionForm, reporting_calendar: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     >
                       <option>Jan-Dec</option>
                       <option>Apr-Mar</option>
@@ -406,7 +485,7 @@ export default function Settings() {
                     <select
                       value={regionForm.regulatory_framework}
                       onChange={(e) => setRegionForm({...regionForm, regulatory_framework: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     >
                       <option>IFRS</option>
                       <option>Dutch GAAP</option>
@@ -418,7 +497,7 @@ export default function Settings() {
                     <select
                       value={regionForm.parent_region_id || ''}
                       onChange={(e) => setRegionForm({...regionForm, parent_region_id: e.target.value || null})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     >
                       <option value="">None</option>
                       {regions.map(r => (
@@ -431,7 +510,7 @@ export default function Settings() {
                     <select
                       value={regionForm.controller_id || ''}
                       onChange={(e) => setRegionForm({...regionForm, controller_id: e.target.value || null})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     >
                       <option value="">Select...</option>
                       {controllers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -445,7 +524,7 @@ export default function Settings() {
                       type="checkbox"
                       checked={regionForm.intra_region_netting}
                       onChange={(e) => setRegionForm({...regionForm, intra_region_netting: e.target.checked})}
-                      className="w-5 h-5 rounded border-gray-300 text-[#101828] focus:ring-[#101828]"
+                      className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
                     />
                     <span className="font-medium text-gray-700">Intra-region netting enabled</span>
                   </label>
@@ -453,7 +532,7 @@ export default function Settings() {
 
                 <button
                   onClick={saveRegion}
-                  className="px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1a2233] transition-colors"
+                  className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors"
                 >
                   Add Region
                 </button>
@@ -462,11 +541,11 @@ export default function Settings() {
 
             {/* Right: Active Regions List */}
             <div className="bg-[#faf9f7] rounded-[14px] p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-[#101828] mb-4">Active Regions</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Active Regions</h3>
               <div className="space-y-3">
                 {regions.map(region => (
                   <div key={region.id} className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="font-bold text-[#101828]">{region.region_name}</div>
+                    <div className="font-bold text-slate-900">{region.region_name}</div>
                     <div className="text-sm text-gray-600">{region.region_code}</div>
                     <div className="text-xs text-gray-500 mt-2">{region.regulatory_framework}</div>
                     {region.associated_currency && (
@@ -488,7 +567,7 @@ export default function Settings() {
           <div className="grid grid-cols-3 gap-8">
             {/* Left: Add Controller Form */}
             <div className="col-span-2 bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-[#101828] mb-6">Add New Controller</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Add New Controller</h2>
 
               <div className="space-y-6">
                 <div>
@@ -497,7 +576,7 @@ export default function Settings() {
                     type="text"
                     value={controllerForm.name}
                     onChange={(e) => setControllerForm({...controllerForm, name: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     placeholder="John Doe"
                   />
                 </div>
@@ -509,7 +588,7 @@ export default function Settings() {
                       type="email"
                       value={controllerForm.email}
                       onChange={(e) => setControllerForm({...controllerForm, email: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                       placeholder="john.doe@example.com"
                     />
                   </div>
@@ -518,22 +597,44 @@ export default function Settings() {
                     <select
                       value={controllerForm.role}
                       onChange={(e) => setControllerForm({...controllerForm, role: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
                     >
-                      <option>Group Controller</option>
-                      <option>Entity Controller</option>
+                      <option value="Owner">Owner</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Group Controller">Group Controller</option>
+                      <option value="Entity Controller">Entity Controller</option>
                     </select>
                   </div>
                 </div>
 
+                {/* Ultimate Owner Checkbox */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={controllerForm.is_ultimate_owner}
+                      onChange={(e) => setControllerForm({...controllerForm, is_ultimate_owner: e.target.checked, reporting_to: e.target.checked ? null : controllerForm.reporting_to})}
+                      className="w-5 h-5 text-amber-600 rounded focus:ring-2 focus:ring-amber-500 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm font-semibold text-slate-900">Ultimate Owner / Boss</span>
+                      <p className="text-xs text-gray-600 mt-1">Check this if this person is the ultimate owner/boss of the organization (reports to no one)</p>
+                    </div>
+                  </label>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Reporting To</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Reporting To {!controllerForm.is_ultimate_owner && <span className="text-red-500">*</span>}
+                  </label>
                   <select
                     value={controllerForm.reporting_to || ''}
                     onChange={(e) => setControllerForm({...controllerForm, reporting_to: e.target.value || null})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                    disabled={controllerForm.is_ultimate_owner}
+                    required={!controllerForm.is_ultimate_owner}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
-                    <option value="">Select...</option>
+                    <option value="">Select reporting manager...</option>
                     {controllers.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -546,7 +647,7 @@ export default function Settings() {
                       type="checkbox"
                       checked={controllerForm.is_active}
                       onChange={(e) => setControllerForm({...controllerForm, is_active: e.target.checked})}
-                      className="w-5 h-5 rounded border-gray-300 text-[#101828] focus:ring-[#101828]"
+                      className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
                     />
                     <span className="font-medium text-gray-700">Active Status</span>
                   </label>
@@ -554,7 +655,7 @@ export default function Settings() {
 
                 <button
                   onClick={saveController}
-                  className="px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1a2233] transition-colors"
+                  className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors"
                 >
                   Add Controller
                 </button>
@@ -563,30 +664,66 @@ export default function Settings() {
 
             {/* Right: Active Controllers List */}
             <div className="bg-[#faf9f7] rounded-[14px] p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-[#101828] mb-4">Active Controllers</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Active Controllers</h3>
               <div className="space-y-3">
-                {controllers.map(ctrl => (
-                  <div key={ctrl.id} className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="font-bold text-[#101828]">{ctrl.name}</div>
-                    <div className="text-sm text-gray-600">{ctrl.email}</div>
-                    <div className="mt-2">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                        ctrl.role === 'Group Controller'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {ctrl.role || 'Entity Controller'}
-                      </span>
-                    </div>
-                    {ctrl.is_active !== undefined && !ctrl.is_active && (
-                      <div className="mt-2">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded">
-                          Inactive
+                {controllers.map(ctrl => {
+                  const reportsTo = controllers.find(c => c.id === ctrl.reporting_to);
+                  return (
+                    <div
+                      key={ctrl.id}
+                      className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow relative group cursor-pointer"
+                      title={`${ctrl.name} - ${ctrl.role}`}
+                    >
+                      <div className="font-bold text-slate-900">{ctrl.name}</div>
+                      <div className="text-sm text-gray-600">{ctrl.email}</div>
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                          ctrl.role === 'Owner' ? 'bg-purple-100 text-purple-800' :
+                          ctrl.role === 'Manager' ? 'bg-blue-100 text-blue-800' :
+                          ctrl.role === 'Group Controller' ? 'bg-indigo-100 text-indigo-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {ctrl.role || 'Entity Controller'}
                         </span>
+                        {ctrl.is_ultimate_owner && (
+                          <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded">
+                            ★ Ultimate Owner
+                          </span>
+                        )}
+                        {ctrl.is_active !== undefined && !ctrl.is_active && (
+                          <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded">
+                            Inactive
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Hover Tooltip */}
+                      <div className="hidden group-hover:block absolute z-50 left-0 top-full mt-2 w-80 bg-slate-900 text-white p-4 rounded-lg shadow-xl">
+                        <div className="text-sm space-y-2">
+                          <div className="font-bold text-white border-b border-gray-600 pb-2">{ctrl.name}</div>
+                          <div><span className="text-gray-400">Email:</span> {ctrl.email}</div>
+                          <div><span className="text-gray-400">Role:</span> {ctrl.role}</div>
+                          <div>
+                            <span className="text-gray-400">Reports To:</span> {
+                              ctrl.is_ultimate_owner
+                                ? <span className="text-amber-400 font-semibold">No one (Ultimate Owner)</span>
+                                : reportsTo
+                                  ? <span className="text-blue-300">{reportsTo.name} ({reportsTo.role})</span>
+                                  : <span className="text-gray-500">Not assigned</span>
+                            }
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Status:</span> {
+                              ctrl.is_active !== false
+                                ? <span className="text-green-400">Active</span>
+                                : <span className="text-red-400">Inactive</span>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -598,11 +735,11 @@ export default function Settings() {
             <div className="mb-6 overflow-x-auto pb-4">
               <div className="flex gap-4 min-w-max">
                 {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => (
-                  <div key={month} className="w-48 bg-[#faf9f7] rounded-[14px] p-6 border-2 border-gray-200 hover:border-[#101828] transition-all cursor-pointer">
+                  <div key={month} className="w-48 bg-[#faf9f7] rounded-[14px] p-6 border-2 border-gray-200 hover:border-slate-900 transition-all cursor-pointer">
                     <div className="text-sm font-semibold text-gray-600 mb-2">{month} 2025</div>
                     <div className="mb-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        idx < 3 ? 'bg-red-100 text-red-800' : idx < 6 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                        idx < 3 ? 'bg-red-100 text-red-800' : idx < 6 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
                       }`}>
                         {idx < 3 ? 'Locked' : idx < 6 ? 'Pre-Close' : 'Open'}
                       </span>
@@ -629,14 +766,14 @@ export default function Settings() {
           <div className="space-y-6">
             {/* Currency Rules */}
             <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-[#101828] mb-6">Currency Rules</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Currency Rules</h2>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Group Presentation Currency</label>
                   <select
                     value={systemParams.currency_rules?.group_presentation_currency || 'USD'}
                     onChange={(e) => updateSystemParam('currency_rules', 'group_presentation_currency', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     {currencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code} - {c.currency_name}</option>)}
                   </select>
@@ -648,7 +785,7 @@ export default function Settings() {
                     step="0.1"
                     value={systemParams.currency_rules?.rate_variance_tolerance || '2.0'}
                     onChange={(e) => updateSystemParam('currency_rules', 'rate_variance_tolerance', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   />
                 </div>
                 <div>
@@ -656,7 +793,7 @@ export default function Settings() {
                   <select
                     value={systemParams.currency_rules?.rounding_precision || 'group'}
                     onChange={(e) => updateSystemParam('currency_rules', 'rounding_precision', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     <option value="entity">Entity Level</option>
                     <option value="group">Group Level</option>
@@ -667,14 +804,14 @@ export default function Settings() {
 
             {/* Translation Rules */}
             <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-[#101828] mb-6">Translation Rules</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Translation Rules</h2>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Assets/Liabilities Translation Method</label>
                   <select
                     value={systemParams.translation_rules?.assets_liabilities_method || 'Closing Rate'}
                     onChange={(e) => updateSystemParam('translation_rules', 'assets_liabilities_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     <option>Closing Rate</option>
                     <option>Average Rate</option>
@@ -686,7 +823,7 @@ export default function Settings() {
                   <select
                     value={systemParams.translation_rules?.revenue_expenses_method || 'Average Rate'}
                     onChange={(e) => updateSystemParam('translation_rules', 'revenue_expenses_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     <option>Average Rate</option>
                     <option>Closing Rate</option>
@@ -698,7 +835,7 @@ export default function Settings() {
                   <select
                     value={systemParams.translation_rules?.equity_method || 'Historical'}
                     onChange={(e) => updateSystemParam('translation_rules', 'equity_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     <option>Historical</option>
                     <option>Closing Rate</option>
@@ -709,14 +846,14 @@ export default function Settings() {
 
             {/* Consolidation Settings */}
             <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-[#101828] mb-6">Consolidation Settings</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Consolidation Settings</h2>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Default Consolidation Method</label>
                   <select
                     value={systemParams.consolidation_settings?.default_method || 'Full'}
                     onChange={(e) => updateSystemParam('consolidation_settings', 'default_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     <option>Full</option>
                     <option>Proportionate</option>
@@ -728,7 +865,7 @@ export default function Settings() {
                   <select
                     value={systemParams.consolidation_settings?.ic_elimination_logic || 'Automatic'}
                     onChange={(e) => updateSystemParam('consolidation_settings', 'ic_elimination_logic', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[#101828]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
                   >
                     <option>Automatic</option>
                     <option>Manual</option>
@@ -739,19 +876,20 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Sticky Save Bar */}
-        {hasChanges && (
-          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-[#101828] text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-4 animate-slideUp z-50">
-            <Save size={20} />
-            <span className="font-semibold">Unsaved changes</span>
-            <button
-              onClick={saveCurrency}
-              className="px-6 py-2 bg-white text-[#101828] rounded-full font-semibold hover:bg-gray-100 transition-colors"
-            >
-              Save Configuration
-            </button>
-          </div>
-        )}
+          {/* Sticky Save Bar */}
+          {hasChanges && (
+            <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-4 animate-slideUp z-50">
+              <Save size={20} />
+              <span className="font-semibold">Unsaved changes</span>
+              <button
+                onClick={saveCurrency}
+                className="px-6 py-2 bg-white text-slate-900 rounded-full font-semibold hover:bg-gray-100 transition-colors"
+              >
+                Save Configuration
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <style jsx global>{`

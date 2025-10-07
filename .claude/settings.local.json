@@ -4,7 +4,12 @@
       "Bash(npm run dev:*)",
       "Bash(git remote add:*)",
       "Bash(npm install:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nStandardize UI across all pages with enterprise-ready design\n\nMajor Updates:\n- Implemented consistent beige background (#f7f5f2) across all pages\n- Added dark navy headers (#101828) with white text for better contrast\n- Fixed font visibility in all forms (added text-[#101828] to inputs)\n- Standardized button styling with navy background and proper hover states\n\nNew Features:\n- Chart of Accounts page with IFRS-compliant 4-level hierarchy\n- Upload page for TB and COA with Excel validation\n- Global animations (slideRight, slideUp, slideDown)\n- Split layout design pattern (form left, active items right)\n\nPages Updated:\n- Dashboard: Professional stats cards with improved typography\n- Entity Setup: Navy table headers, right-slide modal, better form visibility\n- Settings: Enhanced form contrast, visible input text\n- Upload: TB/COA upload with validation and template downloads\n- Chart of Accounts: Full IFRS hierarchy with expandable tree view\n\nDatabase:\n- Updated chart_of_accounts schema with IFRS fields\n- Added trial_balance table with entity relationships\n- SQL migration file for Supabase setup\n\nDependencies:\n- Added xlsx package for Excel file handling\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)",
+      "Bash(copy page.js page_old_backup.js)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

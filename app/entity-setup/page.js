@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, X } from 'lucide-react';
+import { Search, X, Download, Upload } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import * as XLSX from 'xlsx';
 
 export default function EntitySetup() {
   const [entities, setEntities] = useState([]);
@@ -14,6 +16,8 @@ export default function EntitySetup() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRegion, setFilterRegion] = useState('All Regions');
   const [filterStatus, setFilterStatus] = useState('All Status');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     entity_code: '',
@@ -23,8 +27,7 @@ export default function EntitySetup() {
     entity_type: '',
     functional_currency: '',
     presentation_currency: 'Same as functional',
-    region: '',
-    country_of_incorporation: '',
+    region_id: null,
     tax_jurisdiction: '',
     financial_year_end: '',
     status: 'Active',
@@ -57,37 +60,71 @@ export default function EntitySetup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       const dataToSave = {
         ...formData,
-        presentation_currency: formData.presentation_currency === 'Same as functional' 
-          ? formData.functional_currency 
+        presentation_currency: formData.presentation_currency === 'Same as functional'
+          ? formData.functional_currency
           : formData.presentation_currency,
-        parent_entity_id: formData.parent_entity_id === 'none' ? null : formData.parent_entity_id
+        parent_entity_id: formData.parent_entity_id === 'none' ? null : formData.parent_entity_id,
+        region_id: formData.region_id === 'none' ? null : formData.region_id
       };
 
       if (editingEntity) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('entities')
           .update({ ...dataToSave, updated_at: new Date().toISOString() })
-          .eq('id', editingEntity.id);
-        
-        if (error) throw error;
+          .eq('id', editingEntity.id)
+          .select();
+
+        if (error) {
+          console.error('Update error details:', error);
+          throw error;
+        }
+        console.log('Updated entity:', data);
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('entities')
-          .insert([dataToSave]);
-        
-        if (error) throw error;
+          .insert([dataToSave])
+          .select();
+
+        if (error) {
+          console.error('Insert error details:', error);
+          console.error('Data being inserted:', dataToSave);
+          throw error;
+        }
+        console.log('Inserted entity:', data);
       }
-      
+
       resetForm();
       fetchAllData();
       setShowModal(false);
+      alert('Entity saved successfully!');
     } catch (error) {
       console.error('Error saving entity:', error);
-      alert('Error saving entity: ' + error.message);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+
+      let errorMessage = 'Error saving entity: ';
+      if (error.message) {
+        errorMessage += error.message;
+      }
+      if (error.details) {
+        errorMessage += '\nDetails: ' + error.details;
+      }
+      if (error.hint) {
+        errorMessage += '\nHint: ' + error.hint;
+      }
+      if (error.code) {
+        errorMessage += '\nError code: ' + error.code;
+      }
+
+      alert(errorMessage);
     }
   };
 
@@ -95,7 +132,10 @@ export default function EntitySetup() {
     setEditingEntity(entity);
     setFormData({
       ...entity,
-      parent_entity_id: entity.parent_entity_id || 'none'
+      parent_entity_id: entity.parent_entity_id || 'none',
+      split_ownership: entity.split_ownership || false,
+      parent_entity_id_2: entity.parent_entity_id_2 || null,
+      ownership_percentage_2: entity.ownership_percentage_2 || 0
     });
     setShowModal(true);
   };
@@ -126,8 +166,7 @@ export default function EntitySetup() {
       entity_type: '',
       functional_currency: '',
       presentation_currency: 'Same as functional',
-      region: '',
-      country_of_incorporation: '',
+      region_id: null,
       tax_jurisdiction: '',
       financial_year_end: '',
       status: 'Active',
@@ -157,128 +196,332 @@ export default function EntitySetup() {
   const availableRegions = ['All Regions', ...regions.map(r => r.region_name)];
   const statuses = ['All Status', 'Active', 'Inactive'];
 
+  // Download Excel Template
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        'Entity Code': 'PARENT01',
+        'Entity Name': 'Parent Company Ltd.',
+        'Parent Entity Code': '',
+        'Ownership %': 0,
+        'Entity Type': 'Ultimate Parent',
+        'Functional Currency': 'USD',
+        'Presentation Currency': 'USD',
+        'Region': 'North America',
+        'Tax Jurisdiction': 'Delaware',
+        'Status': 'Active',
+        'Include in Consolidation': 'Yes',
+        'Notes': 'Ultimate parent entity - top of the group'
+      },
+      {
+        'Entity Code': 'MID001',
+        'Entity Name': 'Mid-Tier Holding Company',
+        'Parent Entity Code': 'PARENT01',
+        'Ownership %': 100,
+        'Entity Type': 'Parent',
+        'Functional Currency': 'EUR',
+        'Presentation Currency': 'USD',
+        'Region': 'Europe',
+        'Tax Jurisdiction': 'UK',
+        'Status': 'Active',
+        'Include in Consolidation': 'Yes',
+        'Notes': 'Mid-tier parent - has parent above and subsidiaries below'
+      },
+      {
+        'Entity Code': 'SUB001',
+        'Entity Name': 'Subsidiary Inc.',
+        'Parent Entity Code': 'MID001',
+        'Ownership %': 100,
+        'Entity Type': 'Subsidiary',
+        'Functional Currency': 'USD',
+        'Presentation Currency': 'USD',
+        'Region': 'North America',
+        'Tax Jurisdiction': 'Delaware',
+        'Status': 'Active',
+        'Include in Consolidation': 'Yes',
+        'Notes': 'Wholly owned subsidiary'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+    // Set column widths
+    const wscols = [
+      { wch: 15 }, // Entity Code
+      { wch: 30 }, // Entity Name
+      { wch: 20 }, // Parent Entity Code
+      { wch: 12 }, // Ownership %
+      { wch: 15 }, // Entity Type
+      { wch: 18 }, // Functional Currency
+      { wch: 20 }, // Presentation Currency
+      { wch: 18 }, // Region
+      { wch: 18 }, // Tax Jurisdiction
+      { wch: 10 }, // Status
+      { wch: 22 }, // Include in Consolidation
+      { wch: 40 }  // Notes
+    ];
+    worksheet['!cols'] = wscols;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Entity Template');
+
+    XLSX.writeFile(workbook, 'Entity_Upload_Template.xlsx');
+  };
+
+  // Handle Bulk Upload
+  const handleBulkUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) {
+        alert('No data found in the uploaded file');
+        setIsUploading(false);
+        return;
+      }
+
+      // Validate and transform data
+      const entitiesToInsert = [];
+      const errors = [];
+
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        const rowNum = i + 2; // Excel row number (accounting for header)
+
+        // Validate required fields
+        if (!row['Entity Code'] || !row['Entity Name']) {
+          errors.push(`Row ${rowNum}: Missing Entity Code or Entity Name`);
+          continue;
+        }
+
+        // Find parent entity ID if parent code is provided
+        let parentEntityId = null;
+        if (row['Parent Entity Code']) {
+          const parentEntity = entities.find(e => e.entity_code === row['Parent Entity Code']);
+          if (!parentEntity) {
+            errors.push(`Row ${rowNum}: Parent entity '${row['Parent Entity Code']}' not found`);
+            continue;
+          }
+          parentEntityId = parentEntity.id;
+        }
+
+        // Find region ID if region is provided
+        let regionId = null;
+        if (row['Region']) {
+          const region = regions.find(r => r.region_name === row['Region'] || r.region_code === row['Region']);
+          regionId = region?.id || null;
+        }
+
+        // Transform row to entity object
+        const entity = {
+          entity_code: row['Entity Code'],
+          entity_name: row['Entity Name'],
+          parent_entity_id: parentEntityId,
+          ownership_percentage: parseFloat(row['Ownership %']) || 0,
+          entity_type: row['Entity Type'] || '',
+          functional_currency: row['Functional Currency'] || '',
+          presentation_currency: row['Presentation Currency'] || row['Functional Currency'] || '',
+          region_id: regionId,
+          tax_jurisdiction: row['Tax Jurisdiction'] || '',
+          financial_year_end: row['Financial Year End'] || '',
+          status: row['Status'] || 'Active',
+          notes: row['Notes'] || '',
+          include_in_consolidation: row['Include in Consolidation']?.toLowerCase() === 'yes' || true,
+          is_active: row['Status']?.toLowerCase() === 'active' || true
+        };
+
+        entitiesToInsert.push(entity);
+      }
+
+      if (errors.length > 0) {
+        alert(`Upload errors:\n${errors.join('\n')}`);
+        setIsUploading(false);
+        return;
+      }
+
+      // Insert entities
+      const { data: insertedData, error } = await supabase
+        .from('entities')
+        .insert(entitiesToInsert)
+        .select();
+
+      if (error) {
+        console.error('Bulk insert error:', error);
+        alert('Error uploading entities: ' + error.message);
+      } else {
+        alert(`Successfully uploaded ${insertedData.length} entities!`);
+        fetchAllData();
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Error processing file: ' + error.message);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-[#101828] text-lg">Loading entities...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f5f2]">
-      <div className="max-w-[1600px] mx-auto px-12 py-10">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-10">
-          <div>
-            <h1 className="text-5xl font-bold text-[#101828] mb-2">Entity Setup</h1>
-            <p className="text-lg text-gray-600">Manage organizational entities and hierarchy</p>
-          </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1a2233] transition-colors"
-          >
-            Add Entity
-          </button>
-        </div>
+    <div className="h-screen flex flex-col bg-[#f7f5f2]">
+      <PageHeader title="Entity Setup" subtitle="Manage and configure your consolidation entities">
+        <button
+          onClick={handleDownloadTemplate}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+        >
+          <Download size={16} />
+          Download Template
+        </button>
 
-        {/* Filters */}
-        <div className="bg-white rounded-[14px] p-6 shadow-sm border border-gray-200 mb-6">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search entities..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] placeholder-gray-400"
-              />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+        >
+          <Upload size={16} />
+          {isUploading ? 'Uploading...' : 'Upload Template'}
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleBulkUpload}
+          className="hidden"
+        />
+
+        <button
+          onClick={() => {
+            resetForm();
+            setShowModal(true);
+          }}
+          className="px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] transition-colors"
+        >
+          Add Entity
+        </button>
+      </PageHeader>
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-8 py-6">
+          {/* Filters */}
+          <div className="bg-white rounded-[14px] p-6 shadow-sm border border-gray-200 mb-6">
+            <div className="flex gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search entities..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] placeholder-gray-400"
+                />
+              </div>
+              <select
+                value={filterRegion}
+                onChange={(e) => setFilterRegion(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] bg-white min-w-[160px]"
+              >
+                {availableRegions.map(region => (
+                  <option key={region} value={region}>{region}</option>
+                ))}
+              </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] bg-white min-w-[150px]"
+              >
+                {statuses.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
             </div>
-            <select
-              value={filterRegion}
-              onChange={(e) => setFilterRegion(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] bg-white min-w-[160px]"
-            >
-              {availableRegions.map(region => (
-                <option key={region} value={region}>{region}</option>
-              ))}
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828] bg-white min-w-[150px]"
-            >
-              {statuses.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
+          </div>
+
+          {/* Table Container */}
+          <div className="bg-white border border-gray-200 rounded-[14px] shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-slate-900">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Entity Code</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Entity Name</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Parent Entity</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Functional Currency</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Presentation Currency</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Ownership %</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEntities.map((entity, index) => {
+                  // Find parent entity name
+                  const parentEntity = entities.find(e => e.id === entity.parent_entity_id);
+                  const parentName = parentEntity ? parentEntity.entity_name : '-';
+
+                  return (
+                    <tr key={entity.id} className={`border-b border-gray-200 hover:bg-[#faf8f4] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-[#faf9f7]'}`}>
+                      <td className="px-6 py-4 text-sm font-semibold text-[#101828]">{entity.entity_code}</td>
+                      <td className="px-6 py-4 text-base font-medium text-[#101828]">{entity.entity_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700">{parentName}</td>
+                      <td className="px-6 py-4 text-sm text-[#101828]">{entity.functional_currency}</td>
+                      <td className="px-6 py-4 text-sm text-[#101828]">{entity.presentation_currency || entity.functional_currency}</td>
+                      <td className="px-6 py-4 text-sm text-[#101828]">{entity.ownership_percentage ? entity.ownership_percentage.toFixed(2) : '0.00'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 text-xs font-semibold rounded ${
+                          entity.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {entity.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(entity)}
+                          className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(entity.id)}
+                          className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {filteredEntities.length === 0 && (
+              <div className="text-center py-16 text-gray-500 bg-white">
+                <p className="text-base">No entities found. Click &quot;Add Entity&quot; to get started.</p>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Table Container */}
-        <div className="bg-white border border-gray-200 rounded-[14px] shadow-sm overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-[#101828]">
-            <tr>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Entity Code</th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Entity Name</th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Region</th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Currency</th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Ownership %</th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Status</th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-white">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEntities.map((entity, index) => (
-              <tr key={entity.id} className={`border-b border-gray-200 hover:bg-[#faf8f4] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-[#faf9f7]'}`}>
-                <td className="px-6 py-4 text-sm font-semibold text-[#101828]">{entity.entity_code}</td>
-                <td className="px-6 py-4 text-base font-medium text-[#101828]">{entity.entity_name}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{entity.region || '-'}</td>
-                <td className="px-6 py-4 text-sm text-[#101828]">{entity.functional_currency}</td>
-                <td className="px-6 py-4 text-sm text-[#101828]">{entity.ownership_percentage.toFixed(2)}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 text-xs font-semibold rounded ${
-                    entity.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {entity.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEdit(entity)}
-                      className="px-4 py-2 bg-[#101828] text-white text-sm font-medium rounded-lg hover:bg-[#1a2233] transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(entity.id)}
-                      className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        
-        {filteredEntities.length === 0 && (
-          <div className="text-center py-16 text-gray-500 bg-white">
-            <p className="text-base">No entities found. Click "Add Entity" to get started.</p>
-          </div>
-        )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-end">
-          <div className="bg-white h-full w-[800px] shadow-2xl animate-slideRight overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
+          <div className="bg-white h-full w-[800px] shadow-2xl animate-slideRight overflow-y-auto pointer-events-auto">
             <div className="p-8">
               {/* Modal Header */}
               <div className="flex items-center justify-between mb-8">
@@ -323,6 +566,8 @@ export default function EntitySetup() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option value="">Select type...</option>
+                      <option value="Ultimate Parent">Ultimate Parent</option>
+                      <option value="Parent">Parent</option>
                       <option value="Subsidiary">Subsidiary</option>
                       <option value="Joint Venture">Joint Venture</option>
                       <option value="Associate">Associate</option>
@@ -362,7 +607,7 @@ export default function EntitySetup() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Ownership % *
+                      Ownership % (by Parent 1) *
                     </label>
                     <input
                       type="number"
@@ -376,6 +621,61 @@ export default function EntitySetup() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     />
                   </div>
+
+                  {/* Split Ownership Checkbox */}
+                  <div className="col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer p-4 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        name="split_ownership"
+                        checked={formData.split_ownership}
+                        onChange={handleChange}
+                        className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div>
+                        <span className="text-sm font-semibold text-[#101828]">Split Ownership</span>
+                        <p className="text-xs text-gray-600 mt-0.5">Enable if this entity has multiple parent entities (e.g., Joint Venture with 2 partners)</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Second Parent Fields (only shown if split ownership is checked) */}
+                  {formData.split_ownership && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Parent Entity 2 *</label>
+                        <select
+                          name="parent_entity_id_2"
+                          value={formData.parent_entity_id_2 || 'none'}
+                          onChange={handleChange}
+                          required={formData.split_ownership}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                        >
+                          <option value="none">Select second parent...</option>
+                          {entities.filter(e => e.id !== editingEntity?.id && e.id !== formData.parent_entity_id).map(entity => (
+                            <option key={entity.id} value={entity.id}>{entity.entity_name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Ownership % (by Parent 2) *
+                        </label>
+                        <input
+                          type="number"
+                          name="ownership_percentage_2"
+                          value={formData.ownership_percentage_2}
+                          onChange={handleChange}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          required={formData.split_ownership}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -412,13 +712,12 @@ export default function EntitySetup() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Region *
+                      Region
                     </label>
                     <select
                       name="region"
                       value={formData.region}
                       onChange={handleChange}
-                      required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     >
                       <option value="">Select region...</option>
@@ -429,21 +728,6 @@ export default function EntitySetup() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Country of Incorporation *
-                    </label>
-                    <input
-                      type="text"
-                      name="country_of_incorporation"
-                      value={formData.country_of_incorporation}
-                      onChange={handleChange}
-                      placeholder="e.g., United States"
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Tax Jurisdiction</label>
                     <input
                       type="text"
@@ -451,20 +735,6 @@ export default function EntitySetup() {
                       value={formData.tax_jurisdiction}
                       onChange={handleChange}
                       placeholder="e.g., Delaware"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Financial Year End *
-                    </label>
-                    <input
-                      type="date"
-                      name="financial_year_end"
-                      value={formData.financial_year_end}
-                      onChange={handleChange}
-                      required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
                     />
                   </div>
@@ -515,7 +785,7 @@ export default function EntitySetup() {
                 <div className="mt-8 sticky bottom-0 bg-white pt-6 border-t border-gray-200">
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#101828] text-white rounded-full font-semibold hover:bg-[#1a2233] transition-colors shadow-lg"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 hover:shadow-lg transition-all duration-200 shadow-md"
                   >
                     Save Entity
                   </button>
@@ -525,7 +795,6 @@ export default function EntitySetup() {
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 }
