@@ -861,11 +861,11 @@ export default function ConsolidationWorkings() {
               </div>
             </td>
             {/* Empty cells for entities, eliminations, adjustments, and consolidated */}
-            {entities.map(entity => (
+            {columnsExpanded && entities.map(entity => (
               <td key={entity.id} className="py-3 px-4 text-right text-slate-400">-</td>
             ))}
-            <td className="py-3 px-4 text-right text-slate-400">-</td>
-            <td className="py-3 px-4 text-right text-slate-400">-</td>
+            {columnsExpanded && <td className="py-3 px-4 text-right text-slate-400">-</td>}
+            {columnsExpanded && <td className="py-3 px-4 text-right text-slate-400">-</td>}
             <td className="py-3 px-4 text-right text-slate-400 sticky right-0 bg-indigo-100">-</td>
           </tr>
           {/* Render children (notes) if expanded */}
@@ -899,7 +899,7 @@ export default function ConsolidationWorkings() {
                 <span className="text-xs opacity-75 ml-2">(Click to view Income Statement)</span>
               </div>
             </td>
-            {entities.map(entity => {
+            {columnsExpanded && entities.map(entity => {
               // Calculate revenue for this entity - use consistent debit - credit logic
               let revenue = 0;
               revenueAccounts.forEach(acc => {
@@ -955,24 +955,28 @@ export default function ConsolidationWorkings() {
             })}
 
             {/* Eliminations column */}
-            <td className="py-2 px-4 text-right font-mono text-sm text-white">
-              {(() => {
-                const revElim = getEliminationValue(revenueAccounts, 'Revenue');
-                const expElim = getEliminationValue(expenseAccounts, 'Expenses');
-                const netElim = revElim - expElim;
-                return formatCurrency(Math.abs(netElim));
-              })()}
-            </td>
+            {columnsExpanded && (
+              <td className="py-2 px-4 text-right font-mono text-sm text-white">
+                {(() => {
+                  const revElim = getEliminationValue(revenueAccounts, 'Revenue');
+                  const expElim = getEliminationValue(expenseAccounts, 'Expenses');
+                  const netElim = revElim - expElim;
+                  return formatCurrency(Math.abs(netElim));
+                })()}
+              </td>
+            )}
 
             {/* Adjustments column */}
-            <td className="py-2 px-4 text-right font-mono text-sm text-white">
-              {(() => {
-                const revAdj = getAdjustmentValue(revenueAccounts, 'Revenue');
-                const expAdj = getAdjustmentValue(expenseAccounts, 'Expenses');
-                const netAdj = revAdj - expAdj;
-                return formatCurrency(Math.abs(netAdj));
-              })()}
-            </td>
+            {columnsExpanded && (
+              <td className="py-2 px-4 text-right font-mono text-sm text-white">
+                {(() => {
+                  const revAdj = getAdjustmentValue(revenueAccounts, 'Revenue');
+                  const expAdj = getAdjustmentValue(expenseAccounts, 'Expenses');
+                  const netAdj = revAdj - expAdj;
+                  return formatCurrency(Math.abs(netAdj));
+                })()}
+              </td>
+            )}
 
             {/* Consolidated column */}
             <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 bg-[#101828]`}>
@@ -1061,7 +1065,7 @@ export default function ConsolidationWorkings() {
           </td>
 
           {/* Entity Columns */}
-          {entities.map(entity => {
+          {columnsExpanded && entities.map(entity => {
             // For class level, always show total of all children
             const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
             const value = allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className) : 0;
@@ -1082,40 +1086,44 @@ export default function ConsolidationWorkings() {
           })}
 
           {/* Eliminations Column */}
-          <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-red-50'}`}>
-            {(() => {
-              const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-              const elimValue = getEliminationValue(allClassAccounts, className);
-              return allClassAccounts.length > 0 ? (
-                <button
-                  onClick={() => setShowEliminationDetail(node)}
-                  className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-red-800'}`}
-                >
-                  {formatCurrency(Math.abs(elimValue))}
-                </button>
-              ) : (
-                <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
-              );
-            })()}
-          </td>
+          {columnsExpanded && (
+            <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-red-50'}`}>
+              {(() => {
+                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                const elimValue = getEliminationValue(allClassAccounts, className);
+                return allClassAccounts.length > 0 ? (
+                  <button
+                    onClick={() => setShowEliminationDetail(node)}
+                    className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-red-800'}`}
+                  >
+                    {formatCurrency(Math.abs(elimValue))}
+                  </button>
+                ) : (
+                  <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                );
+              })()}
+            </td>
+          )}
 
           {/* Adjustments Column */}
-          <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-blue-50'}`}>
-            {(() => {
-              const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-              const adjValue = getAdjustmentValue(allClassAccounts, className);
-              return allClassAccounts.length > 0 ? (
-                <button
-                  onClick={() => setShowAdjustmentDetail(node)}
-                  className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-blue-800'}`}
-                >
-                  {formatCurrency(Math.abs(adjValue))}
-                </button>
-              ) : (
-                <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
-              );
-            })()}
-          </td>
+          {columnsExpanded && (
+            <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-blue-50'}`}>
+              {(() => {
+                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                const adjValue = getAdjustmentValue(allClassAccounts, className);
+                return allClassAccounts.length > 0 ? (
+                  <button
+                    onClick={() => setShowAdjustmentDetail(node)}
+                    className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-blue-800'}`}
+                  >
+                    {formatCurrency(Math.abs(adjValue))}
+                  </button>
+                ) : (
+                  <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                );
+              })()}
+            </td>
+          )}
 
           {/* Consolidated Column */}
           <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-[#101828] text-white' : 'bg-indigo-50 text-indigo-900'}`}>
@@ -1162,7 +1170,14 @@ export default function ConsolidationWorkings() {
                 <label className="text-sm font-medium text-slate-700">Period:</label>
                 <select
                   value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedPeriod(e.target.value);
+                    // Auto-set comparison period
+                    const currentIndex = availablePeriods.findIndex(p => p.period_code === e.target.value);
+                    if (currentIndex !== -1 && availablePeriods.length > currentIndex + 1) {
+                      setComparePeriod(availablePeriods[currentIndex + 1].period_code);
+                    }
+                  }}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {availablePeriods.length === 0 ? (
@@ -1176,6 +1191,42 @@ export default function ConsolidationWorkings() {
                   )}
                 </select>
               </div>
+
+              {/* Compare Period Selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700">Compare with:</label>
+                <select
+                  value={comparePeriod}
+                  onChange={(e) => setComparePeriod(e.target.value)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No comparison</option>
+                  {availablePeriods.map(period => (
+                    <option key={period.period_code} value={period.period_code}>
+                      {period.period_name || period.period_code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Parent Entity Selector (Chain Holding) */}
+              {parentEntities.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700">Parent Entity:</label>
+                  <select
+                    value={selectedParentEntity || ''}
+                    onChange={(e) => setSelectedParentEntity(e.target.value || null)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">All Entities</option>
+                    {parentEntities.map(parent => (
+                      <option key={parent.id} value={parent.id}>
+                        {parent.entity_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -1305,26 +1356,39 @@ export default function ConsolidationWorkings() {
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-[#101828] text-white">
                     <th className="py-3 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#101828] z-30">
-                      Chart of Accounts
+                      <div className="flex items-center justify-between">
+                        <span>Chart of Accounts</span>
+                        <button
+                          onClick={() => setColumnsExpanded(!columnsExpanded)}
+                          className="ml-2 p-1 hover:bg-white/10 rounded transition-colors"
+                          title={columnsExpanded ? "Collapse details" : "Expand details"}
+                        >
+                          {columnsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </button>
+                      </div>
                     </th>
-                    {entities.map(entity => (
+                    {columnsExpanded && entities.map(entity => (
                       <th key={entity.id} className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px]">
                         <div>{entity.entity_name}</div>
                         <div className="text-xs opacity-75 font-normal">{entity.entity_type}</div>
                       </th>
                     ))}
-                    <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-900">
-                      <div className="flex items-center justify-end gap-1">
-                        <Minus size={14} />
-                        Eliminations
-                      </div>
-                    </th>
-                    <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-900">
-                      <div className="flex items-center justify-end gap-1">
-                        <Plus size={14} />
-                        Adjustments
-                      </div>
-                    </th>
+                    {columnsExpanded && (
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-900">
+                        <div className="flex items-center justify-end gap-1">
+                          <Minus size={14} />
+                          Eliminations
+                        </div>
+                      </th>
+                    )}
+                    {columnsExpanded && (
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-900">
+                        <div className="flex items-center justify-end gap-1">
+                          <Plus size={14} />
+                          Adjustments
+                        </div>
+                      </th>
+                    )}
                     <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-indigo-900 sticky right-0 z-30">
                       <div className="flex items-center justify-end gap-1">
                         <Calculator size={14} />
