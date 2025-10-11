@@ -97,8 +97,8 @@ const nextConfig = {
 
   // Experimental features
   experimental: {
-    // Enable optimizeCss for smaller CSS bundles
-    optimizeCss: true,
+    // Disable optimizeCss temporarily due to critters module issue in Turbopack
+    // optimizeCss: true,
   },
 };
 
