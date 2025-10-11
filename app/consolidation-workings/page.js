@@ -126,6 +126,18 @@ export default function ConsolidationWorkings() {
       // Parse API responses
       const entitiesData = await entitiesResponse.json();
 
+      // Filter elimination entries to only include those for our company's entities
+      const entityIds = entitiesData.map(e => e.id);
+      const filteredEliminations = (eliminationEntriesRes.data || []).filter(elim =>
+        (elim.entity_from && entityIds.includes(elim.entity_from)) ||
+        (elim.entity_to && entityIds.includes(elim.entity_to))
+      );
+
+      console.log('📝 Elimination entries:', eliminationEntriesRes.data?.length || 0, 'total,', filteredEliminations.length, 'filtered for this company');
+      if (filteredEliminations.length > 0) {
+        console.log('Sample elimination entry:', filteredEliminations[0]);
+      }
+
       // Filter trial balances for selected period
       const tbDataForPeriod = allTBData.filter(tb => tb.period === selectedPeriod);
 
@@ -141,7 +153,7 @@ export default function ConsolidationWorkings() {
 
       // Combine elimination entries and intercompany transactions
       const allEliminations = [
-        ...(eliminationEntriesRes.data || []),
+        ...filteredEliminations,
         ...(intercompanyRes.data || [])
       ];
       setEliminations(allEliminations);
@@ -336,11 +348,20 @@ export default function ConsolidationWorkings() {
     if (!accounts || accounts.length === 0) return 0;
 
     let total = 0;
+    let foundElims = 0;
+
     accounts.forEach(account => {
       // Check elimination_entries (custom eliminations)
       const customElimEntries = eliminations.filter(e =>
         e.debit_account === account.account_code || e.credit_account === account.account_code
       );
+
+      if (customElimEntries.length > 0) {
+        foundElims += customElimEntries.length;
+        if (typeof window !== 'undefined' && foundElims <= 3) {
+          console.log(`Found ${customElimEntries.length} elimination entries for account ${account.account_code}:`, customElimEntries);
+        }
+      }
 
       customElimEntries.forEach(elim => {
         let debitAmount = 0;
@@ -441,9 +462,16 @@ export default function ConsolidationWorkings() {
       // Filter TB data for selected period
       const tbDataForPeriod = allTBRecords.filter(tb => tb.period === selectedPeriod);
 
+      // Filter elimination entries for current company's entities
+      const entityIds = entities.map(e => e.id);
+      const filteredElims = (elimEntriesRes.data || []).filter(elim =>
+        (elim.entity_from && entityIds.includes(elim.entity_from)) ||
+        (elim.entity_to && entityIds.includes(elim.entity_to))
+      );
+
       console.log('✅ Populated data:');
       console.log('Trial Balance entries:', tbDataForPeriod?.length || 0);
-      console.log('Elimination entries:', elimEntriesRes.data?.length || 0);
+      console.log('Elimination entries (filtered):', filteredElims?.length || 0);
       console.log('IC transactions:', icTransRes.data?.length || 0);
       console.log('Adjustment entries:', adjRes.data?.length || 0);
 
@@ -456,7 +484,7 @@ export default function ConsolidationWorkings() {
 
       // Combine both elimination sources
       const allElims = [
-        ...(elimEntriesRes.data || []),
+        ...filteredElims,
         ...(icTransRes.data || [])
       ];
       setEliminations(allElims);
