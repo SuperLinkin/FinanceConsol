@@ -109,33 +109,28 @@ export default function ConsolidationWorkings() {
       // Load all required data using API endpoints
       const [
         entitiesResponse,
+        eliminationEntriesResponse,
         coaRes,
         hierarchyRes,
-        eliminationEntriesRes,
         intercompanyRes,
         adjustmentsRes
       ] = await Promise.all([
         fetch('/api/entities'),
+        fetch('/api/elimination-entries'),
         supabase.from('chart_of_accounts').select('*').eq('is_active', true),
         supabase.from('coa_master_hierarchy').select('*').eq('is_active', true),
-        supabase.from('elimination_entries').select('*'),
         supabase.from('intercompany_transactions').select('*').eq('is_eliminated', false),
         supabase.from('adjustment_entries').select('*')
       ]);
 
       // Parse API responses
       const entitiesData = await entitiesResponse.json();
+      const eliminationEntriesData = await eliminationEntriesResponse.json();
 
-      // Filter elimination entries to only include those for our company's entities
-      const entityIds = entitiesData.map(e => e.id);
-      const filteredEliminations = (eliminationEntriesRes.data || []).filter(elim =>
-        (elim.entity_from && entityIds.includes(elim.entity_from)) ||
-        (elim.entity_to && entityIds.includes(elim.entity_to))
-      );
-
-      console.log('📝 Elimination entries:', eliminationEntriesRes.data?.length || 0, 'total,', filteredEliminations.length, 'filtered for this company');
-      if (filteredEliminations.length > 0) {
-        console.log('Sample elimination entry:', filteredEliminations[0]);
+      console.log('📝 Elimination entries:', eliminationEntriesData?.length || 0, 'entries loaded from API');
+      if (eliminationEntriesData && eliminationEntriesData.length > 0) {
+        console.log('Sample elimination entry:', eliminationEntriesData[0]);
+        console.log('Sample elimination entry has lines:', eliminationEntriesData[0].lines?.length || 0);
       }
 
       // Filter trial balances for selected period
@@ -153,7 +148,7 @@ export default function ConsolidationWorkings() {
 
       // Combine elimination entries and intercompany transactions
       const allEliminations = [
-        ...filteredEliminations,
+        ...(eliminationEntriesData || []),
         ...(intercompanyRes.data || [])
       ];
       setEliminations(allEliminations);
