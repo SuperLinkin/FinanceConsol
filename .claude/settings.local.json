@@ -21,7 +21,9 @@
       "Bash(taskkill:*)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(echo \"Run this SQL query in Supabase to check the current state:\n\nSELECT currency_code, is_group_reporting_currency \nFROM currencies \nORDER BY currency_code;\")"
+      "Bash(echo \"Run this SQL query in Supabase to check the current state:\n\nSELECT currency_code, is_group_reporting_currency \nFROM currencies \nORDER BY currency_code;\")",
+      "Bash(vercel:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

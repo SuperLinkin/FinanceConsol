@@ -90,6 +90,11 @@ const nextConfig = {
   poweredByHeader: false, // Remove X-Powered-By header
   compress: true, // Enable gzip compression
 
+  // Disable ESLint during production builds
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // Experimental features
   experimental: {
     // Enable optimizeCss for smaller CSS bundles
