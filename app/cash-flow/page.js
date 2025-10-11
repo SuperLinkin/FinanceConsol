@@ -530,9 +530,9 @@ export default function CashFlowStatement() {
         subtitle="Indirect Method - Operating, Investing, and Financing Activities"
       />
 
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-hidden flex relative">
         {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className={`flex-1 overflow-hidden flex flex-col transition-all duration-300 ${showFormulaPanel ? 'mr-96' : ''}`}>
           {/* Controls */}
           <div className="px-6 py-4 bg-white border-b border-slate-200">
             <div className="flex items-center justify-between">
@@ -597,7 +597,7 @@ export default function CashFlowStatement() {
 
           {/* Cash Flow Statement */}
           <div className="flex-1 overflow-auto px-6 py-6">
-            <div className="max-w-6xl mx-auto space-y-4">
+            <div className="space-y-4">
               {/* Operating Activities */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
                 <div
@@ -616,16 +616,13 @@ export default function CashFlowStatement() {
 
                 {expandedSections.operating && (
                   <div className="p-6 space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-slate-200 group">
+                    <div
+                      className="flex justify-between items-center py-2 border-b border-slate-200 group hover:bg-slate-50 cursor-pointer px-2 rounded"
+                      onClick={() => openFormulaBuilder('Operating Profit / (Loss)', 'operating')}
+                    >
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-[#101828]">Operating Profit / (Loss)</span>
-                        <button
-                          onClick={() => openFormulaBuilder('Operating Profit / (Loss)', 'operating')}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded"
-                          title="Edit formula"
-                        >
-                          <Edit2 size={14} className="text-blue-600" />
-                        </button>
+                        <Edit2 size={14} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(cashFlowData.operating.profitLoss))}</span>
                     </div>
@@ -636,16 +633,14 @@ export default function CashFlowStatement() {
                           <h4 className="font-semibold text-[#101828] text-sm">Adjustments for:</h4>
                         </div>
                         {Object.entries(cashFlowData.operating.adjustments).map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded">
+                          <div
+                            key={key}
+                            className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                            onClick={() => openFormulaBuilder(key, 'operating')}
+                          >
                             <div className="flex items-center gap-2">
                               <span className="text-[#101828]">{key}</span>
-                              <button
-                                onClick={() => openFormulaBuilder(key, 'operating')}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
-                                title="Edit formula"
-                              >
-                                <Edit2 size={12} className="text-blue-600" />
-                              </button>
+                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(value))}</span>
                           </div>
@@ -659,16 +654,14 @@ export default function CashFlowStatement() {
                           <h4 className="font-semibold text-[#101828] text-sm">Changes in Working Capital:</h4>
                         </div>
                         {Object.entries(cashFlowData.operating.workingCapitalChanges).map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded">
+                          <div
+                            key={key}
+                            className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                            onClick={() => openFormulaBuilder(key, 'operating')}
+                          >
                             <div className="flex items-center gap-2">
                               <span className="text-[#101828]">{key}</span>
-                              <button
-                                onClick={() => openFormulaBuilder(key, 'operating')}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
-                                title="Edit formula"
-                              >
-                                <Edit2 size={12} className="text-blue-600" />
-                              </button>
+                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
                               {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
@@ -709,16 +702,14 @@ export default function CashFlowStatement() {
                     {Object.keys(cashFlowData.investing.items).length > 0 ? (
                       <>
                         {Object.entries(cashFlowData.investing.items).map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2">
+                          <div
+                            key={key}
+                            className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2 cursor-pointer"
+                            onClick={() => openFormulaBuilder(key, 'investing')}
+                          >
                             <div className="flex items-center gap-2">
                               <span className="text-[#101828]">{key}</span>
-                              <button
-                                onClick={() => openFormulaBuilder(key, 'investing')}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
-                                title="Edit formula"
-                              >
-                                <Edit2 size={12} className="text-blue-600" />
-                              </button>
+                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
                               {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
@@ -760,16 +751,14 @@ export default function CashFlowStatement() {
                     {Object.keys(cashFlowData.financing.items).length > 0 ? (
                       <>
                         {Object.entries(cashFlowData.financing.items).map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2">
+                          <div
+                            key={key}
+                            className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2 cursor-pointer"
+                            onClick={() => openFormulaBuilder(key, 'financing')}
+                          >
                             <div className="flex items-center gap-2">
                               <span className="text-[#101828]">{key}</span>
-                              <button
-                                onClick={() => openFormulaBuilder(key, 'financing')}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
-                                title="Edit formula"
-                              >
-                                <Edit2 size={12} className="text-blue-600" />
-                              </button>
+                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
                               {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
@@ -792,16 +781,13 @@ export default function CashFlowStatement() {
 
               {/* Forex Adjustment */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="px-6 py-3 flex justify-between items-center group hover:bg-slate-50">
+                <div
+                  className="px-6 py-3 flex justify-between items-center group hover:bg-slate-50 cursor-pointer rounded"
+                  onClick={() => openFormulaBuilder('Forex Adjustment', 'forex')}
+                >
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[#101828]">Effect of Foreign Exchange Rate Changes</span>
-                    <button
-                      onClick={() => openFormulaBuilder('Forex Adjustment', 'forex')}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
-                      title="Edit formula"
-                    >
-                      <Edit2 size={12} className="text-blue-600" />
-                    </button>
+                    <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(cashFlowData.forex))}</span>
                 </div>
@@ -849,9 +835,9 @@ export default function CashFlowStatement() {
             </div>
           </div>
 
-          {/* Formula Builder Side Panel */}
-          {showFormulaPanel && (
-            <div className="w-96 bg-white border-l border-slate-200 shadow-xl flex flex-col">
+        {/* Formula Builder Side Panel */}
+        {showFormulaPanel && (
+          <div className="absolute right-0 top-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-xl flex flex-col z-50">
               <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
                 <h3 className="text-lg font-bold">Formula Builder</h3>
                 <button
@@ -986,10 +972,9 @@ export default function CashFlowStatement() {
                   <Check size={16} />
                   Save Formula
                 </button>
-              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
