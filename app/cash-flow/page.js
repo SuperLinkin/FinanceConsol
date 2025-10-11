@@ -18,7 +18,9 @@ import {
   Plus,
   Edit2,
   X,
-  Check
+  Check,
+  Upload,
+  FileDown
 } from 'lucide-react';
 
 export default function CashFlowStatement() {
@@ -47,6 +49,10 @@ export default function CashFlowStatement() {
     formula: [],
     type: 'note' // note, subnote, subclass, class
   });
+
+  // Upload state
+  const [uploadFile, setUploadFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Cash flow data structure
   const [cashFlowData, setCashFlowData] = useState({
@@ -471,6 +477,17 @@ export default function CashFlowStatement() {
     }).format(value || 0);
   };
 
+  const formatPeriod = (period) => {
+    if (!period) return '';
+    // Try to parse as date (YYYY-MM-DD) and format nicely
+    if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const date = new Date(period);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    // If it's like "FY 2024" or already formatted, return as is
+    return period;
+  };
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -536,6 +553,77 @@ export default function CashFlowStatement() {
     }
 
     setShowFormulaPanel(false);
+  };
+
+  const downloadTemplate = () => {
+    // Create CSV template
+    const template = [
+      ['Cash Flow Statement Template'],
+      [''],
+      ['Section', 'Line Item', 'Period', 'Amount', 'Formula Type', 'Formula'],
+      ['Operating', 'Operating Profit / (Loss)', selectedPeriod, '', '', ''],
+      ['Operating', 'Depreciation and Amortization', selectedPeriod, '', '', ''],
+      ['Operating', 'Trade Receivables', selectedPeriod, '', '', ''],
+      ['Investing', 'Purchase of PPE', selectedPeriod, '', '', ''],
+      ['Investing', 'Sale of Investments', selectedPeriod, '', '', ''],
+      ['Financing', 'Proceeds from Borrowings', selectedPeriod, '', '', ''],
+      ['Financing', 'Dividends Paid', selectedPeriod, '', '', ''],
+    ];
+
+    const csvContent = template.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `cashflow_template_${selectedPeriod || 'current'}.csv`;
+    link.click();
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const text = await file.text();
+      const rows = text.split('\n').map(row =>
+        row.split(',').map(cell => cell.replace(/^"|"$/g, '').trim())
+      );
+
+      // Skip header rows
+      const dataRows = rows.slice(3).filter(row => row.length >= 4 && row[0]);
+
+      // Process each row
+      const newCustomItems = [];
+      dataRows.forEach(row => {
+        const [section, lineItem, period, amount, formulaType, formula] = row;
+        if (lineItem && section) {
+          // Check if this is a new custom item (not in default cash flow)
+          const sectionKey = section.toLowerCase();
+          newCustomItems.push({
+            name: lineItem,
+            section: sectionKey,
+            amount: parseFloat(amount) || 0,
+            formula: {
+              name: lineItem,
+              formula: formula ? JSON.parse(formula) : [],
+              type: formulaType || 'note'
+            }
+          });
+        }
+      });
+
+      if (newCustomItems.length > 0) {
+        setCustomLineItems(prev => [...prev, ...newCustomItems]);
+        alert(`Successfully uploaded ${newCustomItems.length} cash flow line items!`);
+      }
+
+      event.target.value = null; // Reset file input
+    } catch (error) {
+      console.error('Error uploading cash flow file:', error);
+      alert('Failed to upload cash flow file. Please check the format and try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (isLoading) {
@@ -606,6 +694,24 @@ export default function CashFlowStatement() {
                   <RefreshCw size={16} />
                   Refresh
                 </button>
+                <button
+                  onClick={downloadTemplate}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                >
+                  <FileDown size={16} />
+                  Template
+                </button>
+                <label className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors cursor-pointer">
+                  <Upload size={16} />
+                  {isUploading ? 'Uploading...' : 'Upload'}
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
                 <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                   <Save size={16} />
                   Save
@@ -652,12 +758,12 @@ export default function CashFlowStatement() {
                     <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
                       <div className="font-semibold text-[#101828] text-sm">Line Item</div>
                       <div className="flex gap-8">
-                        <div className="font-semibold text-[#101828] text-sm w-24 text-right">
-                          {selectedPeriod || 'Current'}
+                        <div className="font-semibold text-[#101828] text-sm w-32 text-right">
+                          {formatPeriod(selectedPeriod) || 'Current'}
                         </div>
                         {comparePeriod && (
-                          <div className="font-semibold text-slate-500 text-sm w-24 text-right">
-                            {comparePeriod}
+                          <div className="font-semibold text-slate-500 text-sm w-32 text-right">
+                            {formatPeriod(comparePeriod)}
                           </div>
                         )}
                       </div>
@@ -781,12 +887,12 @@ export default function CashFlowStatement() {
                     <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
                       <div className="font-semibold text-[#101828] text-sm">Line Item</div>
                       <div className="flex gap-8">
-                        <div className="font-semibold text-[#101828] text-sm w-24 text-right">
-                          {selectedPeriod || 'Current'}
+                        <div className="font-semibold text-[#101828] text-sm w-32 text-right">
+                          {formatPeriod(selectedPeriod) || 'Current'}
                         </div>
                         {comparePeriod && (
-                          <div className="font-semibold text-slate-500 text-sm w-24 text-right">
-                            {comparePeriod}
+                          <div className="font-semibold text-slate-500 text-sm w-32 text-right">
+                            {formatPeriod(comparePeriod)}
                           </div>
                         )}
                       </div>
@@ -899,12 +1005,12 @@ export default function CashFlowStatement() {
                     <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
                       <div className="font-semibold text-[#101828] text-sm">Line Item</div>
                       <div className="flex gap-8">
-                        <div className="font-semibold text-[#101828] text-sm w-24 text-right">
-                          {selectedPeriod || 'Current'}
+                        <div className="font-semibold text-[#101828] text-sm w-32 text-right">
+                          {formatPeriod(selectedPeriod) || 'Current'}
                         </div>
                         {comparePeriod && (
-                          <div className="font-semibold text-slate-500 text-sm w-24 text-right">
-                            {comparePeriod}
+                          <div className="font-semibold text-slate-500 text-sm w-32 text-right">
+                            {formatPeriod(comparePeriod)}
                           </div>
                         )}
                       </div>
@@ -1128,11 +1234,12 @@ export default function CashFlowStatement() {
 
                   <div className="pt-4 border-t border-slate-200">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Available Accounts</h4>
+                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Cash Flow Calculation</h4>
                       <div className="text-xs text-blue-700 space-y-1">
-                        <p>• Select calculation type above</p>
+                        <p>• Select calculation type (Note/Sub-Note/Class/Sub-Class)</p>
                         <p>• Add components with + or - operators</p>
-                        <p>• Formula will sum/subtract balances automatically</p>
+                        <p>• Formula calculates difference between {formatPeriod(selectedPeriod) || 'current period'} and {comparePeriod ? formatPeriod(comparePeriod) : 'previous period'}</p>
+                        <p>• Result = Current Period Balance - Previous Period Balance</p>
                       </div>
                     </div>
 
