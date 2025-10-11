@@ -27,7 +27,8 @@ import {
   ChevronDown,
   Building,
   Database,
-  FlaskConical
+  FlaskConical,
+  TrendingUp
 } from 'lucide-react';
 
 const menuItems = [
@@ -40,6 +41,7 @@ const menuItems = [
   { icon: Scissors, label: 'Eliminations', href: '/eliminations' },
   { icon: Wrench, label: 'Adjustment Entry', href: '/builder' },
   { icon: FolderKanban, label: 'Consol Workings', href: '/consolidation-workings' },
+  { icon: TrendingUp, label: 'Cash Flow', href: '/cash-flow' },
   { icon: FileCode, label: 'Accounting Policy', href: '/accounting-policy' },
   { icon: BookOpen, label: 'Note Builder', href: '/note-builder' },
   { icon: FileBarChart, label: 'MD&A', href: '/mda' },
