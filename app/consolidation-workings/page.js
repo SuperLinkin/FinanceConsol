@@ -371,15 +371,17 @@ export default function ConsolidationWorkings() {
           const debitAmount = parseFloat(line.debit || 0);
           const creditAmount = parseFloat(line.credit || 0);
 
-          // Use same logic as getEntityValue: use natural balance direction
-          // Elimination entries reduce balances, so we SUBTRACT them
+          // Elimination entries follow same debit/credit logic as TB
+          // - Crediting an asset (debit balance) reduces it: Dr - Cr = negative
+          // - Debiting a liability (credit balance) reduces it: Cr - Dr = negative
+          // We ADD the elimination value (which will be negative for reductions)
           let netElim;
           if (['Assets', 'Expenses'].includes(className)) {
-            netElim = debitAmount - creditAmount;
+            netElim = debitAmount - creditAmount; // Same as entity value
           } else {
-            netElim = creditAmount - debitAmount;
+            netElim = creditAmount - debitAmount; // Same as entity value
           }
-          total -= netElim; // Note the subtraction - eliminations reduce balances
+          total += netElim; // Add the elimination (negative values reduce totals)
         });
       });
 
@@ -1120,23 +1122,106 @@ export default function ConsolidationWorkings() {
         </div>
       </div>
 
-      {/* Elimination Detail Modal */}
+      {/* Elimination Detail Sidepanel */}
       {showEliminationDetail && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-[#101828]">
-                Elimination Entries - {showEliminationDetail.name}
-              </h3>
+        <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 overflow-y-auto animate-slideLeft">
+          <div className="h-full flex flex-col">
+            <div className="bg-red-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">Elimination Entries</h3>
+                <p className="text-sm text-red-100 mt-1">{showEliminationDetail.name}</p>
+              </div>
               <button
                 onClick={() => setShowEliminationDetail(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X size={20} />
+                <X size={24} />
               </button>
             </div>
-            {/* Add elimination details table here */}
-            <p className="text-sm text-slate-600">Elimination entries will be displayed here</p>
+
+            <div className="p-8 flex-1 overflow-y-auto">
+              <div className="space-y-4">
+                {(() => {
+                  const allAccounts = showEliminationDetail.level === 'class' ? getAllAccounts(showEliminationDetail) : (showEliminationDetail.accounts || []);
+                  const className = showEliminationDetail.className || showEliminationDetail.name;
+                  const elimDetails = [];
+
+                  allAccounts.forEach(account => {
+                    // Get elimination journal entries for this account
+                    const entriesWithMatchingLines = eliminations.filter(e =>
+                      e.lines && Array.isArray(e.lines) &&
+                      e.lines.some(line => line.gl_code === account.account_code)
+                    );
+
+                    entriesWithMatchingLines.forEach(entry => {
+                      const matchingLines = entry.lines.filter(line => line.gl_code === account.account_code);
+
+                      matchingLines.forEach(line => {
+                        const debitAmount = parseFloat(line.debit || 0);
+                        const creditAmount = parseFloat(line.credit || 0);
+
+                        // Calculate net elimination effect (same as entity value logic)
+                        let netElim;
+                        if (['Assets', 'Expenses'].includes(className)) {
+                          netElim = debitAmount - creditAmount;
+                        } else {
+                          netElim = creditAmount - debitAmount;
+                        }
+
+                        if (netElim !== 0) {
+                          elimDetails.push({
+                            entryName: entry.entry_name || 'Elimination Entry',
+                            code: account.account_code,
+                            name: account.account_name,
+                            debit: debitAmount,
+                            credit: creditAmount,
+                            amount: netElim,
+                            entryDate: entry.entry_date,
+                            description: entry.description
+                          });
+                        }
+                      });
+                    });
+                  });
+
+                  return elimDetails.length > 0 ? (
+                    elimDetails.map((detail, index) => (
+                      <div key={index} className="border border-red-200 rounded-lg p-4 hover:bg-red-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-semibold text-gray-900">{detail.code}</div>
+                            <div className="text-sm text-gray-600">{detail.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">{detail.entryName}</div>
+                            {detail.description && (
+                              <div className="text-xs text-gray-500 mt-1">{detail.description}</div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="font-mono font-bold text-lg text-red-900">
+                              {formatCurrency(Math.abs(detail.amount))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-red-200">
+                          <div>
+                            <div className="text-xs text-gray-500">Debit</div>
+                            <div className="font-mono text-sm text-gray-900">{formatCurrency(Math.abs(detail.debit))}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500">Credit</div>
+                            <div className="font-mono text-sm text-gray-900">{formatCurrency(Math.abs(detail.credit))}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      No elimination entries found for this selection
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       )}
