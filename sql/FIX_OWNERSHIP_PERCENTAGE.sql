@@ -25,22 +25,7 @@ ALTER TABLE entities
 ADD CONSTRAINT check_ownership_percentage
 CHECK (ownership_percentage >= 0 AND ownership_percentage <= 100);
 
--- Do the same for ownership_percentage_2 (for split ownership) - only if column exists
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'entities' AND column_name = 'ownership_percentage_2'
-  ) THEN
-    ALTER TABLE entities
-    ALTER COLUMN ownership_percentage_2 TYPE NUMERIC USING ownership_percentage_2::NUMERIC;
-
-    -- Add constraint for second ownership percentage
-    ALTER TABLE entities
-    ADD CONSTRAINT check_ownership_percentage_2
-    CHECK (ownership_percentage_2 IS NULL OR (ownership_percentage_2 >= 0 AND ownership_percentage_2 <= 100));
-  END IF;
-END $$;
+-- Note: ownership_percentage_2 will be added in a future migration when split ownership feature is implemented
 
 -- Verify the changes
 SELECT
@@ -50,7 +35,7 @@ SELECT
   numeric_scale
 FROM information_schema.columns
 WHERE table_name = 'entities'
-  AND column_name IN ('ownership_percentage', 'ownership_percentage_2');
+  AND column_name = 'ownership_percentage';
 
 -- Test: This should now work without issues
 -- UPDATE entities SET ownership_percentage = 100.00 WHERE entity_code = 'YOUR_ENTITY_CODE';
