@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserCircle, User, LogOut, Moon, Sun, Settings } from 'lucide-react';
+import { UserCircle, User, LogOut, Settings } from 'lucide-react';
 
 export default function UserProfileButton() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState({ name: 'John Doe', email: 'john@example.com', role: 'user' });
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const userMenuRef = useRef(null);
   const router = useRouter();
 
@@ -19,10 +18,6 @@ export default function UserProfileButton() {
       setCurrentUser(userData);
     }
 
-    // Check dark mode
-    const savedTheme = localStorage.getItem('theme');
-    setIsDarkMode(savedTheme === 'dark');
-
     // Close dropdown when clicking outside
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -33,19 +28,6 @@ export default function UserProfileButton() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const toggleDarkMode = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDarkMode(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDarkMode(true);
-    }
-    setShowUserMenu(false);
-  };
 
   const handleLogout = async () => {
     try {
@@ -115,13 +97,6 @@ export default function UserProfileButton() {
               System Settings
             </button>
           )}
-          <button
-            onClick={toggleDarkMode}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-            {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-          </button>
           <div className="my-1 border-t border-gray-200"></div>
           <button
             onClick={handleLogout}

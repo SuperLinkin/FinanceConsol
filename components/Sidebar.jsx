@@ -19,8 +19,6 @@ import {
   FolderKanban,
   Sparkles,
   TableProperties,
-  Moon,
-  Sun,
   BookOpen,
   FileCode,
   UserCircle,
@@ -52,7 +50,6 @@ const menuItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState({ name: 'John Doe', email: 'john@example.com' });
@@ -62,18 +59,6 @@ export default function Sidebar() {
   const companyMenuRef = useRef(null);
 
   useEffect(() => {
-    // Check for saved theme preference or default to light mode
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-
     // Load user and company from localStorage or API
     const savedUser = localStorage.getItem('currentUser');
     const savedCompany = localStorage.getItem('currentCompany');
@@ -94,19 +79,6 @@ export default function Sidebar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const toggleDarkMode = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDarkMode(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDarkMode(true);
-    }
-    setShowUserMenu(false);
-  };
 
   const handleLogout = () => {
     // Implement logout logic
