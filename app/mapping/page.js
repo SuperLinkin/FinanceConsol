@@ -13,9 +13,19 @@ export default function MappingPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [isModalClosing, setIsModalClosing] = useState(false);
   const [selectedGL, setSelectedGL] = useState(null);
   const [selectedMasterGL, setSelectedMasterGL] = useState('');
   const [toast, setToast] = useState(null);
+
+  // Helper function for panel animation
+  const closeModal = () => {
+    setIsModalClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsModalClosing(false);
+    }, 300);
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -311,19 +321,23 @@ export default function MappingPage() {
       </div>
 
       {/* Mapping Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-end">
-          <div className="bg-white h-full w-[700px] shadow-2xl animate-slideRight overflow-y-auto">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-[#101828]">Map GL Code</h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={24} />
-                </button>
+      {(showModal || isModalClosing) && (
+        <div className={`fixed right-0 top-0 h-full w-[700px] bg-white shadow-2xl z-50 overflow-y-auto ${isModalClosing ? 'animate-slideOutRight' : 'animate-slideLeft'}`}>
+          <div className="h-full flex flex-col">
+            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">Map GL Code</h3>
+                <p className="text-sm text-slate-300 mt-1">Map entity GL to master chart of accounts</p>
               </div>
+              <button
+                onClick={closeModal}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 p-8 overflow-y-auto">
 
               <div className="space-y-6">
                 {/* Entity GL Info */}

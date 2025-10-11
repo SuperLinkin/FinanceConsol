@@ -20,6 +20,8 @@ export default function ChartOfAccounts() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadResults, setUploadResults] = useState(null);
+  const [showResultsModal, setShowResultsModal] = useState(false);
 
   const [accountForm, setAccountForm] = useState({
     account_code: '',
@@ -28,7 +30,8 @@ export default function ChartOfAccounts() {
     subclass_name: '',
     note_name: '',
     subnote_name: '',
-    is_active: true
+    is_active: true,
+    to_be_eliminated: false
   });
 
   const [masterForm, setMasterForm] = useState({
@@ -113,7 +116,8 @@ export default function ChartOfAccounts() {
       subclass_name: '',
       note_name: '',
       subnote_name: '',
-      is_active: true
+      is_active: true,
+      to_be_eliminated: false
     });
     setShowModal(true);
   };
@@ -127,7 +131,8 @@ export default function ChartOfAccounts() {
       subclass_name: account.subclass_name || '',
       note_name: account.note_name || '',
       subnote_name: account.subnote_name || '',
-      is_active: account.is_active
+      is_active: account.is_active,
+      to_be_eliminated: account.to_be_eliminated || false
     });
     setShowModal(true);
   };
@@ -177,6 +182,7 @@ export default function ChartOfAccounts() {
         note_name: accountForm.note_name,
         subnote_name: accountForm.subnote_name,
         is_active: accountForm.is_active,
+        to_be_eliminated: accountForm.to_be_eliminated,
         updated_at: new Date().toISOString()
       };
 
@@ -293,9 +299,9 @@ export default function ChartOfAccounts() {
 
   const downloadGLTemplate = () => {
     const template = [
-      { 'GL Code': '1000', 'GL Name': 'Cash & Cash Equivalents', 'Class': 'Assets', 'Sub-Class': 'Current Assets', 'Note': 'Cash & Cash Equivalents', 'Sub-Note': 'Petty Cash', 'Active': 'Yes' },
-      { 'GL Code': '1010', 'GL Name': 'Bank Balance', 'Class': 'Assets', 'Sub-Class': 'Current Assets', 'Note': 'Cash & Cash Equivalents', 'Sub-Note': 'Bank Balance', 'Active': 'Yes' },
-      { 'GL Code': '1100', 'GL Name': 'Trade Receivables', 'Class': 'Assets', 'Sub-Class': 'Current Assets', 'Note': 'Trade & Other Receivables', 'Sub-Note': 'Trade Receivables', 'Active': 'Yes' }
+      { 'GL Code': '1000', 'GL Name': 'Cash & Cash Equivalents', 'Class': 'Assets', 'Sub-Class': 'Current Assets', 'Note': 'Cash & Cash Equivalents', 'Sub-Note': 'Petty Cash', 'To Be Eliminated': 'N', 'Active': 'Yes' },
+      { 'GL Code': '1010', 'GL Name': 'Bank Balance', 'Class': 'Assets', 'Sub-Class': 'Current Assets', 'Note': 'Cash & Cash Equivalents', 'Sub-Note': 'Bank Balance', 'To Be Eliminated': 'N', 'Active': 'Yes' },
+      { 'GL Code': '1100', 'GL Name': 'Trade Receivables', 'Class': 'Assets', 'Sub-Class': 'Current Assets', 'Note': 'Trade & Other Receivables', 'Sub-Note': 'Trade Receivables', 'To Be Eliminated': 'Y', 'Active': 'Yes' }
     ];
 
     import('xlsx').then(XLSX => {
@@ -352,17 +358,27 @@ export default function ChartOfAccounts() {
             throw new Error(`Missing mandatory hierarchy levels in rows: ${missingLevels.join(', ')}`);
           }
 
-          const glRecords = jsonData.map(row => ({
-            account_code: row['GL Code'] || '',
-            account_name: row['GL Name'] || '',
-            class_name: row.Class || '',
-            subclass_name: row['Sub-Class'] || '',
-            note_name: row.Note || '',
-            subnote_name: row['Sub-Note'] || '',
-            is_active: (row.Active || 'Yes').toLowerCase() === 'yes',
-          }));
+          const glRecords = jsonData.map(row => {
+            // Parse to_be_eliminated field (accepts Y/N, TRUE/FALSE, 1/0, Yes/No)
+            let toBeEliminated = false;
+            const elimValue = (row['To Be Eliminated'] || '').toString().toLowerCase();
+            if (elimValue === 'y' || elimValue === 'yes' || elimValue === 'true' || elimValue === '1') {
+              toBeEliminated = true;
+            }
 
-          // Remove duplicates based on account_code
+            return {
+              account_code: row['GL Code'] || '',
+              account_name: row['GL Name'] || '',
+              class_name: row.Class || '',
+              subclass_name: row['Sub-Class'] || '',
+              note_name: row.Note || '',
+              subnote_name: row['Sub-Note'] || '',
+              to_be_eliminated: toBeEliminated,
+              is_active: (row.Active || 'Yes').toLowerCase() === 'yes',
+            };
+          });
+
+          // Remove duplicates within upload file
           const uniqueRecords = [];
           const seen = new Set();
           let duplicateCount = 0;
@@ -376,27 +392,124 @@ export default function ChartOfAccounts() {
             }
           });
 
-          if (duplicateCount > 0) {
-            console.log(`Removed ${duplicateCount} duplicate GL codes from upload`);
-          }
+          console.log(`📁 File contains ${glRecords.length} records, ${uniqueRecords.length} unique, ${duplicateCount} duplicates`);
 
-          const { error } = await supabase
+          // Fetch existing records from database
+          const { data: existingRecords, error: fetchError } = await supabase
             .from('chart_of_accounts')
-            .insert(uniqueRecords);
+            .select('*');
 
-          if (error) {
-            console.error('Database error:', error);
-            const errorMsg = error.message || error.hint || 'Database error occurred';
-            alert('Upload failed: ' + errorMsg);
-            throw new Error(errorMsg);
+          if (fetchError) throw fetchError;
+
+          const existingCodes = new Set(existingRecords.map(r => r.account_code));
+          const uploadCodes = new Set(uniqueRecords.map(r => r.account_code));
+
+          // Categorize records
+          const toAdd = [];
+          const toUpdate = [];
+          const toDelete = [];
+          const unchanged = [];
+
+          // Check what to add or update
+          uniqueRecords.forEach(record => {
+            const existing = existingRecords.find(e => e.account_code === record.account_code);
+
+            if (!existing) {
+              // New record
+              toAdd.push(record);
+            } else {
+              // Check if anything changed
+              const hasChanges =
+                existing.account_name !== record.account_name ||
+                existing.class_name !== record.class_name ||
+                existing.subclass_name !== record.subclass_name ||
+                existing.note_name !== record.note_name ||
+                existing.subnote_name !== record.subnote_name ||
+                existing.to_be_eliminated !== record.to_be_eliminated ||
+                existing.is_active !== record.is_active;
+
+              if (hasChanges) {
+                toUpdate.push({ ...record, id: existing.id });
+              } else {
+                unchanged.push(record);
+              }
+            }
+          });
+
+          // Check what to delete (exists in DB but not in upload)
+          existingRecords.forEach(existing => {
+            if (!uploadCodes.has(existing.account_code)) {
+              toDelete.push(existing);
+            }
+          });
+
+          console.log('📊 Sync Analysis:');
+          console.log(`  ✅ To Add: ${toAdd.length}`);
+          console.log(`  🔄 To Update: ${toUpdate.length}`);
+          console.log(`  ❌ To Delete: ${toDelete.length}`);
+          console.log(`  ⏸️  Unchanged: ${unchanged.length}`);
+
+          // Perform database operations
+          let addedCount = 0;
+          let updatedCount = 0;
+          let deletedCount = 0;
+
+          // Add new records
+          if (toAdd.length > 0) {
+            const { error: addError } = await supabase
+              .from('chart_of_accounts')
+              .insert(toAdd);
+            if (addError) throw addError;
+            addedCount = toAdd.length;
           }
 
-          let successMsg = `GL codes uploaded successfully! ${uniqueRecords.length} codes processed.`;
-          if (duplicateCount > 0) {
-            successMsg += ` (${duplicateCount} duplicates removed from file)`;
+          // Update existing records
+          if (toUpdate.length > 0) {
+            for (const record of toUpdate) {
+              const { error: updateError } = await supabase
+                .from('chart_of_accounts')
+                .update({
+                  account_name: record.account_name,
+                  class_name: record.class_name,
+                  subclass_name: record.subclass_name,
+                  note_name: record.note_name,
+                  subnote_name: record.subnote_name,
+                  to_be_eliminated: record.to_be_eliminated,
+                  is_active: record.is_active
+                })
+                .eq('id', record.id);
+
+              if (updateError) throw updateError;
+            }
+            updatedCount = toUpdate.length;
           }
-          alert(successMsg);
-          showToast(successMsg, true);
+
+          // Delete records not in upload
+          if (toDelete.length > 0) {
+            const deleteIds = toDelete.map(r => r.id);
+            const { error: deleteError } = await supabase
+              .from('chart_of_accounts')
+              .delete()
+              .in('id', deleteIds);
+
+            if (deleteError) throw deleteError;
+            deletedCount = toDelete.length;
+          }
+
+          // Store results for modal
+          const results = {
+            type: 'GL Codes',
+            added: toAdd.map(r => ({ code: r.account_code, name: r.account_name })),
+            updated: toUpdate.map(r => ({ code: r.account_code, name: r.account_name })),
+            deleted: toDelete.map(r => ({ code: r.account_code, name: r.account_name })),
+            unchanged: unchanged.length,
+            duplicatesInFile: duplicateCount
+          };
+
+          setUploadResults(results);
+          setShowResultsModal(true);
+
+          showToast(`Sync complete! Added: ${addedCount}, Updated: ${updatedCount}, Deleted: ${deletedCount}`, true);
           fetchAccounts();
           e.target.value = '';
         } catch (error) {
@@ -459,20 +572,29 @@ export default function ChartOfAccounts() {
 
           const masterRecords = jsonData.map(row => {
             // Determine statement type based on class name if not provided
-            let statementType = 'balance_sheet'; // default
+            let statementType = 'Balance Sheet'; // default
             const className = (row.Class || '').toLowerCase();
 
             if (className.includes('asset') || className.includes('liabilit') || className.includes('equity')) {
-              statementType = 'balance_sheet';
+              statementType = 'Balance Sheet';
             } else if (className.includes('income') || className.includes('revenue') || className.includes('expense') || className.includes('cost')) {
-              statementType = 'income_statement';
+              statementType = 'Income Statement';
             }
 
             // Override if Statement Type column exists
             if (row['Statement Type']) {
-              const type = row['Statement Type'].toLowerCase().replace(/\s+/g, '_');
-              if (['balance_sheet', 'income_statement', 'cash_flow', 'equity'].includes(type)) {
-                statementType = type;
+              // Map common formats to database enum values
+              const typeMap = {
+                'balance_sheet': 'Balance Sheet',
+                'balance sheet': 'Balance Sheet',
+                'income_statement': 'Income Statement',
+                'income statement': 'Income Statement',
+                'cash_flow': 'Cash Flow',
+                'cash flow': 'Cash Flow'
+              };
+              const type = row['Statement Type'].toLowerCase();
+              if (typeMap[type]) {
+                statementType = typeMap[type];
               }
             }
 
@@ -498,7 +620,7 @@ export default function ChartOfAccounts() {
             };
           });
 
-          // Remove duplicates based on unique key (class_name + subclass_name + note_name + subnote_name)
+          // Remove duplicates within upload file
           const uniqueRecords = [];
           const seen = new Set();
           let duplicateCount = 0;
@@ -513,35 +635,128 @@ export default function ChartOfAccounts() {
             }
           });
 
-          if (duplicateCount > 0) {
-            console.log(`Removed ${duplicateCount} duplicate rows from upload`);
-          }
+          console.log(`📁 File contains ${masterRecords.length} records, ${uniqueRecords.length} unique, ${duplicateCount} duplicates`);
 
-          console.log('Sample master record:', uniqueRecords[0]);
-          console.log(`Total unique records: ${uniqueRecords.length}`);
-
-          // Use upsert to insert or update existing records
-          const { error, data: insertedData } = await supabase
+          // Fetch existing records from database
+          const { data: existingRecords, error: fetchError } = await supabase
             .from('coa_master_hierarchy')
-            .upsert(uniqueRecords, {
-              onConflict: 'class_name,subclass_name,note_name,subnote_name',
-              ignoreDuplicates: false
-            })
-            .select();
+            .select('*');
 
-          if (error) {
-            console.error('Database error:', error);
-            const errorMsg = error.message || error.hint || 'Database error occurred';
-            alert('Upload failed: ' + errorMsg);
-            throw new Error(errorMsg);
+          if (fetchError) throw fetchError;
+
+          const makeKey = (r) => `${r.class_name}|${r.subclass_name}|${r.note_name}|${r.subnote_name}`;
+          const existingKeys = new Set(existingRecords.map(makeKey));
+          const uploadKeys = new Set(uniqueRecords.map(makeKey));
+
+          // Categorize records
+          const toAdd = [];
+          const toUpdate = [];
+          const toDelete = [];
+          const unchanged = [];
+
+          // Check what to add or update
+          uniqueRecords.forEach(record => {
+            const key = makeKey(record);
+            const existing = existingRecords.find(e => makeKey(e) === key);
+
+            if (!existing) {
+              // New record
+              toAdd.push(record);
+            } else {
+              // Check if anything changed
+              const hasChanges =
+                existing.statement_type !== record.statement_type ||
+                existing.normal_balance !== record.normal_balance ||
+                existing.is_active !== record.is_active;
+
+              if (hasChanges) {
+                toUpdate.push({ ...record, id: existing.id });
+              } else {
+                unchanged.push(record);
+              }
+            }
+          });
+
+          // Check what to delete (exists in DB but not in upload)
+          existingRecords.forEach(existing => {
+            const key = makeKey(existing);
+            if (!uploadKeys.has(key)) {
+              toDelete.push(existing);
+            }
+          });
+
+          console.log('📊 Sync Analysis:');
+          console.log(`  ✅ To Add: ${toAdd.length}`);
+          console.log(`  🔄 To Update: ${toUpdate.length}`);
+          console.log(`  ❌ To Delete: ${toDelete.length}`);
+          console.log(`  ⏸️  Unchanged: ${unchanged.length}`);
+
+          // Perform database operations
+          let addedCount = 0;
+          let updatedCount = 0;
+          let deletedCount = 0;
+
+          // Add new records
+          if (toAdd.length > 0) {
+            const { error: addError } = await supabase
+              .from('coa_master_hierarchy')
+              .insert(toAdd);
+            if (addError) throw addError;
+            addedCount = toAdd.length;
           }
 
-          let successMsg = `Master hierarchy uploaded successfully! ${insertedData?.length || uniqueRecords.length} records processed.`;
-          if (duplicateCount > 0) {
-            successMsg += ` (${duplicateCount} duplicates removed from file)`;
+          // Update existing records
+          if (toUpdate.length > 0) {
+            for (const record of toUpdate) {
+              const { error: updateError } = await supabase
+                .from('coa_master_hierarchy')
+                .update({
+                  statement_type: record.statement_type,
+                  normal_balance: record.normal_balance,
+                  is_active: record.is_active
+                })
+                .eq('id', record.id);
+
+              if (updateError) throw updateError;
+            }
+            updatedCount = toUpdate.length;
           }
-          alert(successMsg);
-          showToast(successMsg, true);
+
+          // Delete records not in upload
+          if (toDelete.length > 0) {
+            const deleteIds = toDelete.map(r => r.id);
+            const { error: deleteError } = await supabase
+              .from('coa_master_hierarchy')
+              .delete()
+              .in('id', deleteIds);
+
+            if (deleteError) throw deleteError;
+            deletedCount = toDelete.length;
+          }
+
+          // Store results for modal
+          const results = {
+            type: 'Master Hierarchy',
+            added: toAdd.map(r => ({
+              code: `${r.class_name} > ${r.subclass_name} > ${r.note_name} > ${r.subnote_name}`,
+              name: ''
+            })),
+            updated: toUpdate.map(r => ({
+              code: `${r.class_name} > ${r.subclass_name} > ${r.note_name} > ${r.subnote_name}`,
+              name: ''
+            })),
+            deleted: toDelete.map(r => ({
+              code: `${r.class_name} > ${r.subclass_name} > ${r.note_name} > ${r.subnote_name}`,
+              name: ''
+            })),
+            unchanged: unchanged.length,
+            duplicatesInFile: duplicateCount
+          };
+
+          setUploadResults(results);
+          setShowResultsModal(true);
+
+          showToast(`Sync complete! Added: ${addedCount}, Updated: ${updatedCount}, Deleted: ${deletedCount}`, true);
           fetchMasters();
           e.target.value = '';
         } catch (error) {
@@ -584,6 +799,15 @@ export default function ChartOfAccounts() {
   const getUniqueSubClasses = (className) => [...new Set(masters.filter(m => m.class_name === className).map(m => m.subclass_name).filter(Boolean))];
   const getUniqueNotes = (className, subClassName) => [...new Set(masters.filter(m => m.class_name === className && m.subclass_name === subClassName).map(m => m.note_name).filter(Boolean))];
   const getUniqueSubNotes = (className, subClassName, noteName) => [...new Set(masters.filter(m => m.class_name === className && m.subclass_name === subClassName && m.note_name === noteName).map(m => m.subnote_name).filter(Boolean))];
+
+  // Get accounts with missing taggings
+  const getMissingTaggings = () => {
+    return accounts.filter(acc =>
+      !acc.class_name || !acc.subclass_name || !acc.note_name || !acc.subnote_name
+    );
+  };
+
+  const missingTaggings = getMissingTaggings();
 
   if (loading) {
     return (
@@ -673,41 +897,136 @@ export default function ChartOfAccounts() {
               </div>
 
               {/* Upload/Download Row */}
-              <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-                <button
-                  onClick={downloadGLTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                >
-                  <Download size={18} />
-                  Download Template
-                </button>
+              <div className="pt-4 border-t border-gray-200">
+                {/* Sync Warning */}
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-3">
+                  <div className="flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-yellow-800">SYNC Operation</p>
+                      <p className="text-xs text-yellow-700 mt-0.5">
+                        Upload syncs database with your file. Records NOT in upload will be <strong>deleted</strong>. Always upload complete master file.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors cursor-pointer">
-                  <Upload size={18} />
-                  {uploading ? 'Uploading...' : 'Upload GL Codes'}
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleGLUpload}
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </label>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={downloadGLTemplate}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={18} />
+                    Download Template
+                  </button>
+
+                  <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors cursor-pointer">
+                    <Upload size={18} />
+                    {uploading ? 'Uploading...' : 'Upload GL Codes'}
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleGLUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
+
+            {/* Missing Taggings Section */}
+            {missingTaggings.length > 0 && (
+              <div className="bg-red-50 border-2 border-red-300 rounded-[14px] p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-red-900">Incomplete Account Taggings</h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      {missingTaggings.length} account{missingTaggings.length !== 1 ? 's' : ''} {missingTaggings.length !== 1 ? 'are' : 'is'} missing one or more hierarchy levels (Class, Sub-Class, Note, Sub-Note)
+                    </p>
+                  </div>
+                  <span className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg text-lg">
+                    {missingTaggings.length}
+                  </span>
+                </div>
+
+                <div className="bg-white rounded-lg border border-red-200 overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-red-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">GL Code</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">GL Name</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">Class</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">Sub-Class</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">Note</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">Sub-Note</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold text-red-900">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-red-100">
+                      {missingTaggings.map((account) => (
+                        <tr key={account.id} className="hover:bg-red-50">
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900">{account.account_code}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{account.account_name}</td>
+                          <td className="px-4 py-3 text-sm">
+                            {account.class_name ? (
+                              <span className="text-gray-700">{account.class_name}</span>
+                            ) : (
+                              <span className="text-red-600 font-semibold">Missing</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {account.subclass_name ? (
+                              <span className="text-gray-700">{account.subclass_name}</span>
+                            ) : (
+                              <span className="text-red-600 font-semibold">Missing</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {account.note_name ? (
+                              <span className="text-gray-700">{account.note_name}</span>
+                            ) : (
+                              <span className="text-red-600 font-semibold">Missing</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {account.subnote_name ? (
+                              <span className="text-gray-700">{account.subnote_name}</span>
+                            ) : (
+                              <span className="text-red-600 font-semibold">Missing</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => openEditModal(account)}
+                              className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              Complete Tagging
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Main Table */}
             <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-slate-900 text-white py-4 px-6">
                 <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-2 font-bold text-sm">GL Code</div>
+                  <div className="col-span-1 font-bold text-sm">GL Code</div>
                   <div className="col-span-2 font-bold text-sm">GL Name</div>
-                  <div className="col-span-2 font-bold text-sm">Class</div>
+                  <div className="col-span-1 font-bold text-sm">Class</div>
                   <div className="col-span-2 font-bold text-sm">Sub-Class</div>
                   <div className="col-span-1 font-bold text-sm">Note</div>
                   <div className="col-span-1 font-bold text-sm">Sub-Note</div>
+                  <div className="col-span-1 font-bold text-sm text-center">To Eliminate</div>
                   <div className="col-span-1 font-bold text-sm text-center">Status</div>
-                  <div className="col-span-1 font-bold text-sm">Actions</div>
+                  <div className="col-span-2 font-bold text-sm">Actions</div>
                 </div>
               </div>
 
@@ -725,13 +1044,13 @@ export default function ChartOfAccounts() {
                         className={`${bgShade} border-b border-gray-200 hover:bg-[#faf8f4] transition-all duration-250 group`}
                       >
                         <div className="grid grid-cols-12 gap-4 py-4 px-6 items-center">
-                          <div className="col-span-2 font-semibold text-slate-900">
+                          <div className="col-span-1 font-semibold text-slate-900">
                             {account.account_code}
                           </div>
                           <div className="col-span-2 font-medium text-gray-900">
                             {account.account_name}
                           </div>
-                          <div className="col-span-2 text-sm text-gray-700">
+                          <div className="col-span-1 text-sm text-gray-700">
                             {account.class_name || '—'}
                           </div>
                           <div className="col-span-2 text-sm text-gray-700">
@@ -744,13 +1063,38 @@ export default function ChartOfAccounts() {
                             {account.subnote_name || '—'}
                           </div>
                           <div className="col-span-1 text-center">
+                            <input
+                              type="checkbox"
+                              checked={account.to_be_eliminated || false}
+                              onChange={async (e) => {
+                                const newValue = e.target.checked;
+                                try {
+                                  const { error } = await supabase
+                                    .from('chart_of_accounts')
+                                    .update({ to_be_eliminated: newValue })
+                                    .eq('id', account.id);
+
+                                  if (error) throw error;
+
+                                  fetchAccounts();
+                                  showToast(`GL ${account.account_code} ${newValue ? 'marked' : 'unmarked'} for elimination`, true);
+                                } catch (error) {
+                                  console.error('Error updating to_be_eliminated:', error);
+                                  showToast('Error updating elimination status', false);
+                                }
+                              }}
+                              className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                              title="Mark for elimination"
+                            />
+                          </div>
+                          <div className="col-span-1 text-center">
                             <span className={`px-2 py-1 text-xs font-semibold rounded ${
                               account.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
                             }`}>
                               {account.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </div>
-                          <div className="col-span-1 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="col-span-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => openEditModal(account)}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -792,26 +1136,43 @@ export default function ChartOfAccounts() {
               </div>
 
               {/* Upload/Download Row */}
-              <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-                <button
-                  onClick={downloadMasterTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                >
-                  <Download size={18} />
-                  Download Template
-                </button>
+              <div className="pt-4 border-t border-gray-200">
+                {/* Sync Warning */}
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-3">
+                  <div className="flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-yellow-800">SYNC Operation</p>
+                      <p className="text-xs text-yellow-700 mt-0.5">
+                        Upload syncs database with your file. Hierarchy levels NOT in upload will be <strong>deleted</strong>. Always upload complete master hierarchy.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors cursor-pointer">
-                  <Upload size={18} />
-                  {uploading ? 'Uploading...' : 'Upload Master Hierarchy'}
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleMasterUpload}
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </label>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={downloadMasterTemplate}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={18} />
+                    Download Template
+                  </button>
+
+                  <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors cursor-pointer">
+                    <Upload size={18} />
+                    {uploading ? 'Uploading...' : 'Upload Master Hierarchy'}
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleMasterUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -883,20 +1244,24 @@ export default function ChartOfAccounts() {
 
       {/* GL Code Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
-          <div className="bg-white h-full w-[600px] shadow-2xl animate-slideRight overflow-y-auto pointer-events-auto">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-slate-900">
-                  {editingAccount ? 'Edit GL Code' : 'Add New GL Code'}
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={24} />
-                </button>
+        <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 overflow-y-auto animate-slideLeft">
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">{editingAccount ? 'Edit GL Code' : 'Add New GL Code'}</h3>
+                <p className="text-sm text-slate-300 mt-1">Define account code and IFRS hierarchy</p>
               </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 p-8 overflow-y-auto">
 
               <div className="space-y-6">
                 <div>
@@ -972,7 +1337,7 @@ export default function ChartOfAccounts() {
                   </select>
                 </div>
 
-                <div>
+                <div className="space-y-3">
                   <label className="flex items-center gap-3">
                     <input
                       type="checkbox"
@@ -981,6 +1346,16 @@ export default function ChartOfAccounts() {
                       className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
                     />
                     <span className="font-medium text-gray-700">Active</span>
+                  </label>
+
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={accountForm.to_be_eliminated}
+                      onChange={(e) => setAccountForm({...accountForm, to_be_eliminated: e.target.checked})}
+                      className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
+                    />
+                    <span className="font-medium text-gray-700">Mark for Elimination</span>
                   </label>
                 </div>
               </div>
@@ -1001,20 +1376,24 @@ export default function ChartOfAccounts() {
 
       {/* Master Add/Edit Modal */}
       {showMasterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
-          <div className="bg-white h-full w-[600px] shadow-2xl animate-slideRight overflow-y-auto pointer-events-auto">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-slate-900">
-                  {editingMaster ? 'Edit Master Hierarchy' : 'Add Master Hierarchy'}
-                </h2>
-                <button
-                  onClick={() => setShowMasterModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={24} />
-                </button>
+        <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 overflow-y-auto animate-slideLeft">
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">{editingMaster ? 'Edit Master Hierarchy' : 'Add Master Hierarchy'}</h3>
+                <p className="text-sm text-slate-300 mt-1">Define IFRS 4-level hierarchy structure</p>
               </div>
+              <button
+                onClick={() => setShowMasterModal(false)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 p-8 overflow-y-auto">
 
               <div className="space-y-6">
                 <div>
@@ -1083,6 +1462,129 @@ export default function ChartOfAccounts() {
                   Save Master Hierarchy
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Results Modal */}
+      {showResultsModal && uploadResults && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[14px] shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slideUp">
+            {/* Header */}
+            <div className="bg-[#101828] text-white px-6 py-5 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">Upload Results - {uploadResults.type}</h2>
+                  <p className="text-sm text-gray-300 mt-1">Summary of changes applied to database</p>
+                </div>
+                <button
+                  onClick={() => setShowResultsModal(false)}
+                  className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-4 gap-4 p-6 bg-[#f7f5f2]">
+              <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-green-700">{uploadResults.added.length}</div>
+                <div className="text-sm text-green-600 font-semibold mt-1">Added</div>
+              </div>
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-blue-700">{uploadResults.updated.length}</div>
+                <div className="text-sm text-blue-600 font-semibold mt-1">Updated</div>
+              </div>
+              <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-red-700">{uploadResults.deleted.length}</div>
+                <div className="text-sm text-red-600 font-semibold mt-1">Deleted</div>
+              </div>
+              <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-gray-700">{uploadResults.unchanged}</div>
+                <div className="text-sm text-gray-600 font-semibold mt-1">Unchanged</div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="p-6 overflow-y-auto max-h-[50vh]">
+              {/* Added Items */}
+              {uploadResults.added.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
+                    <Plus className="text-green-600" size={20} />
+                    Added Items ({uploadResults.added.length})
+                  </h3>
+                  <div className="bg-green-50 rounded-lg border border-green-200 overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      {uploadResults.added.map((item, idx) => (
+                        <div key={idx} className="px-4 py-2 border-b border-green-100 last:border-b-0 text-sm">
+                          <span className="font-mono font-semibold text-green-800">{item.code}</span>
+                          {item.name && <span className="ml-2 text-green-700">{item.name}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Updated Items */}
+              {uploadResults.updated.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-blue-700 mb-3 flex items-center gap-2">
+                    <Edit2 className="text-blue-600" size={20} />
+                    Updated Items ({uploadResults.updated.length})
+                  </h3>
+                  <div className="bg-blue-50 rounded-lg border border-blue-200 overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      {uploadResults.updated.map((item, idx) => (
+                        <div key={idx} className="px-4 py-2 border-b border-blue-100 last:border-b-0 text-sm">
+                          <span className="font-mono font-semibold text-blue-800">{item.code}</span>
+                          {item.name && <span className="ml-2 text-blue-700">{item.name}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Deleted Items */}
+              {uploadResults.deleted.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-red-700 mb-3 flex items-center gap-2">
+                    <Trash2 className="text-red-600" size={20} />
+                    Deleted Items ({uploadResults.deleted.length})
+                  </h3>
+                  <div className="bg-red-50 rounded-lg border border-red-200 overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      {uploadResults.deleted.map((item, idx) => (
+                        <div key={idx} className="px-4 py-2 border-b border-red-100 last:border-b-0 text-sm">
+                          <span className="font-mono font-semibold text-red-800">{item.code}</span>
+                          {item.name && <span className="ml-2 text-red-700">{item.name}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info */}
+              {uploadResults.duplicatesInFile > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+                  <strong>Note:</strong> {uploadResults.duplicatesInFile} duplicate{uploadResults.duplicatesInFile !== 1 ? 's' : ''} found in upload file (removed automatically)
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-[#f7f5f2] px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowResultsModal(false)}
+                className="px-8 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors shadow-md"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

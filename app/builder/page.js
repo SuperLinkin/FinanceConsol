@@ -270,46 +270,31 @@ export default function BuilderPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#f7f5f2]">
-      <PageHeader title="Consolidation Builder" subtitle="Create and manage consolidation entries" />
+      <PageHeader title="Adjustment Entry" subtitle="Create and manage adjustment entries other than eliminations" />
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-8 py-6">
 
-        <div className="flex items-center justify-end mb-10">
-          <button
-            onClick={() => {
-              resetForm();
-              setActiveSection('create');
-            }}
-            className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 hover:shadow-lg transition-all duration-200 shadow-md"
-          >
-            <Plus size={20} />
-            Create New Build
-          </button>
-        </div>
-
         {/* Tabs */}
-        <div className="flex gap-3 mb-8">
+        <div className="flex gap-4 mb-6">
           <button
             onClick={() => setActiveSection('all')}
-            className={`px-8 py-4 rounded-xl font-semibold text-base transition-all duration-200 ${
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
               activeSection === 'all'
-                ? 'bg-white/80 backdrop-blur-sm text-slate-900 shadow-lg'
-                : 'bg-white/40 text-slate-600 hover:bg-white/60'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <Filter size={18} className="inline mr-2 mb-1" />
             All Builds ({filteredBuilds.length})
           </button>
           <button
             onClick={() => setActiveSection('create')}
-            className={`px-8 py-4 rounded-xl font-semibold text-base transition-all duration-200 ${
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
               activeSection === 'create'
-                ? 'bg-white/80 backdrop-blur-sm text-slate-900 shadow-lg'
-                : 'bg-white/40 text-slate-600 hover:bg-white/60'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <Wrench size={18} className="inline mr-2 mb-1" />
             {editingBuild ? 'Edit Build' : 'Create Build'}
           </button>
         </div>
@@ -773,6 +758,7 @@ export default function BuilderPage() {
             </div>
           </>
         )}
+
         </div>
       </div>
     </div>

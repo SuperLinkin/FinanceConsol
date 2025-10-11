@@ -1,34 +1,27 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import RootLayoutClient from "./layout-client";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ['300', '400', '500', '600', '700', '800'],
 });
 
 export const metadata = {
-  title: "ConsolidatePro - IFRS Consolidation Platform",
+  title: "CLOE - Your Optimization Engine",
   description: "Professional financial consolidation and reporting tool",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${manrope.variable} antialiased`}
+        style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+        suppressHydrationWarning
       >
-        <div className="flex h-screen overflow-hidden bg-[#f7f5f2]">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+        <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>
   );

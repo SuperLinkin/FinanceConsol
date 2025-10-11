@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { Upload, Download, CheckCircle, XCircle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 
@@ -14,12 +13,14 @@ export default function UploadPage() {
   const [tbValidation, setTbValidation] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
+  const [columnFormat, setColumnFormat] = useState('standard'); // 'standard' (Debit/Credit) or 'signed' (single Amount column with +/-)
 
   // Bulk upload states
   const [uploadMode, setUploadMode] = useState('single'); // 'single' or 'bulk'
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkValidation, setBulkValidation] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState(new Date().toISOString().split('T')[0]);
+  const [periodMonths, setPeriodMonths] = useState('12'); // Number of months (1, 3, 6, 12)
   const [groupReportingCurrency, setGroupReportingCurrency] = useState(null);
 
   useEffect(() => {
@@ -28,22 +29,33 @@ export default function UploadPage() {
 
   const fetchEntities = async () => {
     try {
-      const [entitiesData, currenciesData] = await Promise.all([
-        supabase.from('entities').select('*').order('entity_name'),
-        supabase.from('currencies').select('*').eq('is_group_reporting_currency', true).single()
-      ]);
+      // Fetch entities via API to bypass RLS
+      const entitiesResponse = await fetch('/api/entities');
+      const entitiesData = await entitiesResponse.json();
 
-      setEntities(entitiesData.data || []);
+      // The API returns data directly, not wrapped in { data: [...] }
+      const entities = Array.isArray(entitiesData) ? entitiesData : (entitiesData.data || []);
+      setEntities(entities);
+      console.log('[Upload Page] Loaded entities:', entities.length);
 
-      // Handle case where column doesn't exist yet
-      if (currenciesData.error && (currenciesData.error.code === '42703' || currenciesData.error.message?.includes('column'))) {
-        console.warn('Group reporting currency column not found in database. Please run SQL migration.');
-        setGroupReportingCurrency(null);
+      // Fetch base currency from company settings
+      const companySettingsResponse = await fetch('/api/company/settings');
+      const companySettings = await companySettingsResponse.json();
+
+      if (companySettings.baseCurrency) {
+        // Fetch company currencies to get the base currency details
+        const currenciesResponse = await fetch('/api/company-currencies');
+        const currenciesData = await currenciesResponse.json();
+
+        const currenciesList = Array.isArray(currenciesData) ? currenciesData : (currenciesData.data || []);
+        const baseCurr = currenciesList.find(c => c.is_base_currency);
+        setGroupReportingCurrency(baseCurr || null);
       } else {
-        setGroupReportingCurrency(currenciesData.data || null);
+        setGroupReportingCurrency(null);
       }
     } catch (error) {
       console.error('Error fetching entities:', error);
+      setGroupReportingCurrency(null);
     }
   };
 
@@ -98,11 +110,31 @@ export default function UploadPage() {
         // Calculate totals
         let totalDebit = 0;
         let totalCredit = 0;
+        let hasAmountColumn = false;
 
-        jsonData.forEach(row => {
-          totalDebit += parseFloat(row.Debit || row.debit || 0);
-          totalCredit += parseFloat(row.Credit || row.credit || 0);
-        });
+        // Check if file uses Amount column format
+        if (jsonData.length > 0) {
+          hasAmountColumn = jsonData[0].Amount !== undefined || jsonData[0].amount !== undefined;
+        }
+
+        if (hasAmountColumn) {
+          // For Amount column: positive values = debit/credit depending on account type
+          // We'll show a warning that COA lookup is needed
+          jsonData.forEach(row => {
+            const amount = parseFloat(row.Amount || row.amount || 0);
+            if (amount >= 0) {
+              totalDebit += amount;
+            } else {
+              totalCredit += Math.abs(amount);
+            }
+          });
+        } else {
+          // For standard Debit/Credit columns
+          jsonData.forEach(row => {
+            totalDebit += parseFloat(row.Debit || row.debit || 0);
+            totalCredit += parseFloat(row.Credit || row.credit || 0);
+          });
+        }
 
         const difference = Math.abs(totalDebit - totalCredit);
         const isBalanced = difference < 0.01; // Allow small rounding differences
@@ -112,7 +144,8 @@ export default function UploadPage() {
           totalDebit,
           totalCredit,
           difference,
-          rowCount: jsonData.length
+          rowCount: jsonData.length,
+          hasAmountColumn
         });
       } catch (error) {
         console.error('Error validating file:', error);
@@ -142,28 +175,130 @@ export default function UploadPage() {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
+          // Fetch COA to determine account classes via API to bypass RLS
+          console.log('[Upload] Fetching COA via API...');
+          const coaResponse = await fetch('/api/chart-of-accounts');
+          console.log('[Upload] COA API response status:', coaResponse.status);
+          if (!coaResponse.ok) {
+            throw new Error(`Failed to fetch Chart of Accounts: ${coaResponse.statusText}`);
+          }
+
+          const coaData = await coaResponse.json();
+          console.log('[Upload] COA data received:', coaData?.length || 0, 'records');
+
+          if (!coaData || coaData.length === 0) {
+            console.error('[Upload] COA is empty - blocking upload');
+            setUploadStatus({
+              success: false,
+              message: '⚠️ Chart of Accounts is empty! You must upload your Chart of Accounts before uploading trial balance data. Please go to the Chart of Accounts page and upload your COA first.'
+            });
+            setUploading(false);
+            return;
+          }
+
+          const coaMap = {};
+          (coaData || []).forEach(acc => {
+            coaMap[acc.account_code] = acc.class_name;
+          });
+
+          // Log sample COA mappings for debugging
+          console.log('[Upload] Sample COA mappings (first 10):', Object.entries(coaMap).slice(0, 10));
+          console.log('[Upload] Unique class names in COA:', [...new Set(Object.values(coaMap))]);
+
+          // VALIDATION: Check if ALL account codes in TB file exist in COA
+          const accountCodesInTB = [...new Set(jsonData.map(row => row['Account Code'] || row['account_code'] || '').filter(code => code))];
+          const missingAccounts = accountCodesInTB.filter(code => !coaMap[code]);
+
+          if (missingAccounts.length > 0) {
+            setUploadStatus({
+              success: false,
+              message: `❌ Upload Blocked: ${missingAccounts.length} account code(s) in your trial balance are not found in the Chart of Accounts. Without COA mapping, the system cannot determine correct debit/credit classification. Missing accounts: ${missingAccounts.slice(0, 10).join(', ')}${missingAccounts.length > 10 ? ` and ${missingAccounts.length - 10} more...` : ''}. Please add these accounts to your Chart of Accounts first.`
+            });
+            setUploading(false);
+            return;
+          }
+
           // Prepare data for Supabase
-          const tbRecords = jsonData.map(row => ({
-            entity_id: selectedEntity,
-            account_code: row['Account Code'] || row['account_code'] || '',
-            account_name: row['Account Name'] || row['account_name'] || '',
-            debit: parseFloat(row.Debit || row.debit || 0),
-            credit: parseFloat(row.Credit || row.credit || 0),
-            currency: selectedCurrency,
-            period: new Date().toISOString().split('T')[0], // Default to today, can be customized
-            uploaded_by: 'System', // Replace with actual user
-          }));
+          const tbRecords = jsonData.map(row => {
+            let debit = 0;
+            let credit = 0;
+            const accountCode = row['Account Code'] || row['account_code'] || '';
+            const accountClass = coaMap[accountCode];
 
-          // Insert into Supabase
-          const { data: insertedData, error } = await supabase
-            .from('trial_balance')
-            .insert(tbRecords);
+            if (columnFormat === 'signed') {
+              // User selected "Signed Amount" format - single column with +/- values
+              const amount = parseFloat(row.Amount || row.amount || 0);
 
-          if (error) throw error;
+              // Map based on account class and sign
+              // Note: At this point, all accounts are guaranteed to have COA mappings due to validation above
+              if (['Assets', 'Expenses'].includes(accountClass)) {
+                // Assets/Expenses: positive = debit, negative = credit
+                if (amount >= 0) {
+                  debit = amount;
+                  credit = 0;
+                } else {
+                  debit = 0;
+                  credit = Math.abs(amount);
+                }
+              } else if (['Liability', 'Liabilities', 'Equity', 'Revenue', 'Income', 'Intercompany'].includes(accountClass)) {
+                // Revenue/Liability/Equity: positive = credit, negative = debit
+                if (amount >= 0) {
+                  debit = 0;
+                  credit = amount;
+                } else {
+                  debit = Math.abs(amount);
+                  credit = 0;
+                }
+              } else {
+                // Unknown class: default to debit for positive (treating as Assets)
+                console.warn(`Unknown class "${accountClass}" for account ${accountCode}, treating as Assets (debit for positive)`);
+                if (amount >= 0) {
+                  debit = amount;
+                  credit = 0;
+                } else {
+                  debit = 0;
+                  credit = Math.abs(amount);
+                }
+              }
+            } else {
+              // Standard Debit/Credit column format
+              debit = parseFloat(row.Debit || row.debit || 0);
+              credit = parseFloat(row.Credit || row.credit || 0);
+            }
+
+            return {
+              entity_id: selectedEntity,
+              account_code: accountCode,
+              account_name: row['Account Name'] || row['account_name'] || '',
+              debit: debit,
+              credit: credit,
+              currency: selectedCurrency,
+              period: new Date().toISOString().split('T')[0], // Default to today, can be customized
+              uploaded_by: 'System', // Replace with actual user
+            };
+          });
+
+          // Insert via API
+          const response = await fetch('/api/trial-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              records: tbRecords,
+              entity_id: selectedEntity,
+              period: new Date().toISOString().split('T')[0]
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Upload failed');
+          }
+
+          const result = await response.json();
 
           setUploadStatus({
             success: true,
-            message: `Trial Balance uploaded successfully! ${tbRecords.length} records inserted in ${selectedCurrency}.`
+            message: `Trial Balance uploaded successfully! ${result.count} records inserted in ${selectedCurrency}.`
           });
           setTbFile(null);
           setTbValidation(null);
@@ -225,9 +360,12 @@ export default function UploadPage() {
         const headers = Object.keys(jsonData[0] || {});
         const entityColumns = headers.filter(h => h !== 'Account Code' && h !== 'Account Name');
 
-        // Validate that entity columns match existing entities
+        // Validate that entity columns match existing entities (case-insensitive)
         const validEntities = entityColumns.filter(col =>
-          entities.some(e => e.entity_code === col || e.entity_name === col)
+          entities.some(e =>
+            e.entity_code?.toLowerCase() === col.toLowerCase() ||
+            e.entity_name?.toLowerCase() === col.toLowerCase()
+          )
         );
 
         // Calculate totals per entity
@@ -275,28 +413,106 @@ export default function UploadPage() {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
+          // Fetch COA to determine account classes via API to bypass RLS
+          console.log('[Upload] Fetching COA via API...');
+          const coaResponse = await fetch('/api/chart-of-accounts');
+          console.log('[Upload] COA API response status:', coaResponse.status);
+          if (!coaResponse.ok) {
+            throw new Error(`Failed to fetch Chart of Accounts: ${coaResponse.statusText}`);
+          }
+
+          const coaData = await coaResponse.json();
+          console.log('[Upload] COA data received:', coaData?.length || 0, 'records');
+
+          if (!coaData || coaData.length === 0) {
+            console.error('[Upload] COA is empty - blocking upload');
+            setUploadStatus({
+              success: false,
+              message: '⚠️ Chart of Accounts is empty! You must upload your Chart of Accounts before uploading trial balance data. Please go to the Chart of Accounts page and upload your COA first.'
+            });
+            setUploading(false);
+            return;
+          }
+
+          const coaMap = {};
+          (coaData || []).forEach(acc => {
+            coaMap[acc.account_code] = acc.class_name;
+          });
+
+          // Log sample COA mappings for debugging
+          console.log('[Upload] Sample COA mappings (first 10):', Object.entries(coaMap).slice(0, 10));
+          console.log('[Upload] Unique class names in COA:', [...new Set(Object.values(coaMap))]);
+
+          // VALIDATION: Check if ALL account codes in TB file exist in COA
+          const accountCodesInTB = [...new Set(jsonData.map(row => row['Account Code'] || row['account_code'] || '').filter(code => code))];
+          const missingAccounts = accountCodesInTB.filter(code => !coaMap[code]);
+
+          if (missingAccounts.length > 0) {
+            setUploadStatus({
+              success: false,
+              message: `❌ Upload Blocked: ${missingAccounts.length} account code(s) in your trial balance are not found in the Chart of Accounts. Without COA mapping, the system cannot determine correct debit/credit classification. Missing accounts: ${missingAccounts.slice(0, 10).join(', ')}${missingAccounts.length > 10 ? ` and ${missingAccounts.length - 10} more...` : ''}. Please add these accounts to your Chart of Accounts first.`
+            });
+            setUploading(false);
+            return;
+          }
+
           const tbRecords = [];
 
           // Process each row
           jsonData.forEach(row => {
             const accountCode = row['Account Code'] || row['account_code'] || '';
             const accountName = row['Account Name'] || row['account_name'] || '';
+            const accountClass = coaMap[accountCode];
 
             // For each entity column, create a trial balance record
             bulkValidation.validEntities.forEach(entityCol => {
               const entity = entities.find(e =>
-                e.entity_code === entityCol || e.entity_name === entityCol
+                e.entity_code?.toLowerCase() === entityCol.toLowerCase() ||
+                e.entity_name?.toLowerCase() === entityCol.toLowerCase()
               );
 
               if (entity) {
                 const amount = parseFloat(row[entityCol] || 0);
                 if (amount !== 0) { // Only insert non-zero amounts
+                  let debit = 0;
+                  let credit = 0;
+
+                  // Map based on account class and amount sign
+                  // Note: At this point, all accounts are guaranteed to have COA mappings due to validation above
+                  if (['Assets', 'Expenses'].includes(accountClass)) {
+                    // Assets/Expenses: positive = debit, negative = credit
+                    if (amount > 0) {
+                      debit = amount;
+                    } else {
+                      credit = Math.abs(amount);
+                    }
+                  } else if (['Liability', 'Liabilities', 'Equity', 'Revenue', 'Income', 'Intercompany'].includes(accountClass)) {
+                    // Revenue/Liability/Equity: positive = credit, negative = debit
+                    if (amount > 0) {
+                      credit = amount;
+                    } else {
+                      debit = Math.abs(amount);
+                    }
+                    // Log Equity accounts specifically for debugging
+                    if (accountClass === 'Equity') {
+                      console.log(`[Equity Mapping] Account: ${accountCode} (${accountName}), Amount: ${amount}, Mapped to -> Debit: ${debit}, Credit: ${credit}`);
+                    }
+                  } else {
+                    // Unknown class: Treat as Assets (debit for positive)
+                    console.warn(`Unknown class "${accountClass}" for account ${accountCode}, treating as Assets (debit for positive)`);
+                    if (amount > 0) {
+                      debit = amount;
+                    } else {
+                      credit = Math.abs(amount);
+                    }
+                  }
+
                   tbRecords.push({
                     entity_id: entity.id,
                     account_code: accountCode,
                     account_name: accountName,
-                    debit: amount > 0 ? amount : 0,
-                    credit: amount < 0 ? Math.abs(amount) : 0,
+                    debit: debit,
+                    credit: credit,
                     period: selectedPeriod,
                     uploaded_by: 'System'
                   });
@@ -305,20 +521,27 @@ export default function UploadPage() {
             });
           });
 
-          // Fetch existing records for comparison
+          // Get entity IDs for deletion
           const entityIds = bulkValidation.validEntities.map(entityCol =>
-            entities.find(e => e.entity_code === entityCol || e.entity_name === entityCol)?.id
+            entities.find(e =>
+              e.entity_code?.toLowerCase() === entityCol.toLowerCase() ||
+              e.entity_name?.toLowerCase() === entityCol.toLowerCase()
+            )?.id
           ).filter(Boolean);
 
-          const { data: existingRecords } = await supabase
-            .from('trial_balance')
-            .select('*')
-            .in('entity_id', entityIds)
-            .eq('period', selectedPeriod);
+          // Fetch existing records for comparison via API
+          console.log('Fetching existing records for change tracking...');
+          const existingResponse = await fetch('/api/trial-balance');
+          const existingData = await existingResponse.json();
+
+          // Filter existing records for this period and these entities
+          const existingRecords = existingData.filter(record =>
+            entityIds.includes(record.entity_id) && record.period === selectedPeriod
+          );
 
           // Create map of existing records
           const existingMap = {};
-          (existingRecords || []).forEach(record => {
+          existingRecords.forEach(record => {
             const key = `${record.entity_id}_${record.account_code}_${record.period}`;
             existingMap[key] = record;
           });
@@ -363,30 +586,32 @@ export default function UploadPage() {
           // Step 1: Delete existing records for this entity/period combination
           console.log('Deleting existing records for entities:', entityIds, 'period:', selectedPeriod);
 
-          // Delete records one entity at a time to avoid issues
-          for (const entityId of entityIds) {
-            const { error: deleteError } = await supabase
-              .from('trial_balance')
-              .delete()
-              .eq('entity_id', entityId)
-              .eq('period', selectedPeriod);
+          const deleteResponse = await fetch(`/api/trial-balance?entity_ids=${entityIds.join(',')}&period=${selectedPeriod}`, {
+            method: 'DELETE'
+          });
 
-            if (deleteError) {
-              console.error('Delete error for entity:', entityId, deleteError);
-              throw new Error(`Failed to clear existing records for entity: ${deleteError.message}`);
-            }
+          if (!deleteResponse.ok) {
+            const error = await deleteResponse.json();
+            throw new Error(`Failed to clear existing records: ${error.error}`);
           }
 
-          // Step 2: Insert all new records
+          // Step 2: Insert all new records via API
           console.log('Inserting', tbRecords.length, 'new records');
-          const { error: insertError } = await supabase
-            .from('trial_balance')
-            .insert(tbRecords);
+          const insertResponse = await fetch('/api/trial-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              records: tbRecords
+            })
+          });
 
-          if (insertError) {
-            console.error('Insert error:', insertError);
-            throw new Error(`Failed to insert records: ${insertError.message}`);
+          if (!insertResponse.ok) {
+            const error = await insertResponse.json();
+            throw new Error(`Failed to insert records: ${error.error}`);
           }
+
+          const insertResult = await insertResponse.json();
+          console.log(`Successfully inserted ${insertResult.count} records`);
 
           setUploadStatus({
             success: true,
@@ -420,39 +645,49 @@ export default function UploadPage() {
   };
 
   const downloadBulkTemplate = () => {
-    // Get entity codes for template
-    const entityCols = entities.slice(0, 3).map(e => e.entity_code || e.entity_name);
+    if (entities.length === 0) {
+      alert('No entities found. Please add entities in Settings > Group Structure first.');
+      return;
+    }
 
-    // Create template with multiple entity columns
-    const template = [
-      {
-        'Account Code': '1000',
-        'Account Name': 'Cash',
-        [entityCols[0] || 'Entity1']: 50000,
-        [entityCols[1] || 'Entity2']: 30000,
-        [entityCols[2] || 'Entity3']: 20000
-      },
-      {
-        'Account Code': '2000',
-        'Account Name': 'Accounts Payable',
-        [entityCols[0] || 'Entity1']: -30000,
-        [entityCols[1] || 'Entity2']: -20000,
-        [entityCols[2] || 'Entity3']: -15000
-      },
-      {
-        'Account Code': '3000',
-        'Account Name': 'Share Capital',
-        [entityCols[0] || 'Entity1']: -20000,
-        [entityCols[1] || 'Entity2']: -10000,
-        [entityCols[2] || 'Entity3']: -5000
-      }
+    // Create template rows with sample data
+    const template = [];
+
+    // Sample GL codes with example amounts
+    const sampleGLs = [
+      { code: '1000', name: 'Cash', amounts: [50000, 75000, 30000, 45000, 60000] },
+      { code: '1100', name: 'Accounts Receivable', amounts: [80000, 120000, 60000, 90000, 100000] },
+      { code: '2000', name: 'Accounts Payable', amounts: [-30000, -45000, -20000, -35000, -40000] },
+      { code: '2100', name: 'Accrued Expenses', amounts: [-15000, -22000, -10000, -18000, -20000] },
+      { code: '3000', name: 'Share Capital', amounts: [-50000, -75000, -35000, -60000, -70000] },
+      { code: '4000', name: 'Revenue', amounts: [200000, 300000, 150000, 250000, 280000] },
+      { code: '5000', name: 'Operating Expenses', amounts: [120000, 180000, 90000, 150000, 170000] }
     ];
+
+    // Create rows with all entities as columns
+    sampleGLs.forEach((gl, index) => {
+      const row = {
+        'Account Code': gl.code,
+        'Account Name': gl.name
+      };
+
+      // Add a column for each entity with sample amounts
+      entities.forEach((entity, entityIndex) => {
+        const entityColName = entity.entity_name; // Use entity name as column header
+        row[entityColName] = gl.amounts[entityIndex % gl.amounts.length];
+      });
+
+      template.push(row);
+    });
 
     import('xlsx').then(XLSX => {
       const ws = XLSX.utils.json_to_sheet(template);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Bulk Trial Balance');
-      XLSX.writeFile(wb, 'Bulk_TB_Template.xlsx');
+
+      // Generate filename with date
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Bulk_TB_Template_${today}.xlsx`);
     });
   };
 
@@ -504,6 +739,69 @@ export default function UploadPage() {
                 </button>
               </div>
 
+              {/* How Bulk Upload Works */}
+              <div className="mb-6 p-5 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-blue-900 mb-2">📋 How Bulk Upload Works</h4>
+                    <div className="space-y-3 text-sm text-blue-800">
+                      <p><strong>File Format:</strong> Excel with columns: Account Code | Account Name | Entity1 | Entity2 | Entity3...</p>
+
+                      <div>
+                        <p className="font-bold mb-2">⚠️ IMPORTANT: Sign Convention for Bulk Upload</p>
+                        <p className="mb-2">Use <strong>signed amounts</strong> (positive/negative) in your Excel file. The system will automatically map them to Debit/Credit based on account class:</p>
+                        <table className="w-full border-collapse bg-white rounded-lg overflow-hidden text-xs">
+                          <thead>
+                            <tr className="bg-blue-700 text-white">
+                              <th className="border border-blue-600 px-3 py-2 text-left">Account Class</th>
+                              <th className="border border-blue-600 px-3 py-2 text-center">Positive Amount (+)</th>
+                              <th className="border border-blue-600 px-3 py-2 text-center">Negative Amount (-)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="border border-blue-200 px-3 py-2 font-semibold">Assets</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-green-50">→ Debit</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-amber-50">→ Credit</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-blue-200 px-3 py-2 font-semibold">Liabilities</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-green-50">→ Credit</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-amber-50">→ Debit</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-blue-200 px-3 py-2 font-semibold">Equity</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-green-50">→ Credit</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-amber-50">→ Debit</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-blue-200 px-3 py-2 font-semibold">Expenses</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-green-50">→ Debit</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-amber-50">→ Credit</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-blue-200 px-3 py-2 font-semibold">Revenue</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-green-50">→ Credit</td>
+                              <td className="border border-blue-200 px-3 py-2 text-center bg-amber-50">→ Debit</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <p className="mt-2 text-xs text-blue-700">
+                          <strong>Example:</strong> Share Capital (Equity) with balance 50,000 → Enter as <strong>+50000</strong> (will map to Credit).
+                          Net Loss (Equity) of 10,000 → Enter as <strong>-10000</strong> (will map to Debit).
+                        </p>
+                      </div>
+
+                      <p className="pt-2"><strong>Currency:</strong> All amounts MUST be in Group Reporting Currency (see below)</p>
+                      <p><strong>Period:</strong> Select the ending date and range (e.g., Dec 31, 2024 + 12 months = Full year 2024)</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Currency Warning */}
               <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-lg">
                 <div className="flex items-start gap-3">
@@ -537,13 +835,34 @@ export default function UploadPage() {
 
               {/* Period Selection */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Period *</label>
-                <input
-                  type="date"
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-3">Period *</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Period End Date</label>
+                    <input
+                      type="date"
+                      value={selectedPeriod}
+                      onChange={(e) => setSelectedPeriod(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Period Range</label>
+                    <select
+                      value={periodMonths}
+                      onChange={(e) => setPeriodMonths(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                    >
+                      <option value="1">1 Month</option>
+                      <option value="3">3 Months (Quarter)</option>
+                      <option value="6">6 Months (Half Year)</option>
+                      <option value="12">12 Months (Full Year)</option>
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  Example: Dec 31, 2024 + 12 months = Full year ending Dec 31, 2024
+                </p>
               </div>
 
               {/* File Upload */}
@@ -699,6 +1018,72 @@ export default function UploadPage() {
               </p>
             </div>
 
+            {/* Column Format Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Excel Column Format *</label>
+              <select
+                value={columnFormat}
+                onChange={(e) => setColumnFormat(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+              >
+                <option value="standard">Standard (Separate Debit & Credit columns)</option>
+                <option value="signed">Signed Amount (Single Amount column with +/- values)</option>
+              </select>
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-900 font-semibold mb-1">
+                  {columnFormat === 'standard' ? '📊 Standard Format' : '📊 Signed Amount Format'}
+                </p>
+                {columnFormat === 'standard' ? (
+                  <p className="text-xs text-blue-800">
+                    Excel has <strong>Debit</strong> and <strong>Credit</strong> columns with <strong>positive values only</strong> in each.
+                    <br />Example: Revenue with 10,000 credit balance → Debit: 0, Credit: 10,000
+                    <br />Example: Cash (Asset) with 5,000 debit balance → Debit: 5,000, Credit: 0
+                    <br /><strong>Note:</strong> All amounts should be positive - the Debit/Credit column determines the side.
+                  </p>
+                ) : (
+                  <div className="text-xs text-blue-800">
+                    <p className="mb-2">Excel has single <strong>Amount</strong> column with +/- values. System maps based on account class:</p>
+                    <table className="w-full border-collapse bg-white rounded text-xs mb-2">
+                      <thead>
+                        <tr className="bg-blue-600 text-white">
+                          <th className="border border-blue-500 px-2 py-1 text-left">Class</th>
+                          <th className="border border-blue-500 px-2 py-1 text-center">Positive (+)</th>
+                          <th className="border border-blue-500 px-2 py-1 text-center">Negative (-)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border border-blue-200 px-2 py-1 font-semibold">Assets</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Debit</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Credit</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-blue-200 px-2 py-1 font-semibold">Liability</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Credit</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Debit</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-blue-200 px-2 py-1 font-semibold">Equity</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Credit</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Debit</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-blue-200 px-2 py-1 font-semibold">Expenses</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Debit</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Credit</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-blue-200 px-2 py-1 font-semibold">Revenue</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Credit</td>
+                          <td className="border border-blue-200 px-2 py-1 text-center">Debit</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Currency Mismatch Warning */}
             {currencyMismatch && (
               <div className="p-4 rounded-lg border-2 bg-amber-50 border-amber-300">
@@ -762,6 +1147,9 @@ export default function UploadPage() {
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-700">Total Rows: <span className="font-semibold">{tbValidation.rowCount}</span></p>
+                      {tbValidation.hasAmountColumn && (
+                        <p className="text-blue-700 font-semibold">📊 Amount column format detected - will map to Debit/Credit based on Chart of Accounts</p>
+                      )}
                       <p className="text-gray-700">Total Debit: <span className="font-semibold">{tbValidation.totalDebit.toFixed(2)}</span></p>
                       <p className="text-gray-700">Total Credit: <span className="font-semibold">{tbValidation.totalCredit.toFixed(2)}</span></p>
                       {!tbValidation.isBalanced && (

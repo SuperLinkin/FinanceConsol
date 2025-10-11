@@ -9,7 +9,19 @@
       "Bash(git push:*)",
       "Bash(npm run build:*)",
       "Bash(copy page.js page_old_backup.js)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd Trial Balance viewer with inline editing and class assignment features\n\nMajor Features:\n- Trial Balance viewer page with entity and period filters\n- Inline editing of GL debit/credit amounts\n- Class assignment for unmapped GLs directly in TB viewer\n- Enhanced bulk upload with upsert logic and change tracking\n- Detailed validation results showing added/updated/removed GLs\n\nTrial Balance Page Features:\n- View all uploaded trial balances with full hierarchy (Class, Sub-Class, Note, Sub-Note)\n- Filter by entity and period\n- Search by GL code or name\n- Export to CSV with all columns including net amounts\n- Real-time financial metrics: BS Check and P&L\n- Inline edit buttons to correct GL amounts\n- Assign class to unmapped GLs with dropdown selector\n\nFinancial Calculations:\n- Balance Sheet Check: Assets + Intercompany + Liability + Equity - P&L = 0\n- Profit & Loss: Revenue + Expenses\n- Automatic recalculation after edits\n- Data-driven calculations based on actual class names from COA\n\nBulk Upload Enhancements:\n- Upsert functionality: replaces existing period data instead of failing on duplicates\n- Change tracking: identifies new GLs, updated values, unchanged, and removed GLs\n- Visual change summary with color-coded cards\n- Expandable details showing old vs new values for updated records\n- Delete existing records by entity/period before inserting new data\n\nDatabase Updates:\n- Chart of Accounts entries created automatically when assigning classes to unmapped GLs\n- Trial balance records can be updated via inline editing\n- Support for enriching TB data with COA hierarchy information\n\nUI/UX Improvements:\n- Edit mode with blue-bordered input fields for debit/credit\n- Save (green checkmark) and Cancel (gray X) buttons\n- Red \"Assign Class\" button for unmapped GLs\n- Class dropdown with all available classes (Assets, Liability, Equity, Intercompany, Revenue, Income, Expenses)\n- Console logging for debugging data fetch and calculation flows\n\nBug Fixes:\n- Fixed hydration errors by wrapping console.logs in client-side checks\n- Fixed React hook dependency issues with useCallback\n- Corrected BS Check formula to subtract P&L (retained earnings is credit balance)\n- Fixed state update timing for metrics recalculation\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(for:*)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)",
+      "Bash(node -e \"const bcrypt = require(''bcryptjs''); bcrypt.hash(''Test'', 10).then(hash => console.log(hash));\")",
+      "Bash(cat:*)",
+      "Bash(node -e \"console.log(require(''crypto'').randomBytes(64).toString(''hex''))\")",
+      "Bash(node:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(echo \"Run this SQL query in Supabase to check the current state:\n\nSELECT currency_code, is_group_reporting_currency \nFROM currencies \nORDER BY currency_code;\")"
     ],
     "deny": [],
     "ask": []

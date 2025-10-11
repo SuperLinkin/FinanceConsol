@@ -33,7 +33,7 @@ export default function ThePlatform() {
   const [chatMessages, setChatMessages] = useState([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your Platform Assistant. Ask me anything about how to use ConsolidatePro - from setting up entities to generating reports. What would you like to know?'
+      content: 'Hi! I\'m your Platform Assistant. Ask me anything about how to use CLOE - from setting up entities to generating reports. What would you like to know?'
     }
   ]);
   const [chatInput, setChatInput] = useState('');
@@ -327,7 +327,7 @@ export default function ThePlatform() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...chatMessages, userMessage],
-          systemPrompt: `You are a helpful assistant for ConsolidatePro, an IFRS financial consolidation platform.
+          systemPrompt: `You are a helpful assistant for CLOE (Close Optimization Engine), an IFRS financial consolidation platform.
 
 Answer questions about:
 - How to set up entities and organizational structures
@@ -461,7 +461,7 @@ Be concise, friendly, and practical. Focus on step-by-step guidance.`
                 // Overview Section
                 <div className="space-y-6">
                   <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-8 text-white">
-                    <h2 className="text-3xl font-bold mb-3">Welcome to ConsolidatePro</h2>
+                    <h2 className="text-3xl font-bold mb-3">Welcome to CLOE</h2>
                     <p className="text-indigo-100 text-lg mb-6">
                       Your complete IFRS-compliant financial consolidation platform. Learn how to master every feature with interactive guides.
                     </p>

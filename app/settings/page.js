@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ChevronDown, ChevronUp, Lock, Unlock, Check, X, Save } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
+import GroupStructureTab from '@/components/GroupStructureTab';
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState('currencies');
+  const [activeTab, setActiveTab] = useState('group_structure');
   const [currencies, setCurrencies] = useState([]);
   const [regions, setRegions] = useState([]);
   const [controllers, setControllers] = useState([]);
@@ -16,6 +17,10 @@ export default function Settings() {
   const [expandedRegion, setExpandedRegion] = useState(null);
   const [selectedController, setSelectedController] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+
+  const [periodForm, setPeriodForm] = useState({
+    period_name: '', period_type: 'Month-End', period_date: '', fiscal_year: new Date().getFullYear(), is_locked: false
+  });
 
   const [currencyForm, setCurrencyForm] = useState({
     currency_code: '', currency_name: '', symbol: '',
@@ -44,7 +49,7 @@ export default function Settings() {
   const fetchAllData = async () => {
     try {
       const [curr, worldCurr, reg, ctrl, per, params] = await Promise.all([
-        supabase.from('currencies').select('*').order('currency_code'),
+        fetch('/api/company-currencies').then(res => res.json()),
         supabase.from('world_currencies').select('*').eq('is_active', true).order('currency_name'),
         supabase.from('regions').select('*').order('region_name'),
         supabase.from('entity_controllers').select('*').order('name'),
@@ -52,11 +57,17 @@ export default function Settings() {
         supabase.from('system_parameters').select('*')
       ]);
 
+      console.log('[fetchAllData] Company currencies:', curr.data);
+
       setCurrencies(curr.data || []);
       setWorldCurrencies(worldCurr.data || []);
       setRegions(reg.data || []);
       setControllers(ctrl.data || []);
       setPeriods(per.data || []);
+
+      // Find base currency from company_currencies
+      const baseCurr = (curr.data || []).find(c => c.is_base_currency);
+      setBaseCurrency(baseCurr?.currency_code || 'USD');
 
       const paramsObj = {};
       (params.data || []).forEach(p => {
@@ -100,32 +111,26 @@ export default function Settings() {
       return;
     }
     try {
-      // If marking as group reporting currency, unset all others first
-      if (currencyForm.is_group_reporting_currency) {
-        const { error: unsetError } = await supabase.from('currencies')
-          .update({ is_group_reporting_currency: false })
-          .neq('currency_code', currencyForm.currency_code);
-
-        if (unsetError) {
-          console.error('Error unsetting group reporting currencies:', unsetError);
-          // Continue anyway - might be column doesn't exist yet
-        }
-      }
-
       const currencyData = {
         currency_code: currencyForm.currency_code,
         currency_name: currencyForm.currency_name,
         symbol: currencyForm.symbol,
+        is_base_currency: currencyForm.is_group_reporting_currency,
         is_presentation_currency: currencyForm.is_presentation_currency,
         is_functional_currency: currencyForm.is_functional_currency,
-        is_group_reporting_currency: currencyForm.is_group_reporting_currency,
-        exchange_rate: currencyForm.exchange_rate || 1.0,
-        rate_date: new Date().toISOString(),
-        is_active: true
+        exchange_rate: currencyForm.exchange_rate || 1.0
       };
 
-      const { error } = await supabase.from('currencies').insert([currencyData]);
-      if (error) throw error;
+      const response = await fetch('/api/company-currencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currencyData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to add currency');
+      }
 
       setCurrencyForm({
         currency_code: '', currency_name: '', symbol: '',
@@ -138,13 +143,7 @@ export default function Settings() {
       alert('Currency added successfully!');
     } catch (error) {
       console.error('Error saving currency:', error);
-
-      // Check if it's a column not found error
-      if (error?.message?.includes('column') || error?.code === '42703') {
-        alert('Database update required: Please run the SQL migration file (sql/01_CREATE_EVERYTHING.sql) to add the group reporting currency feature.');
-      } else {
-        alert('Error: ' + error.message);
-      }
+      alert('Error: ' + error.message);
     }
   };
 
@@ -178,6 +177,47 @@ export default function Settings() {
     }
   };
 
+  const savePeriod = async () => {
+    if (!periodForm.period_name || !periodForm.period_date) {
+      alert('Please provide period name and date');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('reporting_periods').insert([periodForm]);
+      if (error) throw error;
+      setPeriodForm({
+        period_name: '', period_type: 'Month-End', period_date: '', fiscal_year: new Date().getFullYear(), is_locked: false
+      });
+      fetchAllData();
+      alert('Period added successfully!');
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  };
+
+  const togglePeriodLock = async (periodId, currentLockStatus) => {
+    try {
+      const { error } = await supabase.from('reporting_periods')
+        .update({ is_locked: !currentLockStatus })
+        .eq('id', periodId);
+      if (error) throw error;
+      fetchAllData();
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  };
+
+  const deletePeriod = async (periodId) => {
+    if (!confirm('Are you sure you want to delete this period?')) return;
+    try {
+      const { error } = await supabase.from('reporting_periods').delete().eq('id', periodId);
+      if (error) throw error;
+      fetchAllData();
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  };
+
   const updateSystemParam = async (category, key, value) => {
     try {
       const { error } = await supabase.from('system_parameters')
@@ -192,37 +232,32 @@ export default function Settings() {
 
   const setGroupReportingCurrency = async (currencyCode) => {
     try {
-      // Unset all currencies first
-      const { error: unsetError } = await supabase.from('currencies')
-        .update({ is_group_reporting_currency: false })
-        .neq('currency_code', 'DUMMY');
+      console.log(`[setGroupReportingCurrency] Setting ${currencyCode} as base...`);
 
-      if (unsetError) {
-        console.error('Error unsetting currencies:', unsetError);
-        throw unsetError;
+      // Call API endpoint to update company_currencies
+      const response = await fetch('/api/company-currencies/set-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currencyCode })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to set base currency');
       }
 
-      // Set the selected one
-      const { error: setError } = await supabase.from('currencies')
-        .update({ is_group_reporting_currency: true })
-        .eq('currency_code', currencyCode);
+      console.log(`[setGroupReportingCurrency] Database updated via API, fetching data...`);
 
-      if (setError) {
-        console.error('Error setting currency:', setError);
-        throw setError;
-      }
-
+      // Force refresh by clearing state first
+      setCurrencies([]);
       await fetchAllData();
-      alert(`${currencyCode} is now the group reporting currency (base)`);
-    } catch (error) {
-      console.error('Error setting group reporting currency:', error);
 
-      // Check if it's a column not found error
-      if (error?.message?.includes('column') || error?.code === '42703') {
-        alert('Database update required: Please run the SQL migration file (sql/01_CREATE_EVERYTHING.sql) to add the group reporting currency feature.');
-      } else {
-        alert(`Failed to set group reporting currency: ${error.message || 'Unknown error'}`);
-      }
+      console.log(`[setGroupReportingCurrency] Data fetched, checking state...`);
+
+      alert(`${currencyCode} is now the base currency for your company`);
+    } catch (error) {
+      console.error('Error setting base currency:', error);
+      alert(`Failed to set base currency: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -238,7 +273,7 @@ export default function Settings() {
         <div className="px-8 py-6">
           {/* Tabs */}
           <div className="flex gap-8 border-b-2 border-gray-300 mb-10">
-          {['Currencies', 'Regions', 'Controllers', 'Reporting Periods', 'System Parameters'].map(tab => (
+          {['Group Structure', 'Currencies', 'Regions', 'Controllers'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_'))}
@@ -252,6 +287,11 @@ export default function Settings() {
             </button>
           ))}
         </div>
+
+        {/* GROUP STRUCTURE TAB */}
+        {activeTab === 'group_structure' && (
+          <GroupStructureTab />
+        )}
 
         {/* CURRENCIES TAB */}
         {activeTab === 'currencies' && (
@@ -360,48 +400,51 @@ export default function Settings() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {currencies.map((curr, index) => (
-                      <tr key={curr.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900">{curr.currency_code}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-700">{curr.currency_name}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-lg font-bold text-gray-700">{curr.symbol}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-1 flex-wrap">
-                            {curr.is_group_reporting_currency && (
-                              <span className="px-2 py-1 bg-slate-900 text-white text-xs font-bold rounded">
-                                ★ BASE
-                              </span>
+                    {currencies.map((curr, index) => {
+                      const isBaseCurrency = curr.currency_code === baseCurrency;
+                      return (
+                        <tr key={curr.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-slate-900">{curr.currency_code}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-700">{curr.currency_name}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-lg font-bold text-gray-700">{curr.symbol}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-1 flex-wrap">
+                              {isBaseCurrency && (
+                                <span className="px-2 py-1 bg-slate-900 text-white text-xs font-bold rounded">
+                                  ★ BASE
+                                </span>
+                              )}
+                              {curr.is_presentation_currency && (
+                                <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs font-semibold rounded">
+                                  Pres
+                                </span>
+                              )}
+                              {curr.is_functional_currency && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+                                  Func
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {!isBaseCurrency && (
+                              <button
+                                onClick={() => setGroupReportingCurrency(curr.currency_code)}
+                                className="px-3 py-1.5 bg-slate-100 text-slate-900 text-xs font-semibold rounded hover:bg-slate-200 transition-colors"
+                              >
+                                Set as Base
+                              </button>
                             )}
-                            {curr.is_presentation_currency && (
-                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs font-semibold rounded">
-                                Pres
-                              </span>
-                            )}
-                            {curr.is_functional_currency && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
-                                Func
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {!curr.is_group_reporting_currency && (
-                            <button
-                              onClick={() => setGroupReportingCurrency(curr.currency_code)}
-                              className="px-3 py-1.5 bg-slate-100 text-slate-900 text-xs font-semibold rounded hover:bg-slate-200 transition-colors"
-                            >
-                              Set as Base
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 
@@ -729,152 +772,6 @@ export default function Settings() {
           </div>
         )}
 
-        {/* REPORTING PERIODS TAB */}
-        {activeTab === 'reporting_periods' && (
-          <div>
-            <div className="mb-6 overflow-x-auto pb-4">
-              <div className="flex gap-4 min-w-max">
-                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => (
-                  <div key={month} className="w-48 bg-[#faf9f7] rounded-[14px] p-6 border-2 border-gray-200 hover:border-slate-900 transition-all cursor-pointer">
-                    <div className="text-sm font-semibold text-gray-600 mb-2">{month} 2025</div>
-                    <div className="mb-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        idx < 3 ? 'bg-red-100 text-red-800' : idx < 6 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {idx < 3 ? 'Locked' : idx < 6 ? 'Pre-Close' : 'Open'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <div>Start: {month} 1</div>
-                      <div>End: {month} {[1,3,5,7,8,10,12].includes(idx+1) ? '31' : idx === 1 ? '28' : '30'}</div>
-                    </div>
-                    {idx < 3 && (
-                      <div className="mt-3 flex items-center gap-1 text-gray-600">
-                        <Lock size={14} />
-                        <span className="text-xs">Locked</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SYSTEM PARAMETERS TAB */}
-        {activeTab === 'system_parameters' && (
-          <div className="space-y-6">
-            {/* Currency Rules */}
-            <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Currency Rules</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Group Presentation Currency</label>
-                  <select
-                    value={systemParams.currency_rules?.group_presentation_currency || 'USD'}
-                    onChange={(e) => updateSystemParam('currency_rules', 'group_presentation_currency', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    {currencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code} - {c.currency_name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rate Variance Tolerance (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={systemParams.currency_rules?.rate_variance_tolerance || '2.0'}
-                    onChange={(e) => updateSystemParam('currency_rules', 'rate_variance_tolerance', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Rounding Precision Policy</label>
-                  <select
-                    value={systemParams.currency_rules?.rounding_precision || 'group'}
-                    onChange={(e) => updateSystemParam('currency_rules', 'rounding_precision', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    <option value="entity">Entity Level</option>
-                    <option value="group">Group Level</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Translation Rules */}
-            <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Translation Rules</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Assets/Liabilities Translation Method</label>
-                  <select
-                    value={systemParams.translation_rules?.assets_liabilities_method || 'Closing Rate'}
-                    onChange={(e) => updateSystemParam('translation_rules', 'assets_liabilities_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    <option>Closing Rate</option>
-                    <option>Average Rate</option>
-                    <option>Historical Rate</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Revenue/Expenses Translation Method</label>
-                  <select
-                    value={systemParams.translation_rules?.revenue_expenses_method || 'Average Rate'}
-                    onChange={(e) => updateSystemParam('translation_rules', 'revenue_expenses_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    <option>Average Rate</option>
-                    <option>Closing Rate</option>
-                    <option>Historical Rate</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Equity Translation Method</label>
-                  <select
-                    value={systemParams.translation_rules?.equity_method || 'Historical'}
-                    onChange={(e) => updateSystemParam('translation_rules', 'equity_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    <option>Historical</option>
-                    <option>Closing Rate</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Consolidation Settings */}
-            <div className="bg-white rounded-[14px] p-8 shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Consolidation Settings</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Default Consolidation Method</label>
-                  <select
-                    value={systemParams.consolidation_settings?.default_method || 'Full'}
-                    onChange={(e) => updateSystemParam('consolidation_settings', 'default_method', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    <option>Full</option>
-                    <option>Proportionate</option>
-                    <option>Equity</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">IC Elimination Logic</label>
-                  <select
-                    value={systemParams.consolidation_settings?.ic_elimination_logic || 'Automatic'}
-                    onChange={(e) => updateSystemParam('consolidation_settings', 'ic_elimination_logic', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-slate-900"
-                  >
-                    <option>Automatic</option>
-                    <option>Manual</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
           {/* Sticky Save Bar */}
           {hasChanges && (

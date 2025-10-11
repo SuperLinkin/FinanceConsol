@@ -1,6 +1,16 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.accounting_policies (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  policy_title character varying NOT NULL,
+  policy_category character varying NOT NULL,
+  policy_content text NOT NULL,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT accounting_policies_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.adjustment_entries (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   entry_number text UNIQUE,
@@ -21,8 +31,25 @@ CREATE TABLE public.adjustment_entries (
   CONSTRAINT adjustment_entries_pkey PRIMARY KEY (id),
   CONSTRAINT adjustment_entries_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
+CREATE TABLE public.audit_log (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  user_id uuid,
+  action character varying NOT NULL,
+  resource_type character varying,
+  resource_id uuid,
+  environment character varying,
+  ip_address character varying,
+  user_agent text,
+  old_values jsonb,
+  new_values jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT audit_log_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_log_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.builder_entries (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   entry_name character varying NOT NULL,
   entry_type character varying NOT NULL,
   description text,
@@ -51,6 +78,7 @@ CREATE TABLE public.chart_of_accounts (
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  to_be_eliminated boolean DEFAULT false,
   CONSTRAINT chart_of_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT chart_of_accounts_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
@@ -73,8 +101,43 @@ CREATE TABLE public.coa_master_hierarchy (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT coa_master_hierarchy_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.companies (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_name character varying NOT NULL UNIQUE,
+  company_slug character varying NOT NULL UNIQUE,
+  industry character varying,
+  country character varying,
+  subscription_tier character varying DEFAULT 'trial'::character varying,
+  subscription_status character varying DEFAULT 'active'::character varying,
+  trial_ends_at timestamp with time zone,
+  production_enabled boolean DEFAULT true,
+  sandbox_enabled boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  settings jsonb DEFAULT '{}'::jsonb,
+  base_currency character varying DEFAULT 'USD'::character varying,
+  CONSTRAINT companies_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.company_currencies (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  currency_code character varying NOT NULL,
+  currency_name character varying NOT NULL,
+  symbol character varying,
+  is_base_currency boolean DEFAULT false,
+  is_presentation_currency boolean DEFAULT false,
+  is_functional_currency boolean DEFAULT false,
+  exchange_rate numeric DEFAULT 1.0,
+  rate_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT company_currencies_pkey PRIMARY KEY (id),
+  CONSTRAINT company_currencies_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
+);
 CREATE TABLE public.consolidation_changes (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   working_id uuid,
   period character varying NOT NULL,
   statement_type character varying NOT NULL,
@@ -124,6 +187,21 @@ CREATE TABLE public.currencies (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT currencies_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.custom_roles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  role_name character varying NOT NULL,
+  role_slug character varying NOT NULL,
+  description text,
+  is_system_role boolean DEFAULT false,
+  is_active boolean DEFAULT true,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT custom_roles_pkey PRIMARY KEY (id),
+  CONSTRAINT custom_roles_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT custom_roles_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
 CREATE TABLE public.elimination_entries (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   entry_number text UNIQUE,
@@ -147,7 +225,7 @@ CREATE TABLE public.elimination_entries (
   CONSTRAINT elimination_entries_entity_to_fkey FOREIGN KEY (entity_to) REFERENCES public.entities(id)
 );
 CREATE TABLE public.elimination_templates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   template_name character varying NOT NULL,
   template_description text,
   template_entries jsonb DEFAULT '[]'::jsonb,
@@ -157,7 +235,7 @@ CREATE TABLE public.elimination_templates (
   CONSTRAINT elimination_templates_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.eliminations (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   elimination_name character varying NOT NULL,
   entity_1_id uuid,
   entity_2_id uuid,
@@ -169,7 +247,9 @@ CREATE TABLE public.eliminations (
   is_active boolean DEFAULT true,
   created_at timestamp without time zone DEFAULT now(),
   updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT eliminations_pkey PRIMARY KEY (id)
+  CONSTRAINT eliminations_pkey PRIMARY KEY (id),
+  CONSTRAINT eliminations_entity_1_id_fkey FOREIGN KEY (entity_1_id) REFERENCES public.entities(id),
+  CONSTRAINT eliminations_entity_2_id_fkey FOREIGN KEY (entity_2_id) REFERENCES public.entities(id)
 );
 CREATE TABLE public.entities (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -179,7 +259,7 @@ CREATE TABLE public.entities (
   parent_entity_id uuid,
   region_id uuid,
   controller_id uuid,
-  ownership_percentage numeric,
+  ownership_percentage numeric CHECK (ownership_percentage >= 0::numeric AND ownership_percentage <= 100::numeric),
   ownership_type USER-DEFINED DEFAULT 'Direct'::ownership_type,
   consolidation_method USER-DEFINED DEFAULT 'Full Consolidation'::consolidation_method,
   split_ownership jsonb,
@@ -190,10 +270,17 @@ CREATE TABLE public.entities (
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  tax_jurisdiction text,
+  financial_year_end text,
+  status text DEFAULT 'Active'::text,
+  notes text,
+  include_in_consolidation boolean DEFAULT true,
+  company_id uuid,
   CONSTRAINT entities_pkey PRIMARY KEY (id),
   CONSTRAINT entities_parent_entity_id_fkey FOREIGN KEY (parent_entity_id) REFERENCES public.entities(id),
   CONSTRAINT entities_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id),
-  CONSTRAINT entities_controller_id_fkey FOREIGN KEY (controller_id) REFERENCES public.entity_controllers(id)
+  CONSTRAINT entities_controller_id_fkey FOREIGN KEY (controller_id) REFERENCES public.entity_controllers(id),
+  CONSTRAINT entities_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
 );
 CREATE TABLE public.entity_controllers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -205,11 +292,13 @@ CREATE TABLE public.entity_controllers (
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  company_id uuid,
   CONSTRAINT entity_controllers_pkey PRIMARY KEY (id),
-  CONSTRAINT entity_controllers_reporting_to_fkey FOREIGN KEY (reporting_to) REFERENCES public.entity_controllers(id)
+  CONSTRAINT entity_controllers_reporting_to_fkey FOREIGN KEY (reporting_to) REFERENCES public.entity_controllers(id),
+  CONSTRAINT entity_controllers_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
 );
 CREATE TABLE public.entity_gl_mapping (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   entity_id uuid NOT NULL,
   entity_gl_code character varying NOT NULL,
   entity_gl_name character varying,
@@ -218,10 +307,11 @@ CREATE TABLE public.entity_gl_mapping (
   mapped_at timestamp without time zone DEFAULT now(),
   is_active boolean DEFAULT true,
   notes text,
-  CONSTRAINT entity_gl_mapping_pkey PRIMARY KEY (id)
+  CONSTRAINT entity_gl_mapping_pkey PRIMARY KEY (id),
+  CONSTRAINT entity_gl_mapping_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
 CREATE TABLE public.entity_logic (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   logic_key character varying NOT NULL UNIQUE,
   logic_name character varying NOT NULL,
   logic_type character varying NOT NULL,
@@ -232,19 +322,43 @@ CREATE TABLE public.entity_logic (
   updated_at timestamp without time zone DEFAULT now(),
   CONSTRAINT entity_logic_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.entity_logic_assignments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  logic_id uuid NOT NULL,
+  entity_id uuid NOT NULL,
+  is_active boolean DEFAULT true,
+  priority integer DEFAULT 1,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT entity_logic_assignments_pkey PRIMARY KEY (id),
+  CONSTRAINT entity_logic_assignments_logic_id_fkey FOREIGN KEY (logic_id) REFERENCES public.entity_logic(id),
+  CONSTRAINT entity_logic_assignments_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
+);
 CREATE TABLE public.exchange_rates (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   from_currency text NOT NULL,
   to_currency text NOT NULL,
-  rate numeric NOT NULL,
+  rate numeric NOT NULL CHECK (rate > 0::numeric),
   rate_date date NOT NULL,
   rate_type text DEFAULT 'Spot'::text,
   source text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT exchange_rates_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.financial_notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  note_number character varying NOT NULL,
+  note_title character varying NOT NULL,
+  note_type character varying NOT NULL DEFAULT 'Text'::character varying,
+  note_content text NOT NULL,
+  note_order integer NOT NULL DEFAULT 1,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT financial_notes_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.financial_reports (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   report_name character varying NOT NULL,
   period character varying NOT NULL,
   template_id uuid,
@@ -282,6 +396,25 @@ CREATE TABLE public.intercompany_transactions (
   CONSTRAINT intercompany_transactions_to_entity_id_fkey FOREIGN KEY (to_entity_id) REFERENCES public.entities(id),
   CONSTRAINT intercompany_transactions_elimination_entry_id_fkey FOREIGN KEY (elimination_entry_id) REFERENCES public.elimination_entries(id)
 );
+CREATE TABLE public.permission_categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  category_name character varying NOT NULL UNIQUE,
+  description text,
+  display_order integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT permission_categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.permissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  permission_name character varying NOT NULL UNIQUE,
+  permission_slug character varying NOT NULL UNIQUE,
+  category_id uuid,
+  description text,
+  is_system_permission boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT permissions_pkey PRIMARY KEY (id),
+  CONSTRAINT permissions_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.permission_categories(id)
+);
 CREATE TABLE public.regions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   region_code text NOT NULL UNIQUE,
@@ -295,12 +428,15 @@ CREATE TABLE public.regions (
   intra_region_netting boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  company_id uuid,
+  is_active boolean DEFAULT true,
   CONSTRAINT regions_pkey PRIMARY KEY (id),
   CONSTRAINT regions_parent_region_id_fkey FOREIGN KEY (parent_region_id) REFERENCES public.regions(id),
-  CONSTRAINT regions_controller_id_fkey FOREIGN KEY (controller_id) REFERENCES public.entity_controllers(id)
+  CONSTRAINT regions_controller_id_fkey FOREIGN KEY (controller_id) REFERENCES public.entity_controllers(id),
+  CONSTRAINT regions_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
 );
 CREATE TABLE public.report_changes (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   report_id uuid,
   version integer NOT NULL,
   section character varying,
@@ -316,7 +452,7 @@ CREATE TABLE public.report_changes (
   CONSTRAINT report_changes_report_id_fkey FOREIGN KEY (report_id) REFERENCES public.financial_reports(id)
 );
 CREATE TABLE public.report_notes (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   report_id uuid,
   note_number integer NOT NULL,
   note_title character varying NOT NULL,
@@ -332,7 +468,7 @@ CREATE TABLE public.report_notes (
   CONSTRAINT report_notes_report_id_fkey FOREIGN KEY (report_id) REFERENCES public.financial_reports(id)
 );
 CREATE TABLE public.report_templates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   template_name character varying NOT NULL,
   template_type character varying DEFAULT 'standard'::character varying,
   description text,
@@ -345,7 +481,7 @@ CREATE TABLE public.report_templates (
   CONSTRAINT report_templates_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.report_versions (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   report_id uuid,
   version_number integer NOT NULL,
   content jsonb NOT NULL,
@@ -366,11 +502,21 @@ CREATE TABLE public.reporting_periods (
   fiscal_month integer,
   status USER-DEFINED DEFAULT 'Open'::period_status,
   is_year_end boolean DEFAULT false,
+  is_locked boolean DEFAULT false,
   locked_by uuid,
   locked_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT reporting_periods_pkey PRIMARY KEY (id),
   CONSTRAINT reporting_periods_locked_by_fkey FOREIGN KEY (locked_by) REFERENCES public.entity_controllers(id)
+);
+CREATE TABLE public.role_permissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  custom_role_id uuid,
+  permission_id uuid,
+  granted_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT role_permissions_pkey PRIMARY KEY (id),
+  CONSTRAINT role_permissions_custom_role_id_fkey FOREIGN KEY (custom_role_id) REFERENCES public.custom_roles(id),
+  CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id)
 );
 CREATE TABLE public.system_parameters (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -400,18 +546,25 @@ CREATE TABLE public.translation_adjustments (
   CONSTRAINT translation_adjustments_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
 CREATE TABLE public.translation_rules (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  class_level character varying NOT NULL,
-  subclass_level character varying,
-  note_level character varying,
-  rate_type character varying NOT NULL CHECK (rate_type::text = ANY (ARRAY['closing'::character varying, 'average'::character varying, 'historical'::character varying, 'opening'::character varying]::text[])),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  entity_id uuid,
+  rule_name character varying NOT NULL,
+  from_currency character varying NOT NULL,
+  to_currency character varying NOT NULL,
+  applies_to character varying DEFAULT 'All'::character varying,
+  class_name character varying,
+  gl_account_code character varying,
+  rate_type character varying NOT NULL CHECK (rate_type::text = ANY (ARRAY['Closing Rate'::character varying, 'Average Rate'::character varying, 'Historical Rate'::character varying, 'Opening Rate'::character varying]::text[])),
+  rate_value numeric,
+  fctr_account character varying,
   description text,
   accounting_standard character varying DEFAULT 'IFRS'::character varying,
   priority integer DEFAULT 100,
   is_active boolean DEFAULT true,
   created_at timestamp without time zone DEFAULT now(),
   updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT translation_rules_pkey PRIMARY KEY (id)
+  CONSTRAINT translation_rules_pkey PRIMARY KEY (id),
+  CONSTRAINT translation_rules_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
 CREATE TABLE public.trial_balance (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -427,8 +580,67 @@ CREATE TABLE public.trial_balance (
   CONSTRAINT trial_balance_pkey PRIMARY KEY (id),
   CONSTRAINT trial_balance_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
+CREATE TABLE public.user_invitations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  email character varying NOT NULL,
+  role character varying NOT NULL DEFAULT 'user'::character varying,
+  invitation_token character varying NOT NULL UNIQUE,
+  invited_by uuid NOT NULL,
+  status character varying DEFAULT 'pending'::character varying,
+  expires_at timestamp with time zone NOT NULL,
+  accepted_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_invitations_pkey PRIMARY KEY (id),
+  CONSTRAINT user_invitations_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT user_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.user_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  company_id uuid NOT NULL,
+  session_token text NOT NULL UNIQUE,
+  environment character varying DEFAULT 'production'::character varying,
+  is_active boolean DEFAULT true,
+  ip_address character varying,
+  user_agent text,
+  expires_at timestamp with time zone NOT NULL,
+  last_activity_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_sessions_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  email character varying NOT NULL,
+  username character varying NOT NULL,
+  password_hash character varying NOT NULL,
+  first_name character varying,
+  last_name character varying,
+  phone character varying,
+  avatar_url text,
+  role character varying NOT NULL DEFAULT 'user'::character varying,
+  is_primary boolean DEFAULT false,
+  is_active boolean DEFAULT true,
+  is_verified boolean DEFAULT false,
+  email_verified_at timestamp with time zone,
+  last_login_at timestamp with time zone,
+  password_reset_token character varying,
+  password_reset_expires timestamp with time zone,
+  failed_login_attempts integer DEFAULT 0,
+  locked_until timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  invited_by uuid,
+  preferences jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT users_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id)
+);
 CREATE TABLE public.validation_checks (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   check_name character varying NOT NULL,
   check_type character varying NOT NULL,
   category character varying,
@@ -443,7 +655,7 @@ CREATE TABLE public.validation_checks (
   CONSTRAINT validation_checks_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.validation_results (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   check_id uuid,
   working_id uuid,
   period character varying NOT NULL,

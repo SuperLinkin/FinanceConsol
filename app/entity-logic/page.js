@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, Edit2, Trash2, X, Save, Key, GitMerge, Calculator } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, X, Save, Key, GitMerge, Calculator, Users, TrendingUp, ChevronDown, ChevronUp, Building2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 
 export default function EntityLogicPage() {
@@ -14,9 +14,16 @@ export default function EntityLogicPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All Types');
   const [showModal, setShowModal] = useState(false);
+  const [isModalClosing, setIsModalClosing] = useState(false);
   const [editingLogic, setEditingLogic] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [modalTab, setModalTab] = useState('configuration');
+  const [selectedEntityIds, setSelectedEntityIds] = useState([]);
+  const [assignedEntities, setAssignedEntities] = useState({});
+  const [impactData, setImpactData] = useState(null);
+  const [showImpactPreview, setShowImpactPreview] = useState(false);
+  const [calculatingImpact, setCalculatingImpact] = useState(false);
 
   const [logicForm, setLogicForm] = useState({
     logic_key: '',
@@ -49,10 +56,20 @@ export default function EntityLogicPage() {
   const RATE_TYPES = ['Closing Rate', 'Average Rate', 'Historical Rate'];
   const ACCOUNT_CLASSES = ['Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
 
+  // Helper function for panel animation
+  const closeModal = () => {
+    setIsModalClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsModalClosing(false);
+    }, 300);
+  };
+
   useEffect(() => {
     fetchEntities();
     fetchLogics();
     fetchGLAccounts();
+    fetchAllAssignedEntities();
   }, []);
 
   useEffect(() => {
@@ -104,13 +121,224 @@ export default function EntityLogicPage() {
     try {
       const { data, error } = await supabase
         .from('chart_of_accounts')
-        .select('account_code, account_name, class_level')
+        .select('account_code, account_name, class_name')
         .order('account_code');
 
       if (error) throw error;
       setGlAccounts(data || []);
     } catch (error) {
       console.error('Error fetching GL accounts:', error);
+    }
+  };
+
+  const fetchAllAssignedEntities = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('entity_logic_assignments')
+        .select('logic_id, entity_id, entities(entity_code, entity_name)');
+
+      if (error) {
+        console.error('Error fetching entity assignments:', error);
+        return;
+      }
+
+      // Group by logic_id
+      const assignments = {};
+      data?.forEach(assignment => {
+        if (!assignments[assignment.logic_id]) {
+          assignments[assignment.logic_id] = [];
+        }
+        assignments[assignment.logic_id].push({
+          id: assignment.entity_id,
+          ...assignment.entities
+        });
+      });
+
+      setAssignedEntities(assignments);
+    } catch (error) {
+      console.error('Error fetching entity assignments:', error);
+    }
+  };
+
+  const fetchAssignedEntities = async (logicId) => {
+    try {
+      const { data, error } = await supabase
+        .from('entity_logic_assignments')
+        .select('entity_id')
+        .eq('logic_id', logicId)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      return data?.map(a => a.entity_id) || [];
+    } catch (error) {
+      console.error('Error fetching assigned entities:', error);
+      return [];
+    }
+  };
+
+  const assignEntitiesToLogic = async (logicId, entityIds) => {
+    try {
+      // First, delete existing assignments
+      const { error: deleteError } = await supabase
+        .from('entity_logic_assignments')
+        .delete()
+        .eq('logic_id', logicId);
+
+      if (deleteError) throw deleteError;
+
+      // Then insert new assignments
+      if (entityIds.length > 0) {
+        const assignments = entityIds.map(entityId => ({
+          logic_id: logicId,
+          entity_id: entityId,
+          is_active: true,
+          priority: 1
+        }));
+
+        const { error: insertError } = await supabase
+          .from('entity_logic_assignments')
+          .insert(assignments);
+
+        if (insertError) throw insertError;
+      }
+
+      // Refresh assigned entities
+      await fetchAllAssignedEntities();
+
+      return true;
+    } catch (error) {
+      console.error('Error assigning entities to logic:', error);
+      throw error;
+    }
+  };
+
+  const calculateImpact = async (entityIds, logicType, configuration) => {
+    if (!entityIds || entityIds.length === 0) {
+      setImpactData(null);
+      return;
+    }
+
+    setCalculatingImpact(true);
+    try {
+      const impacts = [];
+
+      for (const entityId of entityIds) {
+        const entity = entities.find(e => e.id === entityId);
+        if (!entity) continue;
+
+        // Fetch trial balance data for the entity
+        const { data: tbData, error: tbError } = await supabase
+          .from('trial_balance')
+          .select('account_code, account_name, debit, credit, currency')
+          .eq('entity_id', entityId)
+          .order('period', { ascending: false })
+          .limit(1000);
+
+        if (tbError) {
+          console.error('Error fetching trial balance:', tbError);
+          continue;
+        }
+
+        if (!tbData || tbData.length === 0) continue;
+
+        // Fetch chart of accounts to get class information
+        const { data: coaData } = await supabase
+          .from('chart_of_accounts')
+          .select('account_code, class_name')
+          .eq('entity_id', entityId);
+
+        const accountClassMap = {};
+        coaData?.forEach(acc => {
+          accountClassMap[acc.account_code] = acc.class_name;
+        });
+
+        let affectedAccounts = [];
+        let totalImpact = 0;
+
+        if (logicType === 'Currency Translation') {
+          const targetClass = configuration.applies_to_class;
+          const rateType = configuration.rate_type;
+
+          // Mock exchange rate (in real scenario, fetch from exchange_rates table)
+          const exchangeRate = 1.15; // Example rate
+
+          affectedAccounts = tbData.filter(tb => {
+            const accountClass = accountClassMap[tb.account_code];
+            return accountClass === targetClass;
+          }).map(tb => {
+            const balance = (parseFloat(tb.debit) || 0) - (parseFloat(tb.credit) || 0);
+            const translatedAmount = balance * exchangeRate;
+            const fctrImpact = translatedAmount - balance;
+            totalImpact += Math.abs(fctrImpact);
+
+            return {
+              account_code: tb.account_code,
+              account_name: tb.account_name,
+              original_balance: balance,
+              translated_amount: translatedAmount,
+              fctr_impact: fctrImpact,
+              rate_type: rateType
+            };
+          });
+
+        } else if (logicType === 'Full Consolidation') {
+          const ownershipPct = configuration.ownership_percentage || 100;
+          const nciPct = 100 - ownershipPct;
+
+          affectedAccounts = tbData.map(tb => {
+            const balance = (parseFloat(tb.debit) || 0) - (parseFloat(tb.credit) || 0);
+            const nciAmount = balance * (nciPct / 100);
+            totalImpact += Math.abs(balance);
+
+            return {
+              account_code: tb.account_code,
+              account_name: tb.account_name,
+              original_balance: balance,
+              consolidated_amount: balance,
+              nci_portion: nciAmount,
+              ownership_pct: ownershipPct
+            };
+          });
+
+        } else if (logicType === 'Custom Calculation') {
+          const formula = configuration.formula || '';
+
+          affectedAccounts = tbData.map(tb => {
+            const balance = (parseFloat(tb.debit) || 0) - (parseFloat(tb.credit) || 0);
+            // Simplified formula evaluation
+            const calculatedAmount = balance; // In real scenario, parse and evaluate formula
+            totalImpact += Math.abs(balance);
+
+            return {
+              account_code: tb.account_code,
+              account_name: tb.account_name,
+              original_balance: balance,
+              calculated_amount: calculatedAmount,
+              formula_applied: formula.substring(0, 50)
+            };
+          });
+        }
+
+        impacts.push({
+          entity_id: entityId,
+          entity_code: entity.entity_code,
+          entity_name: entity.entity_name,
+          affected_accounts: affectedAccounts,
+          total_accounts_affected: affectedAccounts.length,
+          total_impact: totalImpact,
+          top_affected: affectedAccounts
+            .sort((a, b) => Math.abs(b.fctr_impact || b.nci_portion || 0) - Math.abs(a.fctr_impact || a.nci_portion || 0))
+            .slice(0, 5)
+        });
+      }
+
+      setImpactData(impacts);
+    } catch (error) {
+      console.error('Error calculating impact:', error);
+      setImpactData(null);
+    } finally {
+      setCalculatingImpact(false);
     }
   };
 
@@ -157,10 +385,14 @@ export default function EntityLogicPage() {
       },
       is_active: true
     });
+    setModalTab('configuration');
+    setSelectedEntityIds([]);
+    setImpactData(null);
+    setShowImpactPreview(false);
     setShowModal(true);
   };
 
-  const openEditModal = (logic) => {
+  const openEditModal = async (logic) => {
     setEditingLogic(logic);
     setLogicForm({
       logic_key: logic.logic_key,
@@ -178,6 +410,14 @@ export default function EntityLogicPage() {
       },
       is_active: logic.is_active
     });
+    setModalTab('configuration');
+    setImpactData(null);
+    setShowImpactPreview(false);
+
+    // Fetch assigned entities for this logic
+    const assignedEntityIds = await fetchAssignedEntities(logic.id);
+    setSelectedEntityIds(assignedEntityIds);
+
     setShowModal(true);
   };
 
@@ -210,19 +450,32 @@ export default function EntityLogicPage() {
         updated_at: new Date().toISOString()
       };
 
-      let error;
+      let error, savedLogicId;
       if (editingLogic) {
         ({ error } = await supabase
           .from('entity_logic')
           .update(logicData)
           .eq('id', editingLogic.id));
+        savedLogicId = editingLogic.id;
       } else {
-        ({ error } = await supabase
+        const { data, error: insertError } = await supabase
           .from('entity_logic')
-          .insert([logicData]));
+          .insert([logicData])
+          .select('id')
+          .single();
+        error = insertError;
+        savedLogicId = data?.id;
       }
 
       if (error) throw error;
+
+      // Save entity assignments
+      if (savedLogicId && selectedEntityIds.length > 0) {
+        await assignEntitiesToLogic(savedLogicId, selectedEntityIds);
+      } else if (savedLogicId) {
+        // Clear assignments if no entities selected
+        await assignEntitiesToLogic(savedLogicId, []);
+      }
 
       showToast(
         `Logic '${logicForm.logic_name}' ${editingLogic ? 'updated' : 'created'} successfully`,
@@ -272,6 +525,31 @@ export default function EntityLogicPage() {
     });
   };
 
+  const handleEntitySelection = (entityId) => {
+    setSelectedEntityIds(prev => {
+      if (prev.includes(entityId)) {
+        return prev.filter(id => id !== entityId);
+      } else {
+        return [...prev, entityId];
+      }
+    });
+  };
+
+  const handleCalculateImpact = async () => {
+    if (selectedEntityIds.length === 0) {
+      showToast('Please select at least one entity to calculate impact', false);
+      return;
+    }
+
+    if (!logicForm.logic_type) {
+      showToast('Please select a logic type first', false);
+      return;
+    }
+
+    await calculateImpact(selectedEntityIds, logicForm.logic_type, logicForm.configuration);
+    setShowImpactPreview(true);
+  };
+
   const renderConfigurationForm = () => {
     const { logic_type } = logicForm;
 
@@ -319,7 +597,7 @@ export default function EntityLogicPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#101828] focus:border-transparent text-[#101828]"
             >
               <option value="">Select FCTR account...</option>
-              {glAccounts.filter(acc => acc.class_level === 'Equity').map(acc => (
+              {glAccounts.filter(acc => acc.class_name === 'Equity').map(acc => (
                 <option key={acc.account_code} value={acc.account_code}>
                   {acc.account_code} - {acc.account_name}
                 </option>
@@ -644,7 +922,8 @@ export default function EntityLogicPage() {
                   <div className="col-span-2 font-bold text-sm">Logic Key</div>
                   <div className="col-span-2 font-bold text-sm">Logic Name</div>
                   <div className="col-span-2 font-bold text-sm">Type</div>
-                  <div className="col-span-4 font-bold text-sm">Configuration</div>
+                  <div className="col-span-3 font-bold text-sm">Configuration</div>
+                  <div className="col-span-1 font-bold text-sm text-center">Entities</div>
                   <div className="col-span-1 font-bold text-sm text-center">Status</div>
                   <div className="col-span-1 font-bold text-sm">Actions</div>
                 </div>
@@ -659,6 +938,7 @@ export default function EntityLogicPage() {
                   filteredLogics.map((logic, index) => {
                     const bgShade = index % 2 === 0 ? 'bg-white' : 'bg-[#faf9f7]';
                     const config = logic.configuration || {};
+                    const logicAssignedEntities = assignedEntities[logic.id] || [];
 
                     let configSummary = '';
                     if (logic.logic_type === 'Currency Translation') {
@@ -688,8 +968,18 @@ export default function EntityLogicPage() {
                               {logic.logic_type}
                             </span>
                           </div>
-                          <div className="col-span-4 text-xs text-gray-600 font-mono">
+                          <div className="col-span-3 text-xs text-gray-600 font-mono">
                             {configSummary}
+                          </div>
+                          <div className="col-span-1 text-center">
+                            {logicAssignedEntities.length > 0 ? (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded inline-flex items-center gap-1" title={logicAssignedEntities.map(e => e.entity_name).join(', ')}>
+                                <Building2 size={12} />
+                                {logicAssignedEntities.length}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
                           </div>
                           <div className="col-span-1 text-center">
                             <span className={`px-2 py-1 text-xs font-semibold rounded ${
@@ -726,97 +1016,281 @@ export default function EntityLogicPage() {
         </div>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
-          <div className="bg-white h-full w-[800px] shadow-2xl animate-slideRight overflow-y-auto pointer-events-auto">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-slate-900">
-                  {editingLogic ? 'Edit Logic Rule' : 'Create Logic Rule'}
-                </h2>
+      {(showModal || isModalClosing) && (
+        <div className={`fixed right-0 top-0 h-full w-[900px] bg-white shadow-2xl z-50 overflow-y-auto ${isModalClosing ? 'animate-slideOutRight' : 'animate-slideLeft'}`}>
+          <div className="h-full flex flex-col">
+            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">{editingLogic ? 'Edit Logic Rule' : 'Create Logic Rule'}</h3>
+                <p className="text-sm text-slate-300 mt-1">Configure entity-specific logic rules</p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 p-8 overflow-y-auto">
+
+              <div className="flex gap-2 mb-6 border-b border-gray-200">
                 <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  onClick={() => setModalTab('configuration')}
+                  className={`px-6 py-3 font-semibold transition-colors ${
+                    modalTab === 'configuration'
+                      ? 'border-b-2 border-slate-900 text-slate-900'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <X size={24} />
+                  Configuration
+                </button>
+                <button
+                  onClick={() => setModalTab('entities')}
+                  className={`px-6 py-3 font-semibold transition-colors ${
+                    modalTab === 'entities'
+                      ? 'border-b-2 border-slate-900 text-slate-900'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Entity Assignment & Impact
                 </button>
               </div>
 
-              <div className="space-y-6">
-                {editingLogic && (
-                  <div className="bg-gray-100 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
-                      <Key size={16} />
-                      <span className="font-semibold">Logic Key</span>
+              {modalTab === 'configuration' && (
+                <div className="space-y-6">
+                  {editingLogic && (
+                    <div className="bg-gray-100 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
+                        <Key size={16} />
+                        <span className="font-semibold">Logic Key</span>
+                      </div>
+                      <div className="font-mono text-lg font-bold text-slate-900">
+                        {logicForm.logic_key}
+                      </div>
                     </div>
-                    <div className="font-mono text-lg font-bold text-slate-900">
-                      {logicForm.logic_key}
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Logic Name *</label>
-                  <input
-                    type="text"
-                    value={logicForm.logic_name}
-                    onChange={(e) => setLogicForm({...logicForm, logic_name: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                    placeholder="e.g., Assets Closing Rate Translation"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Logic Type *</label>
-                  <select
-                    value={logicForm.logic_type}
-                    onChange={(e) => setLogicForm({...logicForm, logic_type: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                  >
-                    <option value="">Select type...</option>
-                    {LOGIC_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={logicForm.description}
-                    onChange={(e) => setLogicForm({...logicForm, description: e.target.value})}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                    placeholder="Brief description of this logic rule..."
-                  />
-                </div>
-
-                {renderConfigurationForm()}
-
-                <div>
-                  <label className="flex items-center gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Logic Name *</label>
                     <input
-                      type="checkbox"
-                      checked={logicForm.is_active}
-                      onChange={(e) => setLogicForm({...logicForm, is_active: e.target.checked})}
-                      className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
+                      type="text"
+                      value={logicForm.logic_name}
+                      onChange={(e) => setLogicForm({...logicForm, logic_name: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                      placeholder="e.g., Assets Closing Rate Translation"
                     />
-                    <span className="font-medium text-gray-700">Active</span>
-                  </label>
-                </div>
-
-                {!editingLogic && logicForm.logic_name && logicForm.logic_type && (
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <div className="text-sm font-semibold text-blue-900 mb-2">Generated Logic Key Preview:</div>
-                    <div className="font-mono text-sm font-bold text-blue-800">
-                      {generateLogicKey(logicForm.logic_name, logicForm.logic_type)}
-                    </div>
-                    <div className="text-xs text-blue-700 mt-2">
-                      This key will be used to execute this logic in calculations
-                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Logic Type *</label>
+                    <select
+                      value={logicForm.logic_type}
+                      onChange={(e) => setLogicForm({...logicForm, logic_type: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                    >
+                      <option value="">Select type...</option>
+                      {LOGIC_TYPES.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                    <textarea
+                      value={logicForm.description}
+                      onChange={(e) => setLogicForm({...logicForm, description: e.target.value})}
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                      placeholder="Brief description of this logic rule..."
+                    />
+                  </div>
+
+                  {renderConfigurationForm()}
+
+                  <div>
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={logicForm.is_active}
+                        onChange={(e) => setLogicForm({...logicForm, is_active: e.target.checked})}
+                        className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
+                      />
+                      <span className="font-medium text-gray-700">Active</span>
+                    </label>
+                  </div>
+
+                  {!editingLogic && logicForm.logic_name && logicForm.logic_type && (
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <div className="text-sm font-semibold text-blue-900 mb-2">Generated Logic Key Preview:</div>
+                      <div className="font-mono text-sm font-bold text-blue-800">
+                        {generateLogicKey(logicForm.logic_name, logicForm.logic_type)}
+                      </div>
+                      <div className="text-xs text-blue-700 mt-2">
+                        This key will be used to execute this logic in calculations
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {modalTab === 'entities' && (
+                <div className="space-y-6">
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                      <Users size={18} />
+                      Assign Entities to Logic
+                    </h3>
+                    <p className="text-sm text-blue-800">
+                      Select which entities this logic should be applied to. You can select multiple entities.
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg max-h-[300px] overflow-y-auto">
+                    {entities.length === 0 ? (
+                      <div className="py-8 text-center text-gray-500">
+                        No entities available. Please create entities first.
+                      </div>
+                    ) : (
+                      entities.map((entity, index) => (
+                        <label
+                          key={entity.id}
+                          className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEntityIds.includes(entity.id)}
+                            onChange={() => handleEntitySelection(entity.id)}
+                            className="w-5 h-5 rounded border-gray-300 text-slate-900 focus:ring-slate-900"
+                          />
+                          <div className="flex-1">
+                            <div className="font-semibold text-slate-900">{entity.entity_name}</div>
+                            <div className="text-xs text-gray-600">
+                              {entity.entity_code} | {entity.functional_currency} → {entity.presentation_currency}
+                            </div>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+
+                  {selectedEntityIds.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-semibold text-gray-900">
+                          Selected Entities: {selectedEntityIds.length}
+                        </div>
+                        <button
+                          onClick={handleCalculateImpact}
+                          disabled={calculatingImpact || !logicForm.logic_type}
+                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          <TrendingUp size={16} />
+                          {calculatingImpact ? 'Calculating...' : 'Calculate Impact'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEntityIds.map(entityId => {
+                          const entity = entities.find(e => e.id === entityId);
+                          return entity ? (
+                            <span key={entityId} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                              {entity.entity_code}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {impactData && impactData.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                          <TrendingUp size={20} />
+                          Impact Analysis
+                        </h3>
+                        <button
+                          onClick={() => setShowImpactPreview(!showImpactPreview)}
+                          className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                        >
+                          {showImpactPreview ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          {showImpactPreview ? 'Hide Details' : 'Show Details'}
+                        </button>
+                      </div>
+
+                      {impactData.map(impact => {
+                        const isPositiveImpact = impact.total_impact > 0;
+
+                        return (
+                          <div key={impact.entity_id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-4 border-b border-gray-200">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-bold text-slate-900">{impact.entity_name}</div>
+                                  <div className="text-sm text-gray-600">{impact.entity_code}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-2xl font-bold text-indigo-700">
+                                    {impact.total_accounts_affected}
+                                  </div>
+                                  <div className="text-xs text-gray-600">GLs Affected</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="p-4">
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                  <div className="text-xs text-blue-700 mb-1">Total Impact</div>
+                                  <div className="text-lg font-bold text-blue-900">
+                                    {impact.total_impact.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className={isPositiveImpact ? 'bg-emerald-50 rounded-lg p-3 border border-emerald-200' : 'bg-red-50 rounded-lg p-3 border border-red-200'}>
+                                  <div className={isPositiveImpact ? 'text-xs text-emerald-700 mb-1' : 'text-xs text-red-700 mb-1'}>Status</div>
+                                  <div className={isPositiveImpact ? 'text-sm font-bold text-emerald-900' : 'text-sm font-bold text-red-900'}>
+                                    {logicForm.logic_type === 'Currency Translation' ? 'Translation Required' :
+                                     logicForm.logic_type === 'Full Consolidation' ? 'Consolidation Ready' :
+                                     'Calculation Pending'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {showImpactPreview && impact.top_affected.length > 0 && (
+                                <div>
+                                  <div className="font-semibold text-sm text-gray-700 mb-2">Top 5 Affected Accounts:</div>
+                                  <div className="space-y-2">
+                                    {impact.top_affected.map((acc, idx) => (
+                                      <div key={idx} className="bg-gray-50 rounded p-3 text-xs">
+                                        <div className="flex justify-between mb-1">
+                                          <span className="font-mono font-semibold">{acc.account_code}</span>
+                                          <span className="font-bold text-gray-900">
+                                            {(acc.fctr_impact || acc.nci_portion || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                        </div>
+                                        <div className="text-gray-600">{acc.account_name}</div>
+                                        {logicForm.logic_type === 'Currency Translation' && (
+                                          <div className="text-gray-500 mt-1">
+                                            Original: {acc.original_balance?.toLocaleString('en-US', { minimumFractionDigits: 2 })} →
+                                            Translated: {acc.translated_amount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mt-8 sticky bottom-0 bg-white pt-6 border-t border-gray-200">
                 <button

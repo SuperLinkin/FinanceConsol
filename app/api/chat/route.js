@@ -1,13 +1,58 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { z } from 'zod';
+import { requireAuth } from '@/lib/apiAuth';
+import { withRateLimit } from '@/lib/rateLimit';
+import { errorResponse, validationError, successResponse } from '@/lib/errorHandler';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Validation schema
+const requestSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().min(1).max(2000),
+  })).min(1).max(20),
+  context: z.object({
+    kpis: z.object({
+      totalEntities: z.number(),
+      activeEntities: z.number(),
+      pendingSubmissions: z.number(),
+      consolidationProgress: z.number(),
+      totalAssets: z.number(),
+      totalLiabilities: z.number(),
+      totalEquity: z.number(),
+      revenue: z.number(),
+      expenses: z.number(),
+      netIncome: z.number(),
+      eliminationsCount: z.number(),
+      adjustmentsCount: z.number(),
+    }),
+    entities: z.array(z.any()).max(100), // Limit entities array size
+  }),
+});
+
 export async function POST(request) {
-  try {
-    const { messages, context } = await request.json();
+  return requireAuth(request, async (req, user) => {
+    return withRateLimit(req, user.userId, 'ai', async () => {
+      try {
+        // Parse and validate input
+        const body = await req.json();
+        const validation = requestSchema.safeParse(body);
+
+        if (!validation.success) {
+          return validationError(validation.error.errors);
+        }
+
+        const { messages, context } = validation.data;
+
+        // Sanitize messages
+        const sanitizedMessages = messages.map(msg => ({
+          ...msg,
+          content: msg.content.replace(/[<>]/g, ''),
+        }));
 
     // Build system message with database context and strict guardrails
     const systemMessage = {
@@ -80,52 +125,30 @@ ${JSON.stringify(context, null, 2)}
 **Remember:** ONLY answer with data explicitly provided above. If unsure, say you don't have that information.`
     };
 
-    // Call OpenAI API with strict parameters to reduce hallucination
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Fast and cost-effective model
-      messages: [systemMessage, ...messages],
-      temperature: 0.1, // Very low temperature = more deterministic, less creative/hallucination
-      max_tokens: 500,
-      presence_penalty: 0.0, // Don't encourage new topics
-      frequency_penalty: 0.0, // Don't discourage repetition of data values
-    });
+        // Call OpenAI API with strict parameters to reduce hallucination
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [systemMessage, ...sanitizedMessages],
+          temperature: 0.1,
+          max_tokens: 500,
+          presence_penalty: 0.0,
+          frequency_penalty: 0.0,
+        });
 
-    const assistantMessage = completion.choices[0].message.content;
+        const assistantMessage = completion.choices[0].message.content;
 
-    // Validation: Check for common hallucination patterns
-    const hallucination_keywords = [
-      'typically', 'usually', 'in general', 'most companies',
-      'industry standard', 'best practice', 'should consider',
-      'recommended', 'suggest', 'advice', 'in my experience',
-      'historically', 'trends show', 'predict', 'forecast'
-    ];
+        return successResponse({
+          success: true,
+          message: assistantMessage,
+          metadata: {
+            model: 'gpt-4o-mini',
+            temperature: 0.1,
+          }
+        });
 
-    const lowerMessage = assistantMessage.toLowerCase();
-    const containsHallucination = hallucination_keywords.some(keyword =>
-      lowerMessage.includes(keyword)
-    );
-
-    if (containsHallucination) {
-      console.warn('Potential hallucination detected in response:', assistantMessage);
-      // Still return the response but log it for monitoring
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: assistantMessage,
-      metadata: {
-        model: 'gpt-4o-mini',
-        temperature: 0.1,
-        dataBasedResponse: !containsHallucination
+      } catch (error) {
+        return errorResponse(error);
       }
     });
-
-  } catch (error) {
-    console.error('OpenAI API Error:', error);
-
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to get AI response',
-    }, { status: 500 });
-  }
+  });
 }

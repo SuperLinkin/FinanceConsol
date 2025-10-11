@@ -1,20 +1,32 @@
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { requireAuth } from '@/lib/apiAuth';
+import { errorResponse, validationError, successResponse } from '@/lib/errorHandler';
+
+// Validation schema
+const postSchema = z.object({
+  period: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/),
+  statement_type: z.enum(['balance_sheet', 'income_statement', 'cash_flow']).optional(),
+  created_by: z.string().optional(),
+});
 
 /**
  * POST /api/consolidation/generate
  * Auto-generates consolidation workings based on COA master hierarchy
  */
 export async function POST(request) {
-  try {
-    const { period, statement_type, created_by } = await request.json();
+  return requireAuth(request, async (req, user) => {
+    try {
+      const body = await req.json();
+      const validation = postSchema.safeParse(body);
 
-    if (!period) {
-      return NextResponse.json(
-        { success: false, error: 'Period is required' },
-        { status: 400 }
-      );
-    }
+      if (!validation.success) {
+        return validationError(validation.error.errors);
+      }
+
+      const { period, statement_type } = validation.data;
+      const created_by = user.email || 'System';
 
     // If statement_type provided, create single working
     if (statement_type) {
@@ -24,48 +36,37 @@ export async function POST(request) {
         p_created_by: created_by || 'System'
       });
 
-      if (error) {
-        console.error('Error creating consolidation working:', error);
-        return NextResponse.json(
-          { success: false, error: error.message },
-          { status: 500 }
-        );
+        if (error) {
+          return errorResponse(error);
+        }
+
+        return successResponse({
+          success: true,
+          working_id: data,
+          statement_type,
+          message: `Consolidation working created for ${statement_type}`
+        });
       }
 
-      return NextResponse.json({
-        success: true,
-        working_id: data,
-        statement_type,
-        message: `Consolidation working created for ${statement_type}`
+      // Otherwise, initialize all workings for the period
+      const { data, error } = await supabase.rpc('initialize_period_workings', {
+        p_period: period,
+        p_created_by: created_by
       });
+
+      if (error) {
+        return errorResponse(error);
+      }
+
+      return successResponse({
+        success: true,
+        workings: data,
+        message: `Initialized ${data?.length || 0} workings for period ${period}`
+      });
+    } catch (error) {
+      return errorResponse(error);
     }
-
-    // Otherwise, initialize all workings for the period
-    const { data, error } = await supabase.rpc('initialize_period_workings', {
-      p_period: period,
-      p_created_by: created_by || 'System'
-    });
-
-    if (error) {
-      console.error('Error initializing period workings:', error);
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      workings: data,
-      message: `Initialized ${data?.length || 0} workings for period ${period}`
-    });
-  } catch (error) {
-    console.error('Error in generate API:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 /**
@@ -73,33 +74,27 @@ export async function POST(request) {
  * Generates line items structure preview (doesn't save)
  */
 export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const statement_type = searchParams.get('statement_type') || 'balance_sheet';
+  return requireAuth(request, async (req, user) => {
+    try {
+      const { searchParams } = new URL(req.url);
+      const statement_type = searchParams.get('statement_type') || 'balance_sheet';
 
-    // Call function to generate line items structure
-    const { data, error } = await supabase.rpc('generate_consolidation_line_items', {
-      p_statement_type: statement_type
-    });
+      // Call function to generate line items structure
+      const { data, error } = await supabase.rpc('generate_consolidation_line_items', {
+        p_statement_type: statement_type
+      });
 
-    if (error) {
-      console.error('Error generating line items:', error);
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
+      if (error) {
+        return errorResponse(error);
+      }
+
+      return successResponse({
+        success: true,
+        statement_type,
+        line_items: data
+      });
+    } catch (error) {
+      return errorResponse(error);
     }
-
-    return NextResponse.json({
-      success: true,
-      statement_type,
-      line_items: data
-    });
-  } catch (error) {
-    console.error('Error in generate preview API:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
-  }
+  });
 }

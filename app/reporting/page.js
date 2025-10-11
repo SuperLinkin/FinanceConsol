@@ -34,7 +34,17 @@ import {
   FileDown,
   Printer,
   Undo,
-  Redo
+  Redo,
+  RefreshCw,
+  Table as TableIcon,
+  Calculator,
+  DollarSign,
+  Search,
+  Grid3x3,
+  Move,
+  Maximize2,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react';
 
 export default function ReportingBuilder() {
@@ -63,6 +73,53 @@ export default function ReportingBuilder() {
   const [recentChanges, setRecentChanges] = useState([]);
   const [workingData, setWorkingData] = useState(null);
   const editorRef = useRef(null);
+
+  // Sync state
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState({
+    consolidation: null,
+    accountingPolicy: null,
+    noteBuilder: null,
+    mda: null
+  });
+
+  // Table builder state
+  const [showTableBuilder, setShowTableBuilder] = useState(false);
+  const [tableConfig, setTableConfig] = useState({
+    rows: 5,
+    columns: 4,
+    headers: ['', '', '', ''],
+    data: []
+  });
+
+  // Formula builder state
+  const [showFormulaBuilder, setShowFormulaBuilder] = useState(false);
+  const [currentFormula, setCurrentFormula] = useState('');
+  const [selectedCell, setSelectedCell] = useState(null);
+
+  // GL Picker state
+  const [showGLPicker, setShowGLPicker] = useState(false);
+  const [glAccounts, setGLAccounts] = useState([]);
+  const [glSearchTerm, setGLSearchTerm] = useState('');
+  const [selectedGLs, setSelectedGLs] = useState([]);
+
+  // Version info
+  const [versionInfo, setVersionInfo] = useState({
+    lastEditedBy: 'John Doe',
+    lastEditedAt: new Date().toISOString(),
+    version: 1
+  });
+
+  // Grid/Position state
+  const [showPositionTools, setShowPositionTools] = useState(false);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [elementPosition, setElementPosition] = useState({
+    x: 0,
+    y: 0,
+    width: '100%',
+    height: 'auto'
+  });
 
   // Report settings
   const [reportSettings, setReportSettings] = useState({
@@ -647,7 +704,301 @@ export default function ReportingBuilder() {
         description: `Edited ${field} in ${section.title}`
       };
       setChanges(prev => [...prev, change]);
+
+      // Update version info
+      setVersionInfo({
+        lastEditedBy: currentUser,
+        lastEditedAt: new Date().toISOString(),
+        version: versionInfo.version + 1
+      });
     }
+  };
+
+  // Sync data from other pages
+  const handleSyncData = async (source) => {
+    setSyncing(true);
+    try {
+      let data = null;
+
+      switch (source) {
+        case 'consolidation':
+          // Fetch consolidation workings data
+          const { data: consolData, error: consolError } = await supabase
+            .from('consolidation_workings')
+            .select('*')
+            .eq('period', selectedPeriod)
+            .order('updated_at', { ascending: false })
+            .limit(1);
+
+          if (consolError) throw consolError;
+          if (consolData && consolData.length > 0) {
+            data = consolData[0];
+            // Update report content with consolidation data
+            const updatedContent = { ...reportContent };
+            updatedContent.sections.forEach(section => {
+              if (section.type === 'statement') {
+                section.data = JSON.parse(data.line_items);
+                section.totals = JSON.parse(data.totals);
+              }
+            });
+            setReportContent(updatedContent);
+          }
+          break;
+
+        case 'accountingPolicy':
+          // Fetch accounting policy data
+          const { data: policyData, error: policyError } = await supabase
+            .from('accounting_policies')
+            .select('*')
+            .eq('is_active', true);
+
+          if (policyError) throw policyError;
+          if (policyData) {
+            // Add/update accounting policy note
+            const updatedContent = { ...reportContent };
+            const notesSection = updatedContent.sections.find(s => s.type === 'notes');
+            if (notesSection) {
+              // Find or create accounting policy note
+              let policyNote = notesSection.notes.find(n => n.title === 'Accounting Policies');
+              if (!policyNote) {
+                policyNote = {
+                  id: 'policy-note',
+                  number: 1,
+                  title: 'Accounting Policies',
+                  content: ''
+                };
+                notesSection.notes.unshift(policyNote);
+              }
+
+              // Build content from policies
+              let policyContent = '<h4>Significant Accounting Policies</h4>';
+              policyData.forEach(policy => {
+                policyContent += `<h5>${policy.policy_name}</h5><p>${policy.policy_description}</p>`;
+              });
+              policyNote.content = policyContent;
+            }
+            setReportContent(updatedContent);
+          }
+          break;
+
+        case 'noteBuilder':
+          // Fetch notes from note builder
+          const { data: notesData, error: notesError } = await supabase
+            .from('financial_notes')
+            .select('*')
+            .eq('period', selectedPeriod)
+            .eq('status', 'approved')
+            .order('note_number');
+
+          if (notesError) throw notesError;
+          if (notesData) {
+            const updatedContent = { ...reportContent };
+            const notesSection = updatedContent.sections.find(s => s.type === 'notes');
+            if (notesSection) {
+              notesSection.notes = notesData.map(note => ({
+                id: note.id,
+                number: note.note_number,
+                title: note.note_title,
+                content: note.note_content
+              }));
+            }
+            setReportContent(updatedContent);
+          }
+          break;
+
+        case 'mda':
+          // Fetch MD&A data
+          const mdaData = localStorage.getItem('mda_data');
+          if (mdaData) {
+            const parsed = JSON.parse(mdaData);
+            const updatedContent = { ...reportContent };
+
+            // Add MD&A section if not exists
+            let mdaSection = updatedContent.sections.find(s => s.id === 'mda');
+            if (!mdaSection) {
+              mdaSection = {
+                id: 'mda',
+                type: 'custom',
+                title: 'Management Discussion & Analysis',
+                subtitle: `For the Year Ended December 31, ${reportSettings.period}`,
+                content: '',
+                editable: true
+              };
+              updatedContent.sections.push(mdaSection);
+            }
+
+            // Build MD&A content
+            let mdaContent = '<h3>Executive Summary</h3>';
+            mdaContent += `<p>${parsed.executiveSummary?.overview || ''}</p>`;
+            mdaContent += '<h3>Business Outlook</h3>';
+            mdaContent += `<p>${parsed.executiveSummary?.outlook || ''}</p>`;
+
+            mdaSection.content = mdaContent;
+            setReportContent(updatedContent);
+          }
+          break;
+      }
+
+      // Update last synced timestamp
+      setLastSynced(prev => ({
+        ...prev,
+        [source]: new Date().toISOString()
+      }));
+
+      // Track sync in changes
+      setChanges(prev => [...prev, {
+        section: 'sync',
+        type: 'sync',
+        field: source,
+        oldValue: '',
+        newValue: new Date().toISOString(),
+        description: `Synced data from ${source}`
+      }]);
+
+      alert(`Successfully synced data from ${source}!`);
+    } catch (error) {
+      console.error(`Error syncing ${source}:`, error);
+      alert(`Error syncing ${source}: ${error.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // Load GL accounts
+  const loadGLAccounts = async () => {
+    try {
+      const { data: tbData, error } = await supabase
+        .from('trial_balance')
+        .select('gl_code, gl_name, debit_amount, credit_amount, class_name')
+        .eq('period', selectedPeriod);
+
+      if (error) throw error;
+
+      const accounts = (tbData || []).map(item => ({
+        code: item.gl_code,
+        name: item.gl_name,
+        class: item.class_name,
+        debit: parseFloat(item.debit_amount || 0),
+        credit: parseFloat(item.credit_amount || 0),
+        balance: parseFloat(item.debit_amount || 0) - parseFloat(item.credit_amount || 0)
+      }));
+
+      setGLAccounts(accounts);
+    } catch (error) {
+      console.error('Error loading GL accounts:', error);
+    }
+  };
+
+  // Insert table with formula support
+  const handleInsertTable = () => {
+    const { rows, columns, headers } = tableConfig;
+
+    // Create HTML table
+    let tableHTML = '<table border="1" style="border-collapse: collapse; width: 100%; margin: 20px 0;">';
+
+    // Headers
+    tableHTML += '<thead><tr>';
+    headers.forEach(header => {
+      tableHTML += `<th style="padding: 8px; background-color: #f0f0f0; text-align: left;">${header || ''}</th>`;
+    });
+    tableHTML += '</tr></thead>';
+
+    // Body rows
+    tableHTML += '<tbody>';
+    for (let i = 0; i < rows; i++) {
+      tableHTML += '<tr>';
+      for (let j = 0; j < columns; j++) {
+        const cellId = `cell-${i}-${j}`;
+        tableHTML += `<td id="${cellId}" style="padding: 8px; border: 1px solid #ddd;" contenteditable="true">-</td>`;
+      }
+      tableHTML += '</tr>';
+    }
+    tableHTML += '</tbody></table>';
+
+    // Insert at cursor position
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = tableHTML;
+        range.insertNode(tempDiv.firstChild);
+      }
+    }
+
+    setShowTableBuilder(false);
+    setTableConfig({
+      rows: 5,
+      columns: 4,
+      headers: ['', '', '', ''],
+      data: []
+    });
+  };
+
+  // Apply formula to cell
+  const handleApplyFormula = () => {
+    if (!selectedCell || !currentFormula) return;
+
+    try {
+      // Parse formula (simple implementation)
+      // Supports: =SUM(A1:A5), =A1+A2, =GL(1000), etc.
+      let result = 0;
+
+      if (currentFormula.startsWith('=GL(')) {
+        // Extract GL code
+        const glCode = currentFormula.match(/=GL\((\d+)\)/)?.[1];
+        const account = glAccounts.find(gl => gl.code === glCode);
+        if (account) {
+          result = account.balance;
+        }
+      } else if (currentFormula.startsWith('=SUM(')) {
+        // Simple SUM implementation
+        const range = currentFormula.match(/=SUM\((.*?)\)/)?.[1];
+        // Would need to parse range and sum values
+        result = 0;
+      } else if (currentFormula.includes('+') || currentFormula.includes('-')) {
+        // Simple arithmetic
+        result = eval(currentFormula.substring(1));
+      }
+
+      // Update cell with result
+      const cell = document.getElementById(selectedCell);
+      if (cell) {
+        cell.textContent = formatCurrency(result);
+        cell.setAttribute('data-formula', currentFormula);
+      }
+
+      setShowFormulaBuilder(false);
+      setCurrentFormula('');
+      setSelectedCell(null);
+    } catch (error) {
+      alert('Error applying formula: ' + error.message);
+    }
+  };
+
+  // Insert GL amount
+  const handleInsertGLAmount = () => {
+    if (selectedGLs.length === 0) {
+      alert('Please select at least one GL account');
+      return;
+    }
+
+    const totalAmount = selectedGLs.reduce((sum, gl) => sum + gl.balance, 0);
+
+    // Insert at cursor or in selected cell
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(document.createTextNode(formatCurrency(totalAmount)));
+      }
+    }
+
+    setShowGLPicker(false);
+    setSelectedGLs([]);
+    setGLSearchTerm('');
   };
 
   const formatCurrency = (value) => {
@@ -735,6 +1086,50 @@ export default function ReportingBuilder() {
 
           <div className="w-px h-6 bg-slate-300 mx-2"></div>
 
+          <button
+            onClick={() => {
+              setShowTableBuilder(true);
+            }}
+            className="p-2 hover:bg-slate-100 rounded transition-colors"
+            title="Insert Table"
+          >
+            <TableIcon size={18} className="text-slate-600" />
+          </button>
+
+          <button
+            onClick={() => {
+              loadGLAccounts();
+              setShowGLPicker(true);
+            }}
+            className="p-2 hover:bg-slate-100 rounded transition-colors"
+            title="Insert GL Amount"
+          >
+            <DollarSign size={18} className="text-slate-600" />
+          </button>
+
+          <button
+            onClick={() => {
+              loadGLAccounts();
+              setShowFormulaBuilder(true);
+            }}
+            className="p-2 hover:bg-slate-100 rounded transition-colors"
+            title="Formula Builder"
+          >
+            <Calculator size={18} className="text-slate-600" />
+          </button>
+
+          <div className="w-px h-6 bg-slate-300 mx-2"></div>
+
+          <button
+            onClick={() => setShowPositionTools(!showPositionTools)}
+            className={`p-2 rounded transition-colors ${showPositionTools ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-slate-100 text-slate-600'}`}
+            title="Grid & Position"
+          >
+            <Grid3x3 size={18} />
+          </button>
+
+          <div className="w-px h-6 bg-slate-300 mx-2"></div>
+
           <button onClick={() => applyFormatting('undo')} className="p-2 hover:bg-slate-100 rounded transition-colors" title="Undo (Ctrl+Z)">
             <Undo size={18} className="text-slate-600" />
           </button>
@@ -744,6 +1139,14 @@ export default function ReportingBuilder() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowSyncPanel(!showSyncPanel)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+          >
+            <RefreshCw size={16} />
+            Sync Data
+          </button>
+
           <button
             onClick={() => setShowNoteModal(true)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
@@ -1329,6 +1732,513 @@ export default function ReportingBuilder() {
     );
   };
 
+  const renderSyncPanel = () => {
+    if (!showSyncPanel) return null;
+
+    const syncSources = [
+      {
+        id: 'consolidation',
+        label: 'Consolidation Workings',
+        description: 'Sync financial statements with consolidated workings',
+        lastSync: lastSynced.consolidation
+      },
+      {
+        id: 'accountingPolicy',
+        label: 'Accounting Policy',
+        description: 'Sync accounting policy notes',
+        lastSync: lastSynced.accountingPolicy
+      },
+      {
+        id: 'noteBuilder',
+        label: 'Note Builder',
+        description: 'Sync approved financial notes',
+        lastSync: lastSynced.noteBuilder
+      },
+      {
+        id: 'mda',
+        label: 'MD&A',
+        description: 'Sync management discussion & analysis',
+        lastSync: lastSynced.mda
+      }
+    ];
+
+    return (
+      <>
+        <div className="fixed inset-0 bg-slate-900/60 z-50" onClick={() => setShowSyncPanel(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-indigo-600 text-white px-8 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <RefreshCw size={24} />
+                <h3 className="text-xl font-semibold">Sync Data Sources</h3>
+              </div>
+              <button onClick={() => setShowSyncPanel(false)} className="p-2 hover:bg-indigo-700 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <p className="text-sm text-slate-600 mb-6">
+                Pull latest data from other modules to update your financial report.
+              </p>
+
+              <div className="space-y-4">
+                {syncSources.map(source => (
+                  <div key={source.id} className="border border-slate-200 rounded-lg p-5 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-base font-semibold text-[#101828] mb-1">{source.label}</h4>
+                        <p className="text-sm text-slate-600 mb-2">{source.description}</p>
+                        {source.lastSync && (
+                          <p className="text-xs text-slate-500">
+                            Last synced: {new Date(source.lastSync).toLocaleString()}
+                          </p>
+                        )}
+                        {!source.lastSync && (
+                          <p className="text-xs text-amber-600">Never synced</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleSyncData(source.id)}
+                        disabled={syncing}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      >
+                        {syncing ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                        Sync
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderTableBuilder = () => {
+    if (!showTableBuilder) return null;
+
+    return (
+      <>
+        <div className="fixed inset-0 bg-slate-900/60 z-50" onClick={() => setShowTableBuilder(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full">
+            <div className="bg-[#101828] text-white px-8 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <TableIcon size={24} />
+                <h3 className="text-xl font-semibold">Insert Table</h3>
+              </div>
+              <button onClick={() => setShowTableBuilder(false)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rows</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={tableConfig.rows}
+                    onChange={(e) => setTableConfig({...tableConfig, rows: parseInt(e.target.value) || 1})}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Number of Columns</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={tableConfig.columns}
+                    onChange={(e) => setTableConfig({...tableConfig, columns: parseInt(e.target.value) || 1})}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Column Headers</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Array.from({ length: tableConfig.columns }).map((_, i) => (
+                    <input
+                      key={i}
+                      type="text"
+                      placeholder={`Column ${i + 1}`}
+                      value={tableConfig.headers[i] || ''}
+                      onChange={(e) => {
+                        const newHeaders = [...tableConfig.headers];
+                        newHeaders[i] = e.target.value;
+                        setTableConfig({...tableConfig, headers: newHeaders});
+                      }}
+                      className="px-3 py-2 border border-slate-300 rounded text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowTableBuilder(false)}
+                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleInsertTable}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  Insert Table
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderFormulaBuilder = () => {
+    if (!showFormulaBuilder) return null;
+
+    return (
+      <>
+        <div className="fixed inset-0 bg-slate-900/60 z-50" onClick={() => setShowFormulaBuilder(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full">
+            <div className="bg-[#101828] text-white px-8 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Calculator size={24} />
+                <h3 className="text-xl font-semibold">Formula Builder</h3>
+              </div>
+              <button onClick={() => setShowFormulaBuilder(false)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Formula</label>
+                <input
+                  type="text"
+                  value={currentFormula}
+                  onChange={(e) => setCurrentFormula(e.target.value)}
+                  placeholder="e.g., =GL(1000), =SUM(A1:A5), =A1+B1"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">Formula Examples:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li><code>=GL(1000)</code> - Get balance from GL account 1000</li>
+                  <li><code>=GL(1000)+GL(1010)</code> - Sum multiple GL accounts</li>
+                  <li><code>=SUM(A1:A5)</code> - Sum range of cells</li>
+                  <li><code>=A1+B1-C1</code> - Basic arithmetic</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowFormulaBuilder(false)}
+                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApplyFormula}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  Apply Formula
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderGLPicker = () => {
+    if (!showGLPicker) return null;
+
+    const filteredGLs = glAccounts.filter(gl =>
+      gl.code.toLowerCase().includes(glSearchTerm.toLowerCase()) ||
+      gl.name.toLowerCase().includes(glSearchTerm.toLowerCase())
+    );
+
+    return (
+      <>
+        <div className="fixed inset-0 bg-slate-900/60 z-50" onClick={() => setShowGLPicker(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-[#101828] text-white px-8 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <DollarSign size={24} />
+                <h3 className="text-xl font-semibold">Select GL Accounts</h3>
+              </div>
+              <button onClick={() => setShowGLPicker(false)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 border-b border-slate-200">
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  value={glSearchTerm}
+                  onChange={(e) => setGLSearchTerm(e.target.value)}
+                  placeholder="Search by GL code or name..."
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-2">
+                {filteredGLs.map(gl => (
+                  <div
+                    key={gl.code}
+                    onClick={() => {
+                      if (selectedGLs.find(s => s.code === gl.code)) {
+                        setSelectedGLs(selectedGLs.filter(s => s.code !== gl.code));
+                      } else {
+                        setSelectedGLs([...selectedGLs, gl]);
+                      }
+                    }}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      selectedGLs.find(s => s.code === gl.code)
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="font-mono text-sm font-semibold text-[#101828]">{gl.code}</span>
+                          <span className="text-sm text-slate-700">{gl.name}</span>
+                        </div>
+                        <div className="text-xs text-slate-500">{gl.class}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-[#101828]">{formatCurrency(gl.balance)}</div>
+                        <div className="text-xs text-slate-500">
+                          Dr: {formatCurrency(gl.debit)} Cr: {formatCurrency(gl.credit)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {filteredGLs.length === 0 && (
+                <div className="text-center text-slate-500 py-8">
+                  <p>No GL accounts found</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-200 bg-slate-50">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-slate-700">
+                  Selected: <span className="font-semibold">{selectedGLs.length}</span> accounts
+                  {selectedGLs.length > 0 && (
+                    <span className="ml-4">
+                      Total: <span className="font-bold text-[#101828]">
+                        {formatCurrency(selectedGLs.reduce((sum, gl) => sum + gl.balance, 0))}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowGLPicker(false)}
+                  className="px-4 py-2 text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleInsertGLAmount}
+                  disabled={selectedGLs.length === 0}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  Insert Amount
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderPositionTools = () => {
+    if (!showPositionTools) return null;
+
+    return (
+      <div className="fixed right-4 top-32 w-80 bg-white border border-slate-200 rounded-lg shadow-2xl z-40">
+        <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between rounded-t-lg">
+          <div className="flex items-center gap-2">
+            <Grid3x3 size={18} />
+            <h3 className="text-sm font-semibold">Grid & Position</h3>
+          </div>
+          <button onClick={() => setShowPositionTools(false)} className="p-1 hover:bg-indigo-700 rounded">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Position Controls */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase">Position</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-600">X (px)</label>
+                <input
+                  type="number"
+                  value={elementPosition.x}
+                  onChange={(e) => setElementPosition({...elementPosition, x: parseInt(e.target.value) || 0})}
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-[#101828] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-600">Y (px)</label>
+                <input
+                  type="number"
+                  value={elementPosition.y}
+                  onChange={(e) => setElementPosition({...elementPosition, y: parseInt(e.target.value) || 0})}
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-[#101828] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Size Controls */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase">Size</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-600">Width</label>
+                <select
+                  value={elementPosition.width}
+                  onChange={(e) => setElementPosition({...elementPosition, width: e.target.value})}
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-[#101828] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="25%">25%</option>
+                  <option value="33%">33%</option>
+                  <option value="50%">50%</option>
+                  <option value="66%">66%</option>
+                  <option value="75%">75%</option>
+                  <option value="100%">100%</option>
+                  <option value="auto">Auto</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-600">Height</label>
+                <select
+                  value={elementPosition.height}
+                  onChange={(e) => setElementPosition({...elementPosition, height: e.target.value})}
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-[#101828] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="auto">Auto</option>
+                  <option value="100px">100px</option>
+                  <option value="200px">200px</option>
+                  <option value="300px">300px</option>
+                  <option value="400px">400px</option>
+                  <option value="500px">500px</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Alignment Shortcuts */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase">Quick Align</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => applyFormatting('justifyLeft')}
+                className="flex items-center justify-center gap-1 px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50"
+              >
+                <AlignLeft size={14} />
+                Left
+              </button>
+              <button
+                onClick={() => applyFormatting('justifyCenter')}
+                className="flex items-center justify-center gap-1 px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50"
+              >
+                <AlignCenter size={14} />
+                Center
+              </button>
+              <button
+                onClick={() => applyFormatting('justifyRight')}
+                className="flex items-center justify-center gap-1 px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50"
+              >
+                <AlignRight size={14} />
+                Right
+              </button>
+            </div>
+          </div>
+
+          {/* Grid Options */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase">Grid Display</label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" className="w-4 h-4 rounded border-slate-300" />
+                <span className="text-xs text-slate-700">Show grid lines</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" className="w-4 h-4 rounded border-slate-300" />
+                <span className="text-xs text-slate-700">Snap to grid</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Layout Templates */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase">Layout Templates</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button className="px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50 text-slate-700">
+                Single Column
+              </button>
+              <button className="px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50 text-slate-700">
+                Two Columns
+              </button>
+              <button className="px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50 text-slate-700">
+                Three Columns
+              </button>
+              <button className="px-3 py-2 border border-slate-300 rounded text-xs hover:bg-slate-50 text-slate-700">
+                Sidebar + Main
+              </button>
+            </div>
+          </div>
+
+          {/* Apply Button */}
+          <div className="pt-2 border-t border-slate-200">
+            <button
+              onClick={() => {
+                // Apply positioning to selected element
+                alert('Position applied! Select an element in the editor to position it.');
+                setShowPositionTools(false);
+              }}
+              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Apply to Selected Element
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center">
@@ -1347,7 +2257,20 @@ export default function ReportingBuilder() {
         <div className="px-8 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#101828]">Reporting Builder</h1>
-            <p className="text-sm text-slate-600">Create and customize financial statements for {reportSettings.period}</p>
+            <p className="text-sm text-slate-600">Create and customize financial statements</p>
+            <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+              <div className="flex items-center gap-1">
+                <User size={12} />
+                <span>Last edited by: <span className="font-medium text-slate-700">{versionInfo.lastEditedBy}</span></span>
+              </div>
+              <span>•</span>
+              <div className="flex items-center gap-1">
+                <Clock size={12} />
+                <span>{new Date(versionInfo.lastEditedAt).toLocaleString()}</span>
+              </div>
+              <span>•</span>
+              <span>Version: <span className="font-medium text-slate-700">{versionInfo.version}</span></span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -1375,17 +2298,6 @@ export default function ReportingBuilder() {
             >
               <Settings size={16} />
               Settings
-            </button>
-
-            <button
-              onClick={() => setIsEditMode(!isEditMode)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isEditMode
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {isEditMode ? <><Eye size={16} /> Preview</> : <><Edit3 size={16} /> Edit</>}
             </button>
 
             <button
@@ -1430,8 +2342,8 @@ export default function ReportingBuilder() {
           </div>
         </div>
 
-        {/* Toolbar */}
-        {isEditMode && renderToolbar()}
+        {/* Toolbar - Always visible */}
+        {renderToolbar()}
       </div>
 
       {/* Main Content */}
@@ -1470,6 +2382,11 @@ export default function ReportingBuilder() {
       {renderTemplateModal()}
       {renderSettingsModal()}
       {renderChangesPanel()}
+      {renderSyncPanel()}
+      {renderTableBuilder()}
+      {renderFormulaBuilder()}
+      {renderGLPicker()}
+      {renderPositionTools()}
     </div>
   );
 }

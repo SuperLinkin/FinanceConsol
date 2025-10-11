@@ -12,6 +12,7 @@ export default function EntitySetup() {
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [isModalClosing, setIsModalClosing] = useState(false);
   const [editingEntity, setEditingEntity] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRegion, setFilterRegion] = useState('All Regions');
@@ -36,19 +37,32 @@ export default function EntitySetup() {
     is_active: true
   });
 
+  // Helper function for modal animation
+  const closeModal = () => {
+    setIsModalClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsModalClosing(false);
+    }, 300);
+  };
+
   useEffect(() => {
     fetchAllData();
   }, []);
 
   const fetchAllData = async () => {
     try {
-      const [entitiesData, currenciesData, regionsData] = await Promise.all([
-        supabase.from('entities').select('*').order('created_at', { ascending: false }),
+      // Fetch entities from API (uses admin client with company_id from JWT)
+      const entitiesResponse = await fetch('/api/entities');
+      const entitiesData = await entitiesResponse.json();
+
+      // Fetch currencies and regions directly (these are global data)
+      const [currenciesData, regionsData] = await Promise.all([
         supabase.from('currencies').select('*').eq('is_active', true).order('currency_code'),
         supabase.from('regions').select('*').eq('is_active', true).order('region_name')
       ]);
-      
-      setEntities(entitiesData.data || []);
+
+      setEntities(entitiesData || []);
       setCurrencies(currenciesData.data || []);
       setRegions(regionsData.data || []);
     } catch (error) {
@@ -72,28 +86,34 @@ export default function EntitySetup() {
       };
 
       if (editingEntity) {
-        const { data, error } = await supabase
-          .from('entities')
-          .update({ ...dataToSave, updated_at: new Date().toISOString() })
-          .eq('id', editingEntity.id)
-          .select();
+        // Update via API
+        const response = await fetch('/api/entities', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingEntity.id, ...dataToSave })
+        });
 
-        if (error) {
-          console.error('Update error details:', error);
-          throw error;
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update entity');
         }
+
+        const data = await response.json();
         console.log('Updated entity:', data);
       } else {
-        const { data, error } = await supabase
-          .from('entities')
-          .insert([dataToSave])
-          .select();
+        // Create via API
+        const response = await fetch('/api/entities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave)
+        });
 
-        if (error) {
-          console.error('Insert error details:', error);
-          console.error('Data being inserted:', dataToSave);
-          throw error;
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to create entity');
         }
+
+        const data = await response.json();
         console.log('Inserted entity:', data);
       }
 
@@ -103,28 +123,7 @@ export default function EntitySetup() {
       alert('Entity saved successfully!');
     } catch (error) {
       console.error('Error saving entity:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-
-      let errorMessage = 'Error saving entity: ';
-      if (error.message) {
-        errorMessage += error.message;
-      }
-      if (error.details) {
-        errorMessage += '\nDetails: ' + error.details;
-      }
-      if (error.hint) {
-        errorMessage += '\nHint: ' + error.hint;
-      }
-      if (error.code) {
-        errorMessage += '\nError code: ' + error.code;
-      }
-
-      alert(errorMessage);
+      alert('Error saving entity: ' + error.message);
     }
   };
 
@@ -142,15 +141,19 @@ export default function EntitySetup() {
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this entity?')) return;
-    
+
     try {
-      const { error } = await supabase
-        .from('entities')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      const response = await fetch(`/api/entities?id=${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete entity');
+      }
+
       fetchAllData();
+      alert('Entity deleted successfully!');
     } catch (error) {
       console.error('Error deleting entity:', error);
       alert('Error deleting entity: ' + error.message);
@@ -345,19 +348,35 @@ export default function EntitySetup() {
         return;
       }
 
-      // Insert entities
-      const { data: insertedData, error } = await supabase
-        .from('entities')
-        .insert(entitiesToInsert)
-        .select();
+      // Insert entities via API (one at a time to handle validation)
+      let successCount = 0;
+      const errors = [];
 
-      if (error) {
-        console.error('Bulk insert error:', error);
-        alert('Error uploading entities: ' + error.message);
-      } else {
-        alert(`Successfully uploaded ${insertedData.length} entities!`);
-        fetchAllData();
+      for (const entity of entitiesToInsert) {
+        try {
+          const response = await fetch('/api/entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entity)
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            errors.push(`${entity.entity_code}: ${error.error}`);
+          } else {
+            successCount++;
+          }
+        } catch (error) {
+          errors.push(`${entity.entity_code}: ${error.message}`);
+        }
       }
+
+      if (errors.length > 0) {
+        alert(`Upload completed with ${successCount} success and ${errors.length} errors:\n${errors.join('\n')}`);
+      } else {
+        alert(`Successfully uploaded ${successCount} entities!`);
+      }
+      fetchAllData();
     } catch (error) {
       console.error('Upload error:', error);
       alert('Error processing file: ' + error.message);
@@ -519,22 +538,25 @@ export default function EntitySetup() {
         </div>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
-          <div className="bg-white h-full w-[800px] shadow-2xl animate-slideRight overflow-y-auto pointer-events-auto">
-            <div className="p-8">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-[#101828]">
-                  {editingEntity ? 'Edit Entity' : 'Add New Entity'}
-                </h2>
-                <button
-                  onClick={() => { setShowModal(false); resetForm(); }}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={24} />
-                </button>
+      {(showModal || isModalClosing) && (
+        <div className={`fixed right-0 top-0 h-full w-[800px] bg-white shadow-2xl z-50 overflow-y-auto ${isModalClosing ? 'animate-slideOutRight' : 'animate-slideLeft'}`}>
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">{editingEntity ? 'Edit Entity' : 'Add New Entity'}</h3>
+                <p className="text-sm text-slate-300 mt-1">Configure entity details and relationships</p>
               </div>
+              <button
+                onClick={() => { closeModal(); resetForm(); }}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 p-8 overflow-y-auto">
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-6">
