@@ -38,14 +38,22 @@ export default function CashFlowStatement() {
     operating: {
       profitLoss: 0,
       adjustments: {},
-      workingCapitalChanges: {}
+      workingCapitalChanges: {},
+      total: 0
     },
-    investing: {},
-    financing: {},
+    investing: {
+      items: {},
+      total: 0
+    },
+    financing: {
+      items: {},
+      total: 0
+    },
     forex: 0,
     openingCash: 0,
     closingCash: 0,
-    movementInCash: 0
+    movementInCash: 0,
+    calculatedClosingCash: 0
   });
 
   useEffect(() => {
