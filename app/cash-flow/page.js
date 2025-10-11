@@ -41,6 +41,7 @@ export default function CashFlowStatement() {
   const [showFormulaPanel, setShowFormulaPanel] = useState(false);
   const [currentLineItem, setCurrentLineItem] = useState(null);
   const [customFormulas, setCustomFormulas] = useState({});
+  const [customLineItems, setCustomLineItems] = useState([]); // Store custom line items
   const [formulaBuilder, setFormulaBuilder] = useState({
     name: '',
     formula: [],
@@ -477,8 +478,8 @@ export default function CashFlowStatement() {
     }));
   };
 
-  const openFormulaBuilder = (lineItemName, section) => {
-    setCurrentLineItem({ name: lineItemName, section });
+  const openFormulaBuilder = (lineItemName, section, isNew = false) => {
+    setCurrentLineItem({ name: lineItemName, section, isNew });
     setShowFormulaPanel(true);
 
     // Load existing formula if any
@@ -491,6 +492,10 @@ export default function CashFlowStatement() {
         type: 'note'
       });
     }
+  };
+
+  const addNewLineItem = (section) => {
+    openFormulaBuilder('New Line Item', section, true);
   };
 
   const addFormulaComponent = (component) => {
@@ -508,10 +513,28 @@ export default function CashFlowStatement() {
   };
 
   const saveFormula = () => {
-    setCustomFormulas(prev => ({
-      ...prev,
-      [currentLineItem.name]: formulaBuilder
-    }));
+    const newName = formulaBuilder.name;
+
+    // If name changed, remove old entry
+    if (currentLineItem.name !== newName && customFormulas[currentLineItem.name]) {
+      const { [currentLineItem.name]: removed, ...rest } = customFormulas;
+      setCustomFormulas({ ...rest, [newName]: formulaBuilder });
+    } else {
+      setCustomFormulas(prev => ({
+        ...prev,
+        [newName]: formulaBuilder
+      }));
+    }
+
+    // Add to custom line items if new
+    if (currentLineItem.isNew && !customLineItems.find(item => item.name === newName)) {
+      setCustomLineItems(prev => [...prev, {
+        name: newName,
+        section: currentLineItem.section,
+        formula: formulaBuilder
+      }]);
+    }
+
     setShowFormulaPanel(false);
   };
 
@@ -600,22 +623,46 @@ export default function CashFlowStatement() {
             <div className="space-y-4">
               {/* Operating Activities */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div
-                  className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between cursor-pointer hover:bg-[#1e293b] transition-colors"
-                  onClick={() => toggleSection('operating')}
-                >
-                  <div className="flex items-center gap-3">
+                <div className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between">
+                  <div
+                    className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => toggleSection('operating')}
+                  >
                     <Calculator size={18} />
                     <h3 className="text-base font-bold">Cash Flow from Operating Activities</h3>
                   </div>
                   <div className="flex items-center gap-4">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addNewLineItem('operating'); }}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors"
+                    >
+                      <Plus size={14} />
+                      Add Line
+                    </button>
                     <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.operating.total))}</span>
-                    {expandedSections.operating ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    <button onClick={() => toggleSection('operating')} className="hover:bg-white/10 p-1 rounded transition-colors">
+                      {expandedSections.operating ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    </button>
                   </div>
                 </div>
 
                 {expandedSections.operating && (
                   <div className="p-6 space-y-2">
+                    {/* Period Header */}
+                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
+                      <div className="font-semibold text-[#101828] text-sm">Line Item</div>
+                      <div className="flex gap-8">
+                        <div className="font-semibold text-[#101828] text-sm w-24 text-right">
+                          {selectedPeriod || 'Current'}
+                        </div>
+                        {comparePeriod && (
+                          <div className="font-semibold text-slate-500 text-sm w-24 text-right">
+                            {comparePeriod}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div
                       className="flex justify-between items-center py-2 border-b border-slate-200 group hover:bg-slate-50 cursor-pointer px-2 rounded"
                       onClick={() => openFormulaBuilder('Operating Profit / (Loss)', 'operating')}
@@ -671,6 +718,28 @@ export default function CashFlowStatement() {
                       </>
                     )}
 
+                    {/* Custom Line Items for Operating Activities */}
+                    {customLineItems.filter(item => item.section === 'operating').length > 0 && (
+                      <>
+                        <div className="mt-3 mb-2">
+                          <h4 className="font-semibold text-[#101828] text-sm">Custom Line Items:</h4>
+                        </div>
+                        {customLineItems.filter(item => item.section === 'operating').map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                            onClick={() => openFormulaBuilder(item.name, 'operating')}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#101828]">{item.name}</span>
+                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <span className="font-mono text-[#101828]">0.00</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
                     <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-green-50 rounded px-3">
                       <span className="font-bold text-[#101828]">Net Cash from Operating Activities</span>
                       <span className="font-mono text-lg font-bold text-green-700">
@@ -683,22 +752,46 @@ export default function CashFlowStatement() {
 
               {/* Investing Activities */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div
-                  className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between cursor-pointer hover:bg-[#1e293b] transition-colors"
-                  onClick={() => toggleSection('investing')}
-                >
-                  <div className="flex items-center gap-3">
+                <div className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between">
+                  <div
+                    className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => toggleSection('investing')}
+                  >
                     <TrendingUp size={18} />
                     <h3 className="text-base font-bold">Cash Flow from Investing Activities</h3>
                   </div>
                   <div className="flex items-center gap-4">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addNewLineItem('investing'); }}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors"
+                    >
+                      <Plus size={14} />
+                      Add Line
+                    </button>
                     <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.investing.total))}</span>
-                    {expandedSections.investing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    <button onClick={() => toggleSection('investing')} className="hover:bg-white/10 p-1 rounded transition-colors">
+                      {expandedSections.investing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    </button>
                   </div>
                 </div>
 
                 {expandedSections.investing && (
                   <div className="p-6 space-y-2">
+                    {/* Period Header */}
+                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
+                      <div className="font-semibold text-[#101828] text-sm">Line Item</div>
+                      <div className="flex gap-8">
+                        <div className="font-semibold text-[#101828] text-sm w-24 text-right">
+                          {selectedPeriod || 'Current'}
+                        </div>
+                        {comparePeriod && (
+                          <div className="font-semibold text-slate-500 text-sm w-24 text-right">
+                            {comparePeriod}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {Object.keys(cashFlowData.investing.items).length > 0 ? (
                       <>
                         {Object.entries(cashFlowData.investing.items).map(([key, value]) => (
@@ -716,6 +809,29 @@ export default function CashFlowStatement() {
                             </span>
                           </div>
                         ))}
+
+                        {/* Custom Line Items for Investing Activities */}
+                        {customLineItems.filter(item => item.section === 'investing').length > 0 && (
+                          <>
+                            <div className="mt-3 mb-2">
+                              <h4 className="font-semibold text-[#101828] text-sm">Custom Line Items:</h4>
+                            </div>
+                            {customLineItems.filter(item => item.section === 'investing').map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                                onClick={() => openFormulaBuilder(item.name, 'investing')}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[#101828]">{item.name}</span>
+                                  <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                <span className="font-mono text-[#101828]">0.00</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
                         <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-blue-50 rounded px-3">
                           <span className="font-bold text-[#101828]">Net Cash from Investing Activities</span>
                           <span className={`font-mono text-lg font-bold ${cashFlowData.investing.total < 0 ? 'text-red-700' : 'text-blue-700'}`}>
@@ -724,7 +840,29 @@ export default function CashFlowStatement() {
                         </div>
                       </>
                     ) : (
-                      <div className="text-center text-slate-500 py-4">No investing activities detected</div>
+                      customLineItems.filter(item => item.section === 'investing').length > 0 ? (
+                        <>
+                          {customLineItems.filter(item => item.section === 'investing').map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                              onClick={() => openFormulaBuilder(item.name, 'investing')}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[#101828]">{item.name}</span>
+                                <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <span className="font-mono text-[#101828]">0.00</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-blue-50 rounded px-3">
+                            <span className="font-bold text-[#101828]">Net Cash from Investing Activities</span>
+                            <span className="font-mono text-lg font-bold text-blue-700">0.00</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center text-slate-500 py-4">No investing activities detected</div>
+                      )
                     )}
                   </div>
                 )}
@@ -732,22 +870,46 @@ export default function CashFlowStatement() {
 
               {/* Financing Activities */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div
-                  className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between cursor-pointer hover:bg-[#1e293b] transition-colors"
-                  onClick={() => toggleSection('financing')}
-                >
-                  <div className="flex items-center gap-3">
+                <div className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between">
+                  <div
+                    className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => toggleSection('financing')}
+                  >
                     <Building2 size={18} />
                     <h3 className="text-base font-bold">Cash Flow from Financing Activities</h3>
                   </div>
                   <div className="flex items-center gap-4">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addNewLineItem('financing'); }}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors"
+                    >
+                      <Plus size={14} />
+                      Add Line
+                    </button>
                     <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.financing.total))}</span>
-                    {expandedSections.financing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    <button onClick={() => toggleSection('financing')} className="hover:bg-white/10 p-1 rounded transition-colors">
+                      {expandedSections.financing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    </button>
                   </div>
                 </div>
 
                 {expandedSections.financing && (
                   <div className="p-6 space-y-2">
+                    {/* Period Header */}
+                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
+                      <div className="font-semibold text-[#101828] text-sm">Line Item</div>
+                      <div className="flex gap-8">
+                        <div className="font-semibold text-[#101828] text-sm w-24 text-right">
+                          {selectedPeriod || 'Current'}
+                        </div>
+                        {comparePeriod && (
+                          <div className="font-semibold text-slate-500 text-sm w-24 text-right">
+                            {comparePeriod}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {Object.keys(cashFlowData.financing.items).length > 0 ? (
                       <>
                         {Object.entries(cashFlowData.financing.items).map(([key, value]) => (
@@ -765,6 +927,29 @@ export default function CashFlowStatement() {
                             </span>
                           </div>
                         ))}
+
+                        {/* Custom Line Items for Financing Activities */}
+                        {customLineItems.filter(item => item.section === 'financing').length > 0 && (
+                          <>
+                            <div className="mt-3 mb-2">
+                              <h4 className="font-semibold text-[#101828] text-sm">Custom Line Items:</h4>
+                            </div>
+                            {customLineItems.filter(item => item.section === 'financing').map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                                onClick={() => openFormulaBuilder(item.name, 'financing')}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[#101828]">{item.name}</span>
+                                  <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                <span className="font-mono text-[#101828]">0.00</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
                         <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-purple-50 rounded px-3">
                           <span className="font-bold text-[#101828]">Net Cash from Financing Activities</span>
                           <span className={`font-mono text-lg font-bold ${cashFlowData.financing.total < 0 ? 'text-red-700' : 'text-purple-700'}`}>
@@ -773,7 +958,29 @@ export default function CashFlowStatement() {
                         </div>
                       </>
                     ) : (
-                      <div className="text-center text-slate-500 py-4">No financing activities detected</div>
+                      customLineItems.filter(item => item.section === 'financing').length > 0 ? (
+                        <>
+                          {customLineItems.filter(item => item.section === 'financing').map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
+                              onClick={() => openFormulaBuilder(item.name, 'financing')}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[#101828]">{item.name}</span>
+                                <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <span className="font-mono text-[#101828]">0.00</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-purple-50 rounded px-3">
+                            <span className="font-bold text-[#101828]">Net Cash from Financing Activities</span>
+                            <span className="font-mono text-lg font-bold text-purple-700">0.00</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center text-slate-500 py-4">No financing activities detected</div>
+                      )
                     )}
                   </div>
                 )}
@@ -852,12 +1059,13 @@ export default function CashFlowStatement() {
               <div className="flex-1 overflow-auto p-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-[#101828] mb-2">Line Item</label>
+                    <label className="block text-sm font-semibold text-[#101828] mb-2">Line Item Name</label>
                     <input
                       type="text"
-                      value={currentLineItem?.name || ''}
-                      disabled
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-[#101828] text-sm"
+                      value={formulaBuilder.name}
+                      onChange={(e) => setFormulaBuilder(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-[#101828] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter line item name"
                     />
                   </div>
 
@@ -937,21 +1145,33 @@ export default function CashFlowStatement() {
                           {formulaBuilder.type === 'class' && 'Classes'}
                         </label>
                         <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg">
-                          {[...new Set(glAccounts.map(acc => {
-                            if (formulaBuilder.type === 'note') return acc.note_name;
-                            if (formulaBuilder.type === 'subnote') return acc.sub_note_name;
-                            if (formulaBuilder.type === 'subclass') return acc.sub_class_name;
-                            if (formulaBuilder.type === 'class') return acc.class_name;
-                            return null;
-                          }).filter(Boolean))].map((name, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => addFormulaComponent({ operator: '+', name, type: formulaBuilder.type })}
-                              className="w-full text-left px-3 py-2 text-sm text-[#101828] hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
-                            >
-                              {name}
-                            </button>
-                          ))}
+                          {(() => {
+                            const items = [...new Set(glAccounts.map(acc => {
+                              if (formulaBuilder.type === 'note') return acc.note_name;
+                              if (formulaBuilder.type === 'subnote') return acc.sub_note_name;
+                              if (formulaBuilder.type === 'subclass') return acc.sub_class_name;
+                              if (formulaBuilder.type === 'class') return acc.class_name;
+                              return null;
+                            }).filter(item => item && item.trim() !== ''))].sort();
+
+                            if (items.length === 0) {
+                              return (
+                                <div className="p-4 text-center text-slate-500 text-sm">
+                                  No {formulaBuilder.type === 'note' ? 'notes' : formulaBuilder.type === 'subnote' ? 'sub-notes' : formulaBuilder.type === 'subclass' ? 'sub-classes' : 'classes'} available
+                                </div>
+                              );
+                            }
+
+                            return items.map((name, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => addFormulaComponent({ operator: '+', name, type: formulaBuilder.type })}
+                                className="w-full text-left px-3 py-2 text-sm text-[#101828] hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
+                              >
+                                {name}
+                              </button>
+                            ));
+                          })()}
                         </div>
                       </div>
                     )}
