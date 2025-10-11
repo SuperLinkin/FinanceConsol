@@ -350,7 +350,7 @@ export default function EntitySetup() {
 
       // Insert entities via API (one at a time to handle validation)
       let successCount = 0;
-      const errors = [];
+      const insertErrors = [];
 
       for (const entity of entitiesToInsert) {
         try {
@@ -362,17 +362,17 @@ export default function EntitySetup() {
 
           if (!response.ok) {
             const error = await response.json();
-            errors.push(`${entity.entity_code}: ${error.error}`);
+            insertErrors.push(`${entity.entity_code}: ${error.error}`);
           } else {
             successCount++;
           }
         } catch (error) {
-          errors.push(`${entity.entity_code}: ${error.message}`);
+          insertErrors.push(`${entity.entity_code}: ${error.message}`);
         }
       }
 
-      if (errors.length > 0) {
-        alert(`Upload completed with ${successCount} success and ${errors.length} errors:\n${errors.join('\n')}`);
+      if (insertErrors.length > 0) {
+        alert(`Upload completed with ${successCount} success and ${insertErrors.length} errors:\n${insertErrors.join('\n')}`);
       } else {
         alert(`Successfully uploaded ${successCount} entities!`);
       }
