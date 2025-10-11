@@ -834,6 +834,7 @@ export default function CashFlowStatement() {
               </div>
             </div>
           </div>
+        </div>
 
         {/* Formula Builder Side Panel */}
         {showFormulaPanel && (
