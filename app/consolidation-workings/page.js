@@ -349,35 +349,35 @@ export default function ConsolidationWorkings() {
     let foundElims = 0;
 
     accounts.forEach(account => {
-      // Check elimination_entries (custom eliminations)
-      const customElimEntries = eliminations.filter(e =>
-        e.debit_account === account.account_code || e.credit_account === account.account_code
+      // Check elimination journal entries - these have 'lines' array with gl_code, debit, credit
+      const entriesWithMatchingLines = eliminations.filter(e =>
+        e.lines && Array.isArray(e.lines) &&
+        e.lines.some(line => line.gl_code === account.account_code)
       );
 
-      if (customElimEntries.length > 0) {
-        foundElims += customElimEntries.length;
+      if (entriesWithMatchingLines.length > 0) {
+        foundElims += entriesWithMatchingLines.length;
         if (typeof window !== 'undefined' && foundElims <= 3) {
-          console.log(`Found ${customElimEntries.length} elimination entries for account ${account.account_code}:`, customElimEntries);
+          console.log(`Found ${entriesWithMatchingLines.length} elimination entries for account ${account.account_code}:`, entriesWithMatchingLines);
         }
       }
 
-      customElimEntries.forEach(elim => {
-        let debitAmount = 0;
-        let creditAmount = 0;
+      entriesWithMatchingLines.forEach(entry => {
+        // Process all lines in this entry that match the account
+        const matchingLines = entry.lines.filter(line => line.gl_code === account.account_code);
 
-        if (elim.debit_account === account.account_code) {
-          debitAmount = parseFloat(elim.amount || 0);
-        }
-        if (elim.credit_account === account.account_code) {
-          creditAmount = parseFloat(elim.amount || 0);
-        }
+        matchingLines.forEach(line => {
+          const debitAmount = parseFloat(line.debit || 0);
+          const creditAmount = parseFloat(line.credit || 0);
 
-        // Use same logic as getEntityValue: debit - credit for all classes
-        const netElim = debitAmount - creditAmount;
-        total += netElim;
+          // Use same logic as getEntityValue: debit - credit for all classes
+          // Elimination entries reduce balances, so we SUBTRACT them
+          const netElim = debitAmount - creditAmount;
+          total -= netElim; // Note the subtraction - eliminations reduce balances
+        });
       });
 
-      // Check intercompany_transactions (GL-to-GL mappings)
+      // Check intercompany_transactions (GL-to-GL mappings) - old format
       const icEntries = eliminations.filter(e =>
         (e.from_account === account.account_code || e.to_account === account.account_code) &&
         e.transaction_type === 'Elimination Mapping'
@@ -386,13 +386,13 @@ export default function ConsolidationWorkings() {
       icEntries.forEach(ic => {
         const amount = parseFloat(ic.amount || 0);
         // For elimination mappings, we subtract the amount (it's being eliminated)
-        if (['Assets', 'Expenses'].includes(className)) {
-          total -= amount;
-        } else {
-          total -= amount;
-        }
+        total -= amount;
       });
     });
+
+    if (foundElims > 0 && typeof window !== 'undefined') {
+      console.log(`Total elimination value for class ${className}:`, total);
+    }
 
     return total;
   };
@@ -737,7 +737,8 @@ export default function ConsolidationWorkings() {
               {(() => {
                 const revElim = getEliminationValue(revenueAccounts, 'Revenue');
                 const expElim = getEliminationValue(expenseAccounts, 'Expenses');
-                return formatCurrency(revElim - expElim);
+                const netElim = revElim - expElim;
+                return formatCurrency(Math.abs(netElim));
               })()}
             </td>
 
@@ -746,7 +747,8 @@ export default function ConsolidationWorkings() {
               {(() => {
                 const revAdj = getAdjustmentValue(revenueAccounts, 'Revenue');
                 const expAdj = getAdjustmentValue(expenseAccounts, 'Expenses');
-                return formatCurrency(revAdj - expAdj);
+                const netAdj = revAdj - expAdj;
+                return formatCurrency(Math.abs(netAdj));
               })()}
             </td>
 
