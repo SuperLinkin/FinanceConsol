@@ -327,12 +327,10 @@ export default function ConsolidationWorkings() {
         const debit = parseFloat(tb.debit || 0);
         const credit = parseFloat(tb.credit || 0);
 
-        // Calculate based on account class
-        if (['Assets', 'Expenses'].includes(className)) {
-          total += (debit - credit);
-        } else {
-          total += (credit - debit);
-        }
+        // Calculate net amount (debit - credit) for all classes
+        // Use Math.abs() for display purposes
+        const netAmount = debit - credit;
+        total += netAmount;
       });
     });
 
@@ -374,11 +372,9 @@ export default function ConsolidationWorkings() {
           creditAmount = parseFloat(elim.amount || 0);
         }
 
-        if (['Assets', 'Expenses'].includes(className)) {
-          total += (debitAmount - creditAmount);
-        } else {
-          total += (creditAmount - debitAmount);
-        }
+        // Use same logic as getEntityValue: debit - credit for all classes
+        const netElim = debitAmount - creditAmount;
+        total += netElim;
       });
 
       // Check intercompany_transactions (GL-to-GL mappings)
@@ -421,11 +417,9 @@ export default function ConsolidationWorkings() {
           creditAmount = parseFloat(adj.amount || 0);
         }
 
-        if (['Assets', 'Expenses'].includes(className)) {
-          total += (debitAmount - creditAmount);
-        } else {
-          total += (creditAmount - debitAmount);
-        }
+        // Use same logic as getEntityValue: debit - credit for all classes
+        const netAdj = debitAmount - creditAmount;
+        total += netAdj;
       });
     });
 
@@ -562,13 +556,9 @@ export default function ConsolidationWorkings() {
       tbEntries.forEach(tb => {
         const debit = parseFloat(tb.debit || 0);
         const credit = parseFloat(tb.credit || 0);
-        let amount = 0;
 
-        if (['Assets', 'Expenses'].includes(className)) {
-          amount = (debit - credit);
-        } else {
-          amount = (credit - debit);
-        }
+        // Use same logic as getEntityValue: debit - credit for all classes
+        const amount = debit - credit;
 
         if (amount !== 0) {
           details.push({
@@ -688,7 +678,7 @@ export default function ConsolidationWorkings() {
               </div>
             </td>
             {entities.map(entity => {
-              // Calculate revenue for this entity - use same logic as getEntityValue
+              // Calculate revenue for this entity - use consistent debit - credit logic
               let revenue = 0;
               revenueAccounts.forEach(acc => {
                 const tbEntries = trialBalances.filter(tb =>
@@ -697,8 +687,8 @@ export default function ConsolidationWorkings() {
                 tbEntries.forEach(tb => {
                   const debit = parseFloat(tb.debit || 0);
                   const credit = parseFloat(tb.credit || 0);
-                  // Revenue: credit - debit = positive for credit balance (same as getEntityValue)
-                  const value = credit - debit;
+                  // Use consistent logic: debit - credit (will be negative for credit balances)
+                  const value = debit - credit;
                   revenue += value;
                   if (typeof window !== 'undefined' && value !== 0) {
                     console.log(`  Rev Account ${acc.account_code}: Dr=${debit}, Cr=${credit}, Value=${value}`);
@@ -706,7 +696,7 @@ export default function ConsolidationWorkings() {
                 });
               });
 
-              // Calculate expenses for this entity - use same logic as getEntityValue
+              // Calculate expenses for this entity - use consistent debit - credit logic
               let expenses = 0;
               expenseAccounts.forEach(acc => {
                 const tbEntries = trialBalances.filter(tb =>
@@ -715,7 +705,7 @@ export default function ConsolidationWorkings() {
                 tbEntries.forEach(tb => {
                   const debit = parseFloat(tb.debit || 0);
                   const credit = parseFloat(tb.credit || 0);
-                  // Expenses: debit - credit = positive for debit balance (same as getEntityValue)
+                  // Use consistent logic: debit - credit (will be positive for debit balances)
                   const value = debit - credit;
                   expenses += value;
                   if (typeof window !== 'undefined' && value !== 0) {
@@ -724,7 +714,11 @@ export default function ConsolidationWorkings() {
                 });
               });
 
-              // Profit = Revenue - Expenses (both positive, matches calculateClassTotals)
+              // Profit = Revenue - Expenses
+              // Revenue is negative (credit balance), Expenses is positive (debit balance)
+              // So: (-100) - (50) = -150 means Loss of 150
+              // Or: (-100) - (-20) = -80 means Loss of 80
+              // Display profit/loss correctly
               const entityProfit = revenue - expenses;
 
               if (typeof window !== 'undefined') {
@@ -732,8 +726,8 @@ export default function ConsolidationWorkings() {
               }
 
               return (
-                <td key={entity.id} className={`py-2 px-4 text-right font-mono text-sm ${entityProfit >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                  {formatCurrency(entityProfit)}
+                <td key={entity.id} className={`py-2 px-4 text-right font-mono text-sm ${entityProfit <= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                  {formatCurrency(Math.abs(entityProfit))}
                 </td>
               );
             })}
@@ -762,8 +756,8 @@ export default function ConsolidationWorkings() {
                 const totals = calculateClassTotals();
                 const profit = totals.profit;
                 return (
-                  <span className={profit >= 0 ? 'text-green-300' : 'text-red-300'}>
-                    {formatCurrency(profit)}
+                  <span className={profit <= 0 ? 'text-green-300' : 'text-red-300'}>
+                    {formatCurrency(Math.abs(profit))}
                   </span>
                 );
               })()}
@@ -832,7 +826,7 @@ export default function ConsolidationWorkings() {
                     onClick={() => setShowGLDetail({ node, entityId: entity.id, entityName: entity.entity_name, className, accounts: allClassAccounts })}
                     className="hover:underline hover:font-semibold cursor-pointer"
                   >
-                    {formatCurrency(value)}
+                    {formatCurrency(Math.abs(value))}
                   </button>
                 ) : (
                   <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
@@ -845,12 +839,13 @@ export default function ConsolidationWorkings() {
           <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-red-50'}`}>
             {(() => {
               const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+              const elimValue = getEliminationValue(allClassAccounts, className);
               return allClassAccounts.length > 0 ? (
                 <button
                   onClick={() => setShowEliminationDetail(node)}
                   className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-red-800'}`}
                 >
-                  {formatCurrency(getEliminationValue(allClassAccounts, className))}
+                  {formatCurrency(Math.abs(elimValue))}
                 </button>
               ) : (
                 <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
@@ -862,12 +857,13 @@ export default function ConsolidationWorkings() {
           <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-blue-50'}`}>
             {(() => {
               const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+              const adjValue = getAdjustmentValue(allClassAccounts, className);
               return allClassAccounts.length > 0 ? (
                 <button
                   onClick={() => setShowAdjustmentDetail(node)}
                   className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-blue-800'}`}
                 >
-                  {formatCurrency(getAdjustmentValue(allClassAccounts, className))}
+                  {formatCurrency(Math.abs(adjValue))}
                 </button>
               ) : (
                 <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
@@ -879,8 +875,9 @@ export default function ConsolidationWorkings() {
           <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-[#101828] text-white' : 'bg-indigo-50 text-indigo-900'}`}>
             {(() => {
               const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+              const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts });
               return allClassAccounts.length > 0 ? (
-                formatCurrency(getConsolidatedValue({ ...node, accounts: allClassAccounts }))
+                formatCurrency(Math.abs(consolidatedValue))
               ) : (
                 <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
               );
@@ -1027,20 +1024,20 @@ export default function ConsolidationWorkings() {
                     <div className="grid grid-cols-4 gap-6 text-sm">
                       <div className="text-center">
                         <div className="text-xs text-gray-600 mb-1">Assets</div>
-                        <div className="font-mono font-bold text-gray-900">{formatCurrency(bsCheck.assets)}</div>
+                        <div className="font-mono font-bold text-gray-900">{formatCurrency(Math.abs(bsCheck.assets))}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-xs text-gray-600 mb-1">Liabilities</div>
-                        <div className="font-mono font-bold text-gray-900">{formatCurrency(bsCheck.liabilities)}</div>
+                        <div className="font-mono font-bold text-gray-900">{formatCurrency(Math.abs(bsCheck.liabilities))}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-xs text-gray-600 mb-1">Equity</div>
-                        <div className="font-mono font-bold text-gray-900">{formatCurrency(bsCheck.equity)}</div>
+                        <div className="font-mono font-bold text-gray-900">{formatCurrency(Math.abs(bsCheck.equity))}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-xs text-gray-600 mb-1">Profit</div>
-                        <div className={`font-mono font-bold ${bsCheck.profit >= 0 ? 'text-green-900' : 'text-red-900'}`}>
-                          {formatCurrency(bsCheck.profit)}
+                        <div className={`font-mono font-bold ${bsCheck.profit <= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                          {formatCurrency(Math.abs(bsCheck.profit))}
                         </div>
                       </div>
                     </div>
@@ -1175,18 +1172,18 @@ export default function ConsolidationWorkings() {
                       </div>
                       <div className="text-right">
                         <div className="font-mono font-bold text-lg text-indigo-900">
-                          {formatCurrency(detail.amount)}
+                          {formatCurrency(Math.abs(detail.amount))}
                         </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200">
                       <div>
                         <div className="text-xs text-gray-500">Debit</div>
-                        <div className="font-mono text-sm text-gray-900">{formatCurrency(detail.debit)}</div>
+                        <div className="font-mono text-sm text-gray-900">{formatCurrency(Math.abs(detail.debit))}</div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Credit</div>
-                        <div className="font-mono text-sm text-gray-900">{formatCurrency(detail.credit)}</div>
+                        <div className="font-mono text-sm text-gray-900">{formatCurrency(Math.abs(detail.credit))}</div>
                       </div>
                     </div>
                   </div>
