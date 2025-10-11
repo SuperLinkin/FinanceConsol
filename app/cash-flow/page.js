@@ -47,7 +47,8 @@ export default function CashFlowStatement() {
   const [formulaBuilder, setFormulaBuilder] = useState({
     name: '',
     formula: [],
-    type: 'note' // note, subnote, subclass, class
+    type: 'note', // note, subnote, subclass, class
+    calculationMethod: 'movement' // 'movement' (difference between periods) or 'within' (formula within period)
   });
 
   // Upload state
@@ -506,7 +507,8 @@ export default function CashFlowStatement() {
       setFormulaBuilder({
         name: lineItemName,
         formula: [],
-        type: 'note'
+        type: 'note',
+        calculationMethod: 'movement' // Default to movement
       });
     }
   };
@@ -1176,6 +1178,18 @@ export default function CashFlowStatement() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-semibold text-[#101828] mb-2">Calculation Method</label>
+                    <select
+                      value={formulaBuilder.calculationMethod}
+                      onChange={(e) => setFormulaBuilder(prev => ({ ...prev, calculationMethod: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-[#101828] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="movement">Movement Between Periods (Current - Previous)</option>
+                      <option value="within">Formula Within Current Period Only</option>
+                    </select>
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-semibold text-[#101828] mb-2">Calculation Type</label>
                     <select
                       value={formulaBuilder.type}
@@ -1234,12 +1248,24 @@ export default function CashFlowStatement() {
 
                   <div className="pt-4 border-t border-slate-200">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Cash Flow Calculation</h4>
+                      <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                        {formulaBuilder.calculationMethod === 'movement' ? 'Movement Between Periods' : 'Within Period Calculation'}
+                      </h4>
                       <div className="text-xs text-blue-700 space-y-1">
                         <p>• Select calculation type (Note/Sub-Note/Class/Sub-Class)</p>
                         <p>• Add components with + or - operators</p>
-                        <p>• Formula calculates difference between {formatPeriod(selectedPeriod) || 'current period'} and {comparePeriod ? formatPeriod(comparePeriod) : 'previous period'}</p>
-                        <p>• Result = Current Period Balance - Previous Period Balance</p>
+                        {formulaBuilder.calculationMethod === 'movement' ? (
+                          <>
+                            <p>• Formula calculates difference between {formatPeriod(selectedPeriod) || 'current period'} and {comparePeriod ? formatPeriod(comparePeriod) : 'previous period'}</p>
+                            <p>• Result = Current Period Balance - Previous Period Balance</p>
+                          </>
+                        ) : (
+                          <>
+                            <p>• Formula calculates value within {formatPeriod(selectedPeriod) || 'current period'} only</p>
+                            <p>• Result = Sum of components in current period</p>
+                            <p>• Example: Operating Profit = Revenue - Expenses</p>
+                          </>
+                        )}
                       </div>
                     </div>
 

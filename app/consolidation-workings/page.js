@@ -57,7 +57,6 @@ export default function ConsolidationWorkings() {
     { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
     { id: 'income_statement', label: 'Income Statement', classes: ['Revenue', 'Income', 'Expenses'] },
     { id: 'equity', label: 'Statement of Equity', classes: ['Equity'] },
-    { id: 'cash_flow', label: 'Cash Flow', classes: ['Assets'] },
     { id: 'notes_to_accounts', label: 'Notes to Accounts', classes: ['Assets', 'Liability', 'Liabilities', 'Equity', 'Revenue', 'Income', 'Expenses'] }
   ];
 
