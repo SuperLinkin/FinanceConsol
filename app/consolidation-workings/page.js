@@ -17,7 +17,8 @@ import {
   X,
   RefreshCw,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Edit2
 } from 'lucide-react';
 
 export default function ConsolidationWorkings() {
@@ -29,6 +30,7 @@ export default function ConsolidationWorkings() {
 
   // Data states
   const [coaHierarchy, setCoaHierarchy] = useState([]);
+  const [masterHierarchy, setMasterHierarchy] = useState([]); // Store master hierarchy with note_number
   const [glAccounts, setGlAccounts] = useState([]);
   const [entities, setEntities] = useState([]);
   const [trialBalances, setTrialBalances] = useState([]);
@@ -43,6 +45,7 @@ export default function ConsolidationWorkings() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  const [editingNoteNumber, setEditingNoteNumber] = useState(null); // { noteId, currentNumber }
 
   // Statement tabs
   const statementTabs = [
@@ -145,6 +148,7 @@ export default function ConsolidationWorkings() {
       setEntities(entitiesData || []);
       setGlAccounts(coaRes.data || []);
       setTrialBalances(tbDataForPeriod || []);
+      setMasterHierarchy(hierarchyRes.data || []); // Store master hierarchy with note_number
 
       // Combine elimination entries and intercompany transactions
       const allEliminations = [
@@ -155,11 +159,16 @@ export default function ConsolidationWorkings() {
       setAdjustments(adjustmentsRes.data || []);
 
       // Build COA hierarchy for selected statement
-      const hierarchy = buildCOAHierarchy(
-        hierarchyRes.data || [],
-        coaRes.data || [],
-        selectedStatement
-      );
+      let hierarchy;
+      if (selectedStatement === 'notes_to_accounts') {
+        hierarchy = buildNoteHierarchy(hierarchyRes.data || [], coaRes.data || []);
+      } else {
+        hierarchy = buildCOAHierarchy(
+          hierarchyRes.data || [],
+          coaRes.data || [],
+          selectedStatement
+        );
+      }
       setCoaHierarchy(hierarchy);
 
     } catch (error) {
@@ -300,6 +309,109 @@ export default function ConsolidationWorkings() {
     }
 
     console.log('✅ Hierarchy built with', hierarchy.length, 'top-level classes');
+    return hierarchy;
+  };
+
+  // Build note-based hierarchy grouped by note numbers
+  const buildNoteHierarchy = (masterHierarchyData, coa) => {
+    console.log('📓 Building note-based hierarchy...');
+
+    const noteGroups = {};
+
+    // Group notes by note_number
+    masterHierarchyData.forEach(h => {
+      if (!h || !h.note_name) return;
+
+      const noteNumber = h.note_number || 'Unnumbered';
+      const noteName = h.note_name;
+      const className = h.class_name;
+      const subclassName = h.subclass_name;
+
+      if (!noteGroups[noteNumber]) {
+        noteGroups[noteNumber] = {
+          noteNumber: noteNumber,
+          notes: []
+        };
+      }
+
+      // Check if this specific note already exists in the group
+      let existingNote = noteGroups[noteNumber].notes.find(n =>
+        n.name === noteName && n.className === className && n.subclassName === subclassName
+      );
+
+      if (!existingNote) {
+        existingNote = {
+          id: `note-${noteNumber}-${className}-${subclassName}-${noteName}`,
+          level: 'note',
+          name: noteName,
+          className: className,
+          subclassName: subclassName,
+          noteNumber: noteNumber,
+          masterHierarchyIds: [], // Store all master hierarchy IDs for this note
+          children: []
+        };
+        noteGroups[noteNumber].notes.push(existingNote);
+      }
+
+      // Store the master hierarchy ID
+      existingNote.masterHierarchyIds.push(h.id);
+
+      // Get subnotes for this note
+      if (h.subnote_name) {
+        let existingSubnote = existingNote.children.find(sn => sn.name === h.subnote_name);
+
+        if (!existingSubnote) {
+          existingSubnote = {
+            id: `subnote-${noteNumber}-${className}-${subclassName}-${noteName}-${h.subnote_name}`,
+            level: 'subnote',
+            name: h.subnote_name,
+            className: className,
+            subclassName: subclassName,
+            noteName: noteName,
+            noteNumber: noteNumber,
+            accounts: coa.filter(
+              account =>
+                account &&
+                account.class_name === className &&
+                account.subclass_name === subclassName &&
+                account.note_name === noteName &&
+                account.subnote_name === h.subnote_name
+            )
+          };
+          existingNote.children.push(existingSubnote);
+        }
+      } else {
+        // If no subnote, attach accounts directly to note
+        if (!existingNote.accounts) {
+          existingNote.accounts = [];
+        }
+        const noteAccounts = coa.filter(
+          account =>
+            account &&
+            account.class_name === className &&
+            account.subclass_name === subclassName &&
+            account.note_name === noteName &&
+            !account.subnote_name // Only accounts without subnote
+        );
+        existingNote.accounts = [...existingNote.accounts, ...noteAccounts];
+      }
+    });
+
+    // Convert to array and sort by note number
+    const hierarchy = Object.keys(noteGroups).sort((a, b) => {
+      if (a === 'Unnumbered') return 1;
+      if (b === 'Unnumbered') return -1;
+      return parseInt(a) - parseInt(b);
+    }).map(noteNumber => ({
+      id: `note-group-${noteNumber}`,
+      level: 'note_group',
+      name: noteNumber === 'Unnumbered' ? 'Unnumbered Notes' : `Note ${noteNumber}`,
+      noteNumber: noteNumber,
+      isExpanded: true,
+      children: noteGroups[noteNumber].notes
+    }));
+
+    console.log('✅ Note hierarchy built with', hierarchy.length, 'note groups');
     return hierarchy;
   };
 
@@ -701,6 +813,39 @@ export default function ConsolidationWorkings() {
     // Get className for value calculations
     const className = node.className || node.name;
 
+    // Special handling for Note Group (Notes to Accounts tab)
+    if (node.level === 'note_group') {
+      return (
+        <React.Fragment key={node.id}>
+          <tr className="border-b border-slate-200 bg-indigo-100 text-indigo-900 font-bold text-sm">
+            <td className="py-3 px-4 sticky left-0 bg-indigo-100 z-10" style={{ paddingLeft: `${paddingLeft + 16}px` }}>
+              <div className="flex items-center gap-2">
+                {hasChildren && (
+                  <button
+                    onClick={() => toggleRow(node.id)}
+                    className="rounded p-1 hover:bg-indigo-200 text-indigo-900"
+                  >
+                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </button>
+                )}
+                {!hasChildren && <div className="w-6"></div>}
+                <span className="font-semibold text-base">{node.name}</span>
+              </div>
+            </td>
+            {/* Empty cells for entities, eliminations, adjustments, and consolidated */}
+            {entities.map(entity => (
+              <td key={entity.id} className="py-3 px-4 text-right text-slate-400">-</td>
+            ))}
+            <td className="py-3 px-4 text-right text-slate-400">-</td>
+            <td className="py-3 px-4 text-right text-slate-400">-</td>
+            <td className="py-3 px-4 text-right text-slate-400 sticky right-0 bg-indigo-100">-</td>
+          </tr>
+          {/* Render children (notes) if expanded */}
+          {isExpanded && hasChildren && node.children.map((child, index) => renderRow(child, depth + 1))}
+        </React.Fragment>
+      );
+    }
+
     // Special handling for Profit/Loss row
     if (node.isProfitRow) {
       // Calculate profit from ALL Revenue/Income and Expenses accounts in COA
@@ -826,7 +971,8 @@ export default function ConsolidationWorkings() {
       class: 'bg-[#101828] text-white font-bold text-sm',
       subclass: 'bg-slate-100 font-semibold text-sm text-[#101828]',
       note: 'bg-white text-sm text-[#101828]',
-      subnote: 'bg-slate-50 text-xs text-[#101828]'
+      subnote: 'bg-slate-50 text-xs text-[#101828]',
+      note_group: 'bg-indigo-100 font-bold text-sm text-indigo-900'
     };
 
     // Get specific background color for sticky cell
@@ -834,7 +980,8 @@ export default function ConsolidationWorkings() {
       class: 'bg-[#101828]',
       subclass: 'bg-slate-100',
       note: 'bg-white',
-      subnote: 'bg-slate-50'
+      subnote: 'bg-slate-50',
+      note_group: 'bg-indigo-100'
     };
 
     return (
@@ -856,11 +1003,31 @@ export default function ConsolidationWorkings() {
                 </button>
               )}
               {!hasChildren && <div className="w-6"></div>}
+
+              {/* Show note number badge if available */}
+              {node.level === 'note' && node.noteNumber !== 'Unnumbered' && selectedStatement === 'notes_to_accounts' && (
+                <span className="px-2 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded">
+                  {node.noteNumber}
+                </span>
+              )}
+
               <span className="font-medium">{node.name}</span>
+
               {node.accounts && node.accounts.length > 0 && node.level !== 'class' && (
                 <span className={`text-xs ${node.level === 'class' ? 'opacity-75' : 'opacity-60'}`}>
                   ({node.accounts.length})
                 </span>
+              )}
+
+              {/* Edit button for note numbers (Notes to Accounts tab only) */}
+              {node.level === 'note' && selectedStatement === 'notes_to_accounts' && (
+                <button
+                  onClick={() => setEditingNoteNumber({ noteNode: node, currentNumber: node.noteNumber })}
+                  className="ml-auto p-1 hover:bg-indigo-100 rounded text-indigo-600 transition-colors"
+                  title="Edit note number"
+                >
+                  <Edit2 size={14} />
+                </button>
               )}
             </div>
           </td>
@@ -1331,6 +1498,92 @@ export default function ConsolidationWorkings() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Note Number Modal */}
+      {editingNoteNumber && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[500px]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-[#101828]">Edit Note Number</h3>
+              <button
+                onClick={() => setEditingNoteNumber(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Note: {editingNoteNumber.noteNode.name}
+              </label>
+              <p className="text-xs text-slate-500 mb-3">
+                Class: {editingNoteNumber.noteNode.className} | Subclass: {editingNoteNumber.noteNode.subclassName}
+              </p>
+              <input
+                type="number"
+                min="1"
+                max="999"
+                defaultValue={editingNoteNumber.currentNumber === 'Unnumbered' ? '' : editingNoteNumber.currentNumber}
+                placeholder="Enter note number (e.g., 1, 2, 3...)"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                id="note-number-input"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => setEditingNoteNumber(null)}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const input = document.getElementById('note-number-input');
+                  const newNoteNumber = input.value ? parseInt(input.value) : null;
+
+                  if (!newNoteNumber || newNoteNumber < 1 || newNoteNumber > 999) {
+                    displayToast('Please enter a valid note number between 1 and 999', 'error');
+                    return;
+                  }
+
+                  try {
+                    // Update all master hierarchy IDs for this note
+                    const { noteNode } = editingNoteNumber;
+                    console.log('Updating note number for:', noteNode.name, 'IDs:', noteNode.masterHierarchyIds);
+
+                    // Update each master hierarchy record
+                    for (const hierarchyId of noteNode.masterHierarchyIds) {
+                      const { error } = await supabase
+                        .from('coa_master_hierarchy')
+                        .update({ note_number: newNoteNumber })
+                        .eq('id', hierarchyId);
+
+                      if (error) {
+                        console.error('Error updating note number:', error);
+                        throw error;
+                      }
+                    }
+
+                    displayToast(`Note number updated to ${newNoteNumber}`, 'success');
+                    setEditingNoteNumber(null);
+
+                    // Reload data to reflect changes
+                    loadData();
+                  } catch (error) {
+                    console.error('Error updating note number:', error);
+                    displayToast('Error updating note number: ' + error.message, 'error');
+                  }
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
