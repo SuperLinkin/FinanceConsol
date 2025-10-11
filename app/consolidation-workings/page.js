@@ -69,18 +69,17 @@ export default function ConsolidationWorkings() {
     try {
       console.log('🔄 Loading consolidation workings data...');
 
-      // First load periods to get available options
-      const periodsRes = await supabase.from('trial_balance').select('period').order('period', { ascending: false });
-
-      console.log('📅 Periods query result:', periodsRes);
-
-      if (periodsRes.error) {
-        console.error('❌ Error fetching periods:', periodsRes.error);
-        throw periodsRes.error;
+      // First load periods from API (with proper company filtering)
+      const tbResponse = await fetch('/api/trial-balance');
+      if (!tbResponse.ok) {
+        throw new Error('Failed to fetch trial balance data');
       }
+      const allTBData = await tbResponse.json();
+
+      console.log('📅 Trial balance data loaded:', allTBData.length, 'records');
 
       // Get unique periods from trial_balance
-      const uniquePeriods = [...new Set((periodsRes.data || []).map(p => p.period))];
+      const uniquePeriods = [...new Set((allTBData || []).map(tb => tb.period))].sort().reverse();
       console.log('📅 Unique periods found:', uniquePeriods);
 
       const periodOptions = uniquePeriods.map(period => ({
@@ -106,34 +105,38 @@ export default function ConsolidationWorkings() {
 
       console.log('📊 Loading data for period:', selectedPeriod);
 
-      // Load all required data
+      // Load all required data using API endpoints
       const [
-        entitiesRes,
+        entitiesResponse,
         coaRes,
         hierarchyRes,
-        tbRes,
         eliminationEntriesRes,
         intercompanyRes,
         adjustmentsRes
       ] = await Promise.all([
-        supabase.from('entities').select('*').eq('is_active', true).order('entity_name'),
+        fetch('/api/entities'),
         supabase.from('chart_of_accounts').select('*').eq('is_active', true),
         supabase.from('coa_master_hierarchy').select('*').eq('is_active', true),
-        supabase.from('trial_balance').select('*').eq('period', selectedPeriod),
         supabase.from('elimination_entries').select('*'),
         supabase.from('intercompany_transactions').select('*').eq('is_eliminated', false),
         supabase.from('adjustment_entries').select('*')
       ]);
 
+      // Parse API responses
+      const entitiesData = await entitiesResponse.json();
+
+      // Filter trial balances for selected period
+      const tbDataForPeriod = allTBData.filter(tb => tb.period === selectedPeriod);
+
       console.log('📊 Data loaded:');
-      console.log('Entities:', entitiesRes.data?.length);
+      console.log('Entities:', entitiesData?.length);
       console.log('COA:', coaRes.data?.length);
       console.log('Hierarchy:', hierarchyRes.data?.length);
-      console.log('Trial Balance for period', selectedPeriod, ':', tbRes.data?.length);
+      console.log('Trial Balance for period', selectedPeriod, ':', tbDataForPeriod?.length);
 
-      setEntities(entitiesRes.data || []);
+      setEntities(entitiesData || []);
       setGlAccounts(coaRes.data || []);
-      setTrialBalances(tbRes.data || []);
+      setTrialBalances(tbDataForPeriod || []);
 
       // Combine elimination entries and intercompany transactions
       const allEliminations = [
@@ -417,30 +420,38 @@ export default function ConsolidationWorkings() {
     try {
       console.log('🔄 Starting populate for period:', selectedPeriod);
 
-      const [tbRes, elimEntriesRes, icTransRes, adjRes] = await Promise.all([
-        supabase.from('trial_balance').select('*').eq('period', selectedPeriod),
+      // Fetch trial balance data from API
+      const tbResponse = await fetch('/api/trial-balance');
+      if (!tbResponse.ok) {
+        throw new Error('Failed to fetch trial balance data');
+      }
+      const allTBRecords = await tbResponse.json();
+
+      const [elimEntriesRes, icTransRes, adjRes] = await Promise.all([
         supabase.from('elimination_entries').select('*'),
         supabase.from('intercompany_transactions').select('*').eq('is_eliminated', false),
         supabase.from('adjustment_entries').select('*')
       ]);
 
-      if (tbRes.error) throw tbRes.error;
       if (elimEntriesRes.error) throw elimEntriesRes.error;
       if (icTransRes.error) throw icTransRes.error;
       if (adjRes.error) throw adjRes.error;
 
+      // Filter TB data for selected period
+      const tbDataForPeriod = allTBRecords.filter(tb => tb.period === selectedPeriod);
+
       console.log('✅ Populated data:');
-      console.log('Trial Balance entries:', tbRes.data?.length || 0);
+      console.log('Trial Balance entries:', tbDataForPeriod?.length || 0);
       console.log('Elimination entries:', elimEntriesRes.data?.length || 0);
       console.log('IC transactions:', icTransRes.data?.length || 0);
       console.log('Adjustment entries:', adjRes.data?.length || 0);
 
       // Sample some TB data to check structure
-      if (tbRes.data && tbRes.data.length > 0) {
-        console.log('Sample TB entry:', tbRes.data[0]);
+      if (tbDataForPeriod && tbDataForPeriod.length > 0) {
+        console.log('Sample TB entry:', tbDataForPeriod[0]);
       }
 
-      setTrialBalances(tbRes.data || []);
+      setTrialBalances(tbDataForPeriod || []);
 
       // Combine both elimination sources
       const allElims = [
@@ -451,7 +462,7 @@ export default function ConsolidationWorkings() {
       setAdjustments(adjRes.data || []);
 
       displayToast(
-        `Populated ${tbRes.data?.length || 0} TB entries, ${allElims.length} eliminations, ${adjRes.data?.length || 0} adjustments`,
+        `Populated ${tbDataForPeriod?.length || 0} TB entries, ${allElims.length} eliminations, ${adjRes.data?.length || 0} adjustments`,
         'success'
       );
     } catch (error) {
