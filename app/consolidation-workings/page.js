@@ -50,7 +50,7 @@ export default function ConsolidationWorkings() {
     { id: 'income_statement', label: 'Income Statement', classes: ['Revenue', 'Income', 'Expenses'] },
     { id: 'equity', label: 'Statement of Equity', classes: ['Equity'] },
     { id: 'cash_flow', label: 'Cash Flow', classes: ['Assets'] },
-    { id: 'intercompany', label: 'Intercompany Balances', classes: ['Intercompany'] }
+    { id: 'notes_to_accounts', label: 'Notes to Accounts', classes: ['Assets', 'Liability', 'Liabilities', 'Equity', 'Revenue', 'Income', 'Expenses'] }
   ];
 
   useEffect(() => {
@@ -604,6 +604,10 @@ export default function ConsolidationWorkings() {
 
     coaHierarchy.forEach(classNode => {
       const className = classNode.name;
+
+      // Skip profit row
+      if (classNode.isProfitRow) return;
+
       const allAccounts = getAllAccounts(classNode);
 
       entities.forEach(entity => {
@@ -633,8 +637,34 @@ export default function ConsolidationWorkings() {
       }
     });
 
+    // ALWAYS calculate profit from ALL Revenue/Expenses accounts, regardless of current tab
+    // This ensures profit is correct even when viewing Balance Sheet tab
+    const revenueAccounts = glAccounts.filter(acc =>
+      acc && acc.is_active && ['Revenue', 'Income'].includes(acc.class_name)
+    );
+    const expenseAccounts = glAccounts.filter(acc =>
+      acc && acc.is_active && acc.class_name === 'Expenses'
+    );
+
+    // Calculate revenue from all entities
+    let totalRevenue = 0;
+    entities.forEach(entity => {
+      totalRevenue += getEntityValue(revenueAccounts, entity.id, 'Revenue');
+    });
+    totalRevenue += getEliminationValue(revenueAccounts, 'Revenue');
+    totalRevenue += getAdjustmentValue(revenueAccounts, 'Revenue');
+
+    // Calculate expenses from all entities
+    let totalExpenses = 0;
+    entities.forEach(entity => {
+      totalExpenses += getEntityValue(expenseAccounts, entity.id, 'Expenses');
+    });
+    totalExpenses += getEliminationValue(expenseAccounts, 'Expenses');
+    totalExpenses += getAdjustmentValue(expenseAccounts, 'Expenses');
+
     // Profit = Revenue - Expenses (all values are now naturally positive)
-    totals.profit = totals.revenue - totals.expenses;
+    totals.profit = totalRevenue - totalExpenses;
+
     return totals;
   };
 
@@ -951,20 +981,6 @@ export default function ConsolidationWorkings() {
                   )}
                 </select>
               </div>
-
-              {/* Statement Selector */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-700">Statement:</label>
-                <select
-                  value={selectedStatement}
-                  onChange={(e) => setSelectedStatement(e.target.value)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {statementTabs.map(tab => (
-                    <option key={tab.id} value={tab.id}>{tab.label}</option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -1005,8 +1021,25 @@ export default function ConsolidationWorkings() {
             </div>
           </div>
 
+          {/* Statement Tabs */}
+          <div className="flex items-center gap-2 mb-4">
+            {statementTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedStatement(tab.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  selectedStatement === tab.id
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* BS Check Indicator */}
-          {coaHierarchy.length > 0 && (
+          {coaHierarchy.length > 0 && selectedStatement === 'balance_sheet' && (
             <div className="mt-4">
               {(() => {
                 const bsCheck = calculateBSCheck();
