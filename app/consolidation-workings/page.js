@@ -46,10 +46,11 @@ export default function ConsolidationWorkings() {
 
   // Statement tabs
   const statementTabs = [
-    { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity', 'Intercompany'] },
+    { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
     { id: 'income_statement', label: 'Income Statement', classes: ['Revenue', 'Income', 'Expenses'] },
     { id: 'equity', label: 'Statement of Equity', classes: ['Equity'] },
-    { id: 'cash_flow', label: 'Cash Flow', classes: ['Assets'] }
+    { id: 'cash_flow', label: 'Cash Flow', classes: ['Assets'] },
+    { id: 'intercompany', label: 'Intercompany Balances', classes: ['Intercompany'] }
   ];
 
   useEffect(() => {
