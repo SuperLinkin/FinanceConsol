@@ -37,6 +37,7 @@ export default function ConsolidationWorkings() {
   const [glAccounts, setGlAccounts] = useState([]);
   const [entities, setEntities] = useState([]);
   const [trialBalances, setTrialBalances] = useState([]);
+  const [compareTrialBalances, setCompareTrialBalances] = useState([]); // For comparison period
   const [eliminations, setEliminations] = useState([]);
   const [adjustments, setAdjustments] = useState([]);
 
@@ -63,7 +64,7 @@ export default function ConsolidationWorkings() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPeriod, selectedStatement]);
+  }, [selectedPeriod, selectedStatement, comparePeriod]);
 
   const displayToast = (message, type = 'success') => {
     setToastMessage(message);
@@ -147,15 +148,20 @@ export default function ConsolidationWorkings() {
       // Filter trial balances for selected period
       const tbDataForPeriod = allTBData.filter(tb => tb.period === selectedPeriod);
 
+      // Filter trial balances for comparison period if selected
+      const tbDataForComparePeriod = comparePeriod ? allTBData.filter(tb => tb.period === comparePeriod) : [];
+
       console.log('📊 Data loaded:');
       console.log('Entities:', entitiesData?.length);
       console.log('COA:', coaRes.data?.length);
       console.log('Hierarchy:', hierarchyRes.data?.length);
       console.log('Trial Balance for period', selectedPeriod, ':', tbDataForPeriod?.length);
+      console.log('Trial Balance for compare period', comparePeriod, ':', tbDataForComparePeriod?.length);
 
       setEntities(entitiesData || []);
       setGlAccounts(coaRes.data || []);
       setTrialBalances(tbDataForPeriod || []);
+      setCompareTrialBalances(tbDataForComparePeriod || []);
       setMasterHierarchy(hierarchyRes.data || []); // Store master hierarchy with note_number
 
       // Identify parent entities (entities that are parents of other entities)
@@ -443,14 +449,15 @@ export default function ConsolidationWorkings() {
     return hierarchy;
   };
 
-  const getEntityValue = (accounts, entityId, className) => {
+  const getEntityValue = (accounts, entityId, className, useComparePeriod = false) => {
     if (!accounts || accounts.length === 0) return 0;
 
+    const tbData = useComparePeriod ? compareTrialBalances : trialBalances;
     let total = 0;
     let foundEntries = 0;
 
     accounts.forEach(account => {
-      const tbEntries = trialBalances.filter(
+      const tbEntries = tbData.filter(
         tb => tb.account_code === account.account_code && tb.entity_id === entityId
       );
 
@@ -649,7 +656,7 @@ export default function ConsolidationWorkings() {
     }
   };
 
-  const getConsolidatedValue = (node) => {
+  const getConsolidatedValue = (node, useComparePeriod = false) => {
     const className = node.className || node.name;
     let total = 0;
 
@@ -658,10 +665,10 @@ export default function ConsolidationWorkings() {
 
     // Sum all entity values
     entities.forEach(entity => {
-      total += getEntityValue(accounts, entity.id, className);
+      total += getEntityValue(accounts, entity.id, className, useComparePeriod);
     });
 
-    // Add eliminations and adjustments
+    // Add eliminations and adjustments (note: these don't change by period for now)
     total += getEliminationValue(accounts, className);
     total += getAdjustmentValue(accounts, className);
 
@@ -862,11 +869,25 @@ export default function ConsolidationWorkings() {
             </td>
             {/* Empty cells for entities, eliminations, adjustments, and consolidated */}
             {columnsExpanded && entities.map(entity => (
-              <td key={entity.id} className="py-3 px-4 text-right text-slate-400">-</td>
+              <React.Fragment key={entity.id}>
+                <td className="py-3 px-4 text-right text-slate-400">-</td>
+                {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 bg-slate-100">-</td>}
+              </React.Fragment>
             ))}
-            {columnsExpanded && <td className="py-3 px-4 text-right text-slate-400">-</td>}
-            {columnsExpanded && <td className="py-3 px-4 text-right text-slate-400">-</td>}
+            {columnsExpanded && (
+              <>
+                <td className="py-3 px-4 text-right text-slate-400">-</td>
+                {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 bg-red-50">-</td>}
+              </>
+            )}
+            {columnsExpanded && (
+              <>
+                <td className="py-3 px-4 text-right text-slate-400">-</td>
+                {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 bg-blue-50">-</td>}
+              </>
+            )}
             <td className="py-3 px-4 text-right text-slate-400 sticky right-0 bg-indigo-100">-</td>
+            {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 sticky right-0 bg-indigo-50">-</td>}
           </tr>
           {/* Render children (notes) if expanded */}
           {isExpanded && hasChildren && node.children.map((child, index) => renderRow(child, depth + 1))}
@@ -1068,68 +1089,99 @@ export default function ConsolidationWorkings() {
           {columnsExpanded && entities.map(entity => {
             // For class level, always show total of all children
             const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-            const value = allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className) : 0;
+            const value = allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className, false) : 0;
+            const compareValue = comparePeriod && allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className, true) : 0;
+
             return (
-              <td key={entity.id} className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-white' : 'text-[#101828]'}`}>
-                {allClassAccounts.length > 0 ? (
-                  <button
-                    onClick={() => setShowGLDetail({ node, entityId: entity.id, entityName: entity.entity_name, className, accounts: allClassAccounts })}
-                    className="hover:underline hover:font-semibold cursor-pointer"
-                  >
-                    {formatCurrency(Math.abs(value))}
-                  </button>
-                ) : (
-                  <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+              <React.Fragment key={entity.id}>
+                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-white' : 'text-[#101828]'}`}>
+                  {allClassAccounts.length > 0 ? (
+                    <button
+                      onClick={() => setShowGLDetail({ node, entityId: entity.id, entityName: entity.entity_name, className, accounts: allClassAccounts })}
+                      className="hover:underline hover:font-semibold cursor-pointer"
+                    >
+                      {formatCurrency(Math.abs(value))}
+                    </button>
+                  ) : (
+                    <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                  )}
+                </td>
+                {comparePeriod && (
+                  <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-slate-300 bg-slate-700' : 'text-slate-700 bg-slate-50'}`}>
+                    {allClassAccounts.length > 0 ? formatCurrency(Math.abs(compareValue)) : '-'}
+                  </td>
                 )}
-              </td>
+              </React.Fragment>
             );
           })}
 
           {/* Eliminations Column */}
           {columnsExpanded && (
-            <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-red-50'}`}>
-              {(() => {
-                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-                const elimValue = getEliminationValue(allClassAccounts, className);
-                return allClassAccounts.length > 0 ? (
-                  <button
-                    onClick={() => setShowEliminationDetail(node)}
-                    className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-red-800'}`}
-                  >
-                    {formatCurrency(Math.abs(elimValue))}
-                  </button>
-                ) : (
-                  <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
-                );
-              })()}
-            </td>
+            <>
+              <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-red-50'}`}>
+                {(() => {
+                  const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                  const elimValue = getEliminationValue(allClassAccounts, className);
+                  return allClassAccounts.length > 0 ? (
+                    <button
+                      onClick={() => setShowEliminationDetail(node)}
+                      className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-red-800'}`}
+                    >
+                      {formatCurrency(Math.abs(elimValue))}
+                    </button>
+                  ) : (
+                    <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                  );
+                })()}
+              </td>
+              {comparePeriod && (
+                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-slate-300 bg-red-800' : 'text-red-700 bg-red-50'}`}>
+                  {(() => {
+                    const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                    const elimValue = getEliminationValue(allClassAccounts, className);
+                    return allClassAccounts.length > 0 ? formatCurrency(Math.abs(elimValue)) : '-';
+                  })()}
+                </td>
+              )}
+            </>
           )}
 
           {/* Adjustments Column */}
           {columnsExpanded && (
-            <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-blue-50'}`}>
-              {(() => {
-                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-                const adjValue = getAdjustmentValue(allClassAccounts, className);
-                return allClassAccounts.length > 0 ? (
-                  <button
-                    onClick={() => setShowAdjustmentDetail(node)}
-                    className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-blue-800'}`}
-                  >
-                    {formatCurrency(Math.abs(adjValue))}
-                  </button>
-                ) : (
-                  <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
-                );
-              })()}
-            </td>
+            <>
+              <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-blue-50'}`}>
+                {(() => {
+                  const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                  const adjValue = getAdjustmentValue(allClassAccounts, className);
+                  return allClassAccounts.length > 0 ? (
+                    <button
+                      onClick={() => setShowAdjustmentDetail(node)}
+                      className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-blue-800'}`}
+                    >
+                      {formatCurrency(Math.abs(adjValue))}
+                    </button>
+                  ) : (
+                    <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                  );
+                })()}
+              </td>
+              {comparePeriod && (
+                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-slate-300 bg-blue-800' : 'text-blue-700 bg-blue-50'}`}>
+                  {(() => {
+                    const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                    const adjValue = getAdjustmentValue(allClassAccounts, className);
+                    return allClassAccounts.length > 0 ? formatCurrency(Math.abs(adjValue)) : '-';
+                  })()}
+                </td>
+              )}
+            </>
           )}
 
           {/* Consolidated Column */}
           <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-[#101828] text-white' : 'bg-indigo-50 text-indigo-900'}`}>
             {(() => {
               const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-              const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts });
+              const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, false);
               return allClassAccounts.length > 0 ? (
                 formatCurrency(Math.abs(consolidatedValue))
               ) : (
@@ -1137,6 +1189,15 @@ export default function ConsolidationWorkings() {
               );
             })()}
           </td>
+          {comparePeriod && (
+            <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-indigo-800 text-slate-300' : 'bg-indigo-50 text-indigo-800'}`}>
+              {(() => {
+                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, true);
+                return allClassAccounts.length > 0 ? formatCurrency(Math.abs(consolidatedValue)) : '-';
+              })()}
+            </td>
+          )}
         </tr>
 
         {/* Render children if expanded */}
@@ -1354,6 +1415,31 @@ export default function ConsolidationWorkings() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="sticky top-0 z-20">
+                  {/* Period labels row (only if comparison period selected) */}
+                  {comparePeriod && (
+                    <tr className="bg-[#1e293b] text-white border-b border-slate-600">
+                      <th className="py-2 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#1e293b] z-30"></th>
+                      {columnsExpanded && entities.map(entity => (
+                        <th key={`${entity.id}-header`} colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase border-l border-slate-600">
+                          {entity.entity_name}
+                        </th>
+                      ))}
+                      {columnsExpanded && (
+                        <th colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase bg-red-900 border-l border-slate-600">
+                          Eliminations
+                        </th>
+                      )}
+                      {columnsExpanded && (
+                        <th colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase bg-blue-900 border-l border-slate-600">
+                          Adjustments
+                        </th>
+                      )}
+                      <th colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase bg-indigo-900 sticky right-0 z-30 border-l border-slate-600">
+                        Consolidated
+                      </th>
+                    </tr>
+                  )}
+
                   <tr className="bg-[#101828] text-white">
                     <th className="py-3 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#101828] z-30">
                       <div className="flex items-center justify-between">
@@ -1368,33 +1454,67 @@ export default function ConsolidationWorkings() {
                       </div>
                     </th>
                     {columnsExpanded && entities.map(entity => (
-                      <th key={entity.id} className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px]">
-                        <div>{entity.entity_name}</div>
-                        <div className="text-xs opacity-75 font-normal">{entity.entity_type}</div>
-                      </th>
+                      <React.Fragment key={entity.id}>
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px]">
+                          <div className="text-xs opacity-75 font-normal">{comparePeriod ? selectedPeriod : entity.entity_type}</div>
+                        </th>
+                        {comparePeriod && (
+                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-slate-700">
+                            <div className="text-xs opacity-75 font-normal">{comparePeriod}</div>
+                          </th>
+                        )}
+                      </React.Fragment>
                     ))}
                     {columnsExpanded && (
-                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-900">
-                        <div className="flex items-center justify-end gap-1">
-                          <Minus size={14} />
-                          Eliminations
-                        </div>
-                      </th>
+                      <>
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-900">
+                          <div className="flex items-center justify-end gap-1">
+                            <Minus size={14} />
+                            {comparePeriod ? selectedPeriod : 'Eliminations'}
+                          </div>
+                        </th>
+                        {comparePeriod && (
+                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-800">
+                            <div className="flex items-center justify-end gap-1">
+                              <Minus size={14} />
+                              {comparePeriod}
+                            </div>
+                          </th>
+                        )}
+                      </>
                     )}
                     {columnsExpanded && (
-                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-900">
-                        <div className="flex items-center justify-end gap-1">
-                          <Plus size={14} />
-                          Adjustments
-                        </div>
-                      </th>
+                      <>
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-900">
+                          <div className="flex items-center justify-end gap-1">
+                            <Plus size={14} />
+                            {comparePeriod ? selectedPeriod : 'Adjustments'}
+                          </div>
+                        </th>
+                        {comparePeriod && (
+                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-800">
+                            <div className="flex items-center justify-end gap-1">
+                              <Plus size={14} />
+                              {comparePeriod}
+                            </div>
+                          </th>
+                        )}
+                      </>
                     )}
                     <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-indigo-900 sticky right-0 z-30">
                       <div className="flex items-center justify-end gap-1">
                         <Calculator size={14} />
-                        Consolidated
+                        {comparePeriod ? selectedPeriod : 'Consolidated'}
                       </div>
                     </th>
+                    {comparePeriod && (
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-indigo-800 sticky right-0 z-30">
+                        <div className="flex items-center justify-end gap-1">
+                          <Calculator size={14} />
+                          {comparePeriod}
+                        </div>
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
