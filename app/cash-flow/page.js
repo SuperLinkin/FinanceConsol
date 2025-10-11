@@ -14,7 +14,11 @@ import {
   RefreshCw,
   Calculator,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  Edit2,
+  X,
+  Check
 } from 'lucide-react';
 
 export default function CashFlowStatement() {
@@ -31,6 +35,16 @@ export default function CashFlowStatement() {
     investing: true,
     financing: true,
     forex: true
+  });
+
+  // Formula builder states
+  const [showFormulaPanel, setShowFormulaPanel] = useState(false);
+  const [currentLineItem, setCurrentLineItem] = useState(null);
+  const [customFormulas, setCustomFormulas] = useState({});
+  const [formulaBuilder, setFormulaBuilder] = useState({
+    name: '',
+    formula: [],
+    type: 'note' // note, subnote, subclass, class
   });
 
   // Cash flow data structure
@@ -463,10 +477,48 @@ export default function CashFlowStatement() {
     }));
   };
 
+  const openFormulaBuilder = (lineItemName, section) => {
+    setCurrentLineItem({ name: lineItemName, section });
+    setShowFormulaPanel(true);
+
+    // Load existing formula if any
+    if (customFormulas[lineItemName]) {
+      setFormulaBuilder(customFormulas[lineItemName]);
+    } else {
+      setFormulaBuilder({
+        name: lineItemName,
+        formula: [],
+        type: 'note'
+      });
+    }
+  };
+
+  const addFormulaComponent = (component) => {
+    setFormulaBuilder(prev => ({
+      ...prev,
+      formula: [...prev.formula, component]
+    }));
+  };
+
+  const removeFormulaComponent = (index) => {
+    setFormulaBuilder(prev => ({
+      ...prev,
+      formula: prev.formula.filter((_, i) => i !== index)
+    }));
+  };
+
+  const saveFormula = () => {
+    setCustomFormulas(prev => ({
+      ...prev,
+      [currentLineItem.name]: formulaBuilder
+    }));
+    setShowFormulaPanel(false);
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#f7f5f2]">
-        <Loader className="animate-spin" size={32} />
+        <Loader className="animate-spin text-[#101828]" size={32} />
       </div>
     );
   }
@@ -478,267 +530,465 @@ export default function CashFlowStatement() {
         subtitle="Indirect Method - Operating, Investing, and Financing Activities"
       />
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Controls */}
-        <div className="px-8 py-4 bg-white border-b border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              {/* Period Selector */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-700">Current Period:</label>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {availablePeriods.length === 0 ? (
-                    <option value="">No periods available</option>
-                  ) : (
-                    availablePeriods.map(period => (
+      <div className="flex-1 overflow-hidden flex">
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Controls */}
+          <div className="px-6 py-4 bg-white border-b border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Period Selector */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-[#101828]">Current Period:</label>
+                  <select
+                    value={selectedPeriod}
+                    onChange={(e) => setSelectedPeriod(e.target.value)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {availablePeriods.length === 0 ? (
+                      <option value="">No periods available</option>
+                    ) : (
+                      availablePeriods.map(period => (
+                        <option key={period.period_code} value={period.period_code}>
+                          {period.period_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* Compare Period */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-[#101828]">Previous Period:</label>
+                  <select
+                    value={comparePeriod}
+                    onChange={(e) => setComparePeriod(e.target.value)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select previous period</option>
+                    {availablePeriods.map(period => (
                       <option key={period.period_code} value={period.period_code}>
                         {period.period_name}
                       </option>
-                    ))
-                  )}
-                </select>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Compare Period */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-700">Previous Period:</label>
-                <select
-                  value={comparePeriod}
-                  onChange={(e) => setComparePeriod(e.target.value)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={loadData}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
                 >
-                  <option value="">Select previous period</option>
-                  {availablePeriods.map(period => (
-                    <option key={period.period_code} value={period.period_code}>
-                      {period.period_name}
-                    </option>
-                  ))}
-                </select>
+                  <RefreshCw size={16} />
+                  Refresh
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                  <Save size={16} />
+                  Save
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] transition-colors">
+                  <Download size={16} />
+                  Export
+                </button>
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={loadData}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
-              >
-                <RefreshCw size={16} />
-                Refresh
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
-                <Save size={16} />
-                Save
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b]">
-                <Download size={16} />
-                Export
-              </button>
             </div>
           </div>
-        </div>
 
-        {/* Cash Flow Statement */}
-        <div className="flex-1 overflow-auto px-8 py-6">
-          <div className="max-w-5xl mx-auto space-y-6">
-            {/* Operating Activities */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-              <div
-                className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between cursor-pointer"
-                onClick={() => toggleSection('operating')}
-              >
-                <div className="flex items-center gap-3">
-                  <Calculator size={20} />
-                  <h3 className="text-lg font-bold">Cash Flow from Operating Activities</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xl font-bold">{formatCurrency(Math.abs(cashFlowData.operating.total))}</span>
-                  {expandedSections.operating ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                </div>
-              </div>
-
-              {expandedSections.operating && (
-                <div className="p-6 space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b border-slate-200">
-                    <span className="font-semibold text-[#101828]">Operating Profit / (Loss)</span>
-                    <span className="font-mono text-lg">{formatCurrency(Math.abs(cashFlowData.operating.profitLoss))}</span>
+          {/* Cash Flow Statement */}
+          <div className="flex-1 overflow-auto px-6 py-6">
+            <div className="max-w-6xl mx-auto space-y-4">
+              {/* Operating Activities */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div
+                  className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between cursor-pointer hover:bg-[#1e293b] transition-colors"
+                  onClick={() => toggleSection('operating')}
+                >
+                  <div className="flex items-center gap-3">
+                    <Calculator size={18} />
+                    <h3 className="text-base font-bold">Cash Flow from Operating Activities</h3>
                   </div>
-
-                  {Object.keys(cashFlowData.operating.adjustments).length > 0 && (
-                    <>
-                      <div className="mt-4 mb-2">
-                        <h4 className="font-semibold text-slate-700">Adjustments for:</h4>
-                      </div>
-                      {Object.entries(cashFlowData.operating.adjustments).map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center py-2 pl-6">
-                          <span className="text-slate-700">{key}</span>
-                          <span className="font-mono">{formatCurrency(Math.abs(value))}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-
-                  {Object.keys(cashFlowData.operating.workingCapitalChanges).length > 0 && (
-                    <>
-                      <div className="mt-4 mb-2">
-                        <h4 className="font-semibold text-slate-700">Changes in Working Capital:</h4>
-                      </div>
-                      {Object.entries(cashFlowData.operating.workingCapitalChanges).map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center py-2 pl-6">
-                          <span className="text-slate-700">{key}</span>
-                          <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
-                          </span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-
-                  <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-slate-300 bg-green-50">
-                    <span className="font-bold text-[#101828]">Net Cash from Operating Activities</span>
-                    <span className="font-mono text-xl font-bold text-green-700">
-                      {formatCurrency(Math.abs(cashFlowData.operating.total))}
-                    </span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.operating.total))}</span>
+                    {expandedSections.operating ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Investing Activities */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-              <div
-                className="bg-blue-900 text-white px-6 py-4 flex items-center justify-between cursor-pointer"
-                onClick={() => toggleSection('investing')}
-              >
-                <div className="flex items-center gap-3">
-                  <TrendingUp size={20} />
-                  <h3 className="text-lg font-bold">Cash Flow from Investing Activities</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xl font-bold">{formatCurrency(Math.abs(cashFlowData.investing.total))}</span>
-                  {expandedSections.investing ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                </div>
-              </div>
-
-              {expandedSections.investing && (
-                <div className="p-6 space-y-3">
-                  {Object.keys(cashFlowData.investing.items).length > 0 ? (
-                    <>
-                      {Object.entries(cashFlowData.investing.items).map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center py-2">
-                          <span className="text-slate-700">{key}</span>
-                          <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-slate-300 bg-blue-50">
-                        <span className="font-bold text-[#101828]">Net Cash from Investing Activities</span>
-                        <span className={`font-mono text-xl font-bold ${cashFlowData.investing.total < 0 ? 'text-red-700' : 'text-blue-700'}`}>
-                          {cashFlowData.investing.total < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.investing.total))}{cashFlowData.investing.total < 0 ? ')' : ''}
-                        </span>
+                {expandedSections.operating && (
+                  <div className="p-6 space-y-2">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-200 group">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#101828]">Operating Profit / (Loss)</span>
+                        <button
+                          onClick={() => openFormulaBuilder('Operating Profit / (Loss)', 'operating')}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded"
+                          title="Edit formula"
+                        >
+                          <Edit2 size={14} className="text-blue-600" />
+                        </button>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-slate-500 py-4">No investing activities detected</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Financing Activities */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-              <div
-                className="bg-purple-900 text-white px-6 py-4 flex items-center justify-between cursor-pointer"
-                onClick={() => toggleSection('financing')}
-              >
-                <div className="flex items-center gap-3">
-                  <Building2 size={20} />
-                  <h3 className="text-lg font-bold">Cash Flow from Financing Activities</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xl font-bold">{formatCurrency(Math.abs(cashFlowData.financing.total))}</span>
-                  {expandedSections.financing ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                </div>
-              </div>
-
-              {expandedSections.financing && (
-                <div className="p-6 space-y-3">
-                  {Object.keys(cashFlowData.financing.items).length > 0 ? (
-                    <>
-                      {Object.entries(cashFlowData.financing.items).map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center py-2">
-                          <span className="text-slate-700">{key}</span>
-                          <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-slate-300 bg-purple-50">
-                        <span className="font-bold text-[#101828]">Net Cash from Financing Activities</span>
-                        <span className={`font-mono text-xl font-bold ${cashFlowData.financing.total < 0 ? 'text-red-700' : 'text-purple-700'}`}>
-                          {cashFlowData.financing.total < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.financing.total))}{cashFlowData.financing.total < 0 ? ')' : ''}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-slate-500 py-4">No financing activities detected</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Forex Adjustment */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-              <div className="px-6 py-4 flex justify-between items-center">
-                <span className="font-semibold text-slate-700">Effect of Foreign Exchange Rate Changes</span>
-                <span className="font-mono text-lg">{formatCurrency(Math.abs(cashFlowData.forex))}</span>
-              </div>
-            </div>
-
-            {/* Movement in Cash */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-xl font-bold">Net Increase / (Decrease) in Cash</span>
-                <span className="text-3xl font-bold">{formatCurrency(Math.abs(cashFlowData.movementInCash))}</span>
-              </div>
-
-              <div className="space-y-2 pt-4 border-t border-white/30">
-                <div className="flex justify-between items-center">
-                  <span className="text-white/90">Cash and Cash Equivalents at Beginning</span>
-                  <span className="font-mono text-lg">{formatCurrency(Math.abs(cashFlowData.openingCash))}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/90">Movement in Cash</span>
-                  <span className={`font-mono text-lg ${cashFlowData.movementInCash < 0 ? 'text-red-300' : 'text-green-300'}`}>
-                    {cashFlowData.movementInCash < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.movementInCash))}{cashFlowData.movementInCash < 0 ? ')' : ''}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t-2 border-white/50">
-                  <span className="text-xl font-bold">Cash and Cash Equivalents at End</span>
-                  <span className="font-mono text-2xl font-bold">{formatCurrency(Math.abs(cashFlowData.calculatedClosingCash))}</span>
-                </div>
-
-                {Math.abs(cashFlowData.closingCash - cashFlowData.calculatedClosingCash) > 0.01 && (
-                  <div className="mt-4 p-3 bg-yellow-500/20 rounded-lg border border-yellow-500/50">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Actual Closing Cash (from TB):</span>
-                      <span className="font-mono">{formatCurrency(Math.abs(cashFlowData.closingCash))}</span>
+                      <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(cashFlowData.operating.profitLoss))}</span>
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-sm">Difference:</span>
-                      <span className="font-mono text-yellow-300">
-                        {formatCurrency(Math.abs(cashFlowData.closingCash - cashFlowData.calculatedClosingCash))}
+
+                    {Object.keys(cashFlowData.operating.adjustments).length > 0 && (
+                      <>
+                        <div className="mt-3 mb-2">
+                          <h4 className="font-semibold text-[#101828] text-sm">Adjustments for:</h4>
+                        </div>
+                        {Object.entries(cashFlowData.operating.adjustments).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#101828]">{key}</span>
+                              <button
+                                onClick={() => openFormulaBuilder(key, 'operating')}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
+                                title="Edit formula"
+                              >
+                                <Edit2 size={12} className="text-blue-600" />
+                              </button>
+                            </div>
+                            <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(value))}</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {Object.keys(cashFlowData.operating.workingCapitalChanges).length > 0 && (
+                      <>
+                        <div className="mt-3 mb-2">
+                          <h4 className="font-semibold text-[#101828] text-sm">Changes in Working Capital:</h4>
+                        </div>
+                        {Object.entries(cashFlowData.operating.workingCapitalChanges).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#101828]">{key}</span>
+                              <button
+                                onClick={() => openFormulaBuilder(key, 'operating')}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
+                                title="Edit formula"
+                              >
+                                <Edit2 size={12} className="text-blue-600" />
+                              </button>
+                            </div>
+                            <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-green-50 rounded px-3">
+                      <span className="font-bold text-[#101828]">Net Cash from Operating Activities</span>
+                      <span className="font-mono text-lg font-bold text-green-700">
+                        {formatCurrency(Math.abs(cashFlowData.operating.total))}
                       </span>
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Investing Activities */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div
+                  className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between cursor-pointer hover:bg-[#1e293b] transition-colors"
+                  onClick={() => toggleSection('investing')}
+                >
+                  <div className="flex items-center gap-3">
+                    <TrendingUp size={18} />
+                    <h3 className="text-base font-bold">Cash Flow from Investing Activities</h3>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.investing.total))}</span>
+                    {expandedSections.investing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </div>
+                </div>
+
+                {expandedSections.investing && (
+                  <div className="p-6 space-y-2">
+                    {Object.keys(cashFlowData.investing.items).length > 0 ? (
+                      <>
+                        {Object.entries(cashFlowData.investing.items).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#101828]">{key}</span>
+                              <button
+                                onClick={() => openFormulaBuilder(key, 'investing')}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
+                                title="Edit formula"
+                              >
+                                <Edit2 size={12} className="text-blue-600" />
+                              </button>
+                            </div>
+                            <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-blue-50 rounded px-3">
+                          <span className="font-bold text-[#101828]">Net Cash from Investing Activities</span>
+                          <span className={`font-mono text-lg font-bold ${cashFlowData.investing.total < 0 ? 'text-red-700' : 'text-blue-700'}`}>
+                            {cashFlowData.investing.total < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.investing.total))}{cashFlowData.investing.total < 0 ? ')' : ''}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-slate-500 py-4">No investing activities detected</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Financing Activities */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div
+                  className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between cursor-pointer hover:bg-[#1e293b] transition-colors"
+                  onClick={() => toggleSection('financing')}
+                >
+                  <div className="flex items-center gap-3">
+                    <Building2 size={18} />
+                    <h3 className="text-base font-bold">Cash Flow from Financing Activities</h3>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.financing.total))}</span>
+                    {expandedSections.financing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </div>
+                </div>
+
+                {expandedSections.financing && (
+                  <div className="p-6 space-y-2">
+                    {Object.keys(cashFlowData.financing.items).length > 0 ? (
+                      <>
+                        {Object.entries(cashFlowData.financing.items).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#101828]">{key}</span>
+                              <button
+                                onClick={() => openFormulaBuilder(key, 'financing')}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
+                                title="Edit formula"
+                              >
+                                <Edit2 size={12} className="text-blue-600" />
+                              </button>
+                            </div>
+                            <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-purple-50 rounded px-3">
+                          <span className="font-bold text-[#101828]">Net Cash from Financing Activities</span>
+                          <span className={`font-mono text-lg font-bold ${cashFlowData.financing.total < 0 ? 'text-red-700' : 'text-purple-700'}`}>
+                            {cashFlowData.financing.total < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.financing.total))}{cashFlowData.financing.total < 0 ? ')' : ''}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-slate-500 py-4">No financing activities detected</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Forex Adjustment */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div className="px-6 py-3 flex justify-between items-center group hover:bg-slate-50">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[#101828]">Effect of Foreign Exchange Rate Changes</span>
+                    <button
+                      onClick={() => openFormulaBuilder('Forex Adjustment', 'forex')}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white rounded"
+                      title="Edit formula"
+                    >
+                      <Edit2 size={12} className="text-blue-600" />
+                    </button>
+                  </div>
+                  <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(cashFlowData.forex))}</span>
+                </div>
+              </div>
+
+              {/* Movement in Cash */}
+              <div className="bg-[#101828] text-white rounded-lg shadow-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-lg font-bold">Net Increase / (Decrease) in Cash</span>
+                  <span className="text-2xl font-bold">{formatCurrency(Math.abs(cashFlowData.movementInCash))}</span>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t border-white/30">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/90">Cash and Cash Equivalents at Beginning</span>
+                    <span className="font-mono">{formatCurrency(Math.abs(cashFlowData.openingCash))}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/90">Movement in Cash</span>
+                    <span className={`font-mono ${cashFlowData.movementInCash < 0 ? 'text-red-300' : 'text-green-300'}`}>
+                      {cashFlowData.movementInCash < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.movementInCash))}{cashFlowData.movementInCash < 0 ? ')' : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t-2 border-white/50">
+                    <span className="text-lg font-bold">Cash and Cash Equivalents at End</span>
+                    <span className="font-mono text-xl font-bold">{formatCurrency(Math.abs(cashFlowData.calculatedClosingCash))}</span>
+                  </div>
+
+                  {Math.abs(cashFlowData.closingCash - cashFlowData.calculatedClosingCash) > 0.01 && (
+                    <div className="mt-4 p-3 bg-yellow-500/20 rounded-lg border border-yellow-500/50">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Actual Closing Cash (from TB):</span>
+                        <span className="font-mono">{formatCurrency(Math.abs(cashFlowData.closingCash))}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-sm">Difference:</span>
+                        <span className="font-mono text-yellow-300">
+                          {formatCurrency(Math.abs(cashFlowData.closingCash - cashFlowData.calculatedClosingCash))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Formula Builder Side Panel */}
+          {showFormulaPanel && (
+            <div className="w-96 bg-white border-l border-slate-200 shadow-xl flex flex-col">
+              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold">Formula Builder</h3>
+                <button
+                  onClick={() => setShowFormulaPanel(false)}
+                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-auto p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-[#101828] mb-2">Line Item</label>
+                    <input
+                      type="text"
+                      value={currentLineItem?.name || ''}
+                      disabled
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-[#101828] text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-[#101828] mb-2">Calculation Type</label>
+                    <select
+                      value={formulaBuilder.type}
+                      onChange={(e) => setFormulaBuilder(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-[#101828] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="note">Note Balance</option>
+                      <option value="subnote">Sub-Note Balance</option>
+                      <option value="subclass">Sub-Class Balance</option>
+                      <option value="class">Class Balance</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-[#101828] mb-2">Formula Components</label>
+                    <div className="space-y-2 mb-3">
+                      {formulaBuilder.formula.length === 0 ? (
+                        <div className="text-sm text-slate-500 text-center py-4 border border-dashed border-slate-300 rounded-lg">
+                          No components added yet
+                        </div>
+                      ) : (
+                        formulaBuilder.formula.map((component, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-[#101828]">{component.operator} {component.name}</div>
+                              <div className="text-xs text-slate-600 mt-1">Type: {component.type}</div>
+                            </div>
+                            <button
+                              onClick={() => removeFormulaComponent(index)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <button
+                        onClick={() => addFormulaComponent({ operator: '+', name: 'New Item', type: formulaBuilder.type })}
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+                      >
+                        <Plus size={14} />
+                        Add
+                      </button>
+                      <button
+                        onClick={() => addFormulaComponent({ operator: '-', name: 'New Item', type: formulaBuilder.type })}
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                      >
+                        <X size={14} />
+                        Subtract
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Available Accounts</h4>
+                      <div className="text-xs text-blue-700 space-y-1">
+                        <p>• Select calculation type above</p>
+                        <p>• Add components with + or - operators</p>
+                        <p>• Formula will sum/subtract balances automatically</p>
+                      </div>
+                    </div>
+
+                    {glAccounts.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-semibold text-[#101828] mb-2">
+                          {formulaBuilder.type === 'note' && 'Notes'}
+                          {formulaBuilder.type === 'subnote' && 'Sub-Notes'}
+                          {formulaBuilder.type === 'subclass' && 'Sub-Classes'}
+                          {formulaBuilder.type === 'class' && 'Classes'}
+                        </label>
+                        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg">
+                          {[...new Set(glAccounts.map(acc => {
+                            if (formulaBuilder.type === 'note') return acc.note_name;
+                            if (formulaBuilder.type === 'subnote') return acc.sub_note_name;
+                            if (formulaBuilder.type === 'subclass') return acc.sub_class_name;
+                            if (formulaBuilder.type === 'class') return acc.class_name;
+                            return null;
+                          }).filter(Boolean))].map((name, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => addFormulaComponent({ operator: '+', name, type: formulaBuilder.type })}
+                              className="w-full text-left px-3 py-2 text-sm text-[#101828] hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
+                            >
+                              {name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-200 flex gap-3">
+                <button
+                  onClick={() => setShowFormulaPanel(false)}
+                  className="flex-1 px-4 py-2 border border-slate-300 text-[#101828] rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveFormula}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] transition-colors"
+                >
+                  <Check size={16} />
+                  Save Formula
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
