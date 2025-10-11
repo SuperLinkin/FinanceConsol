@@ -24,9 +24,12 @@ import {
 export default function ConsolidationWorkings() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('');
+  const [comparePeriod, setComparePeriod] = useState(''); // For FY comparison
   const [selectedStatement, setSelectedStatement] = useState('balance_sheet');
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [isPopulating, setIsPopulating] = useState(false);
+  const [selectedParentEntity, setSelectedParentEntity] = useState(null); // For chain holding
+  const [parentEntities, setParentEntities] = useState([]); // List of parent entities
 
   // Data states
   const [coaHierarchy, setCoaHierarchy] = useState([]);
@@ -46,6 +49,7 @@ export default function ConsolidationWorkings() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [editingNoteNumber, setEditingNoteNumber] = useState(null); // { noteId, currentNumber }
+  const [columnsExpanded, setColumnsExpanded] = useState(false); // Collapse/expand entity columns
 
   // Statement tabs
   const statementTabs = [
@@ -98,6 +102,10 @@ export default function ConsolidationWorkings() {
       if (!selectedPeriod && periodOptions.length > 0) {
         console.log('✅ Setting initial period to:', periodOptions[0].period_code);
         setSelectedPeriod(periodOptions[0].period_code);
+        // Auto-set compare period to previous year
+        if (periodOptions.length > 1) {
+          setComparePeriod(periodOptions[1].period_code);
+        }
         return; // Will trigger useEffect to reload with period
       }
 
@@ -149,6 +157,17 @@ export default function ConsolidationWorkings() {
       setGlAccounts(coaRes.data || []);
       setTrialBalances(tbDataForPeriod || []);
       setMasterHierarchy(hierarchyRes.data || []); // Store master hierarchy with note_number
+
+      // Identify parent entities (entities that are parents of other entities)
+      const parents = (entitiesData || []).filter(entity =>
+        (entitiesData || []).some(e => e.parent_entity_id === entity.id)
+      );
+      setParentEntities(parents);
+
+      // Auto-select first parent if not already selected
+      if (!selectedParentEntity && parents.length > 0) {
+        setSelectedParentEntity(parents[0].id);
+      }
 
       // Combine elimination entries and intercompany transactions
       const allEliminations = [
@@ -235,12 +254,21 @@ export default function ConsolidationWorkings() {
           .map(h => h.note_name))].filter(Boolean);
 
         notes.forEach(noteName => {
+          // Get note number from master hierarchy
+          const noteHierarchyRecord = masterHierarchy.find(h =>
+            h.class_name === className &&
+            h.subclass_name === subclassName &&
+            h.note_name === noteName
+          );
+          const noteNumber = noteHierarchyRecord?.note_number || null;
+
           const noteNode = {
             id: `note-${className}-${subclassName}-${noteName}`,
             level: 'note',
             name: noteName,
             className: className,
             subclassName: subclassName,
+            noteNumber: noteNumber,
             isExpanded: true,
             children: []
           };
@@ -1004,8 +1032,8 @@ export default function ConsolidationWorkings() {
               )}
               {!hasChildren && <div className="w-6"></div>}
 
-              {/* Show note number badge if available */}
-              {node.level === 'note' && node.noteNumber !== 'Unnumbered' && selectedStatement === 'notes_to_accounts' && (
+              {/* Show note number badge if available (all tabs) */}
+              {node.level === 'note' && node.noteNumber && (
                 <span className="px-2 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded">
                   {node.noteNumber}
                 </span>
