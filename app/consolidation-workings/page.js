@@ -327,9 +327,15 @@ export default function ConsolidationWorkings() {
         const debit = parseFloat(tb.debit || 0);
         const credit = parseFloat(tb.credit || 0);
 
-        // Calculate net amount (debit - credit) for all classes
-        // Use Math.abs() for display purposes
-        const netAmount = debit - credit;
+        // For Assets and Expenses: debit - credit (natural debit balance)
+        // For Liabilities, Equity, Revenue, Income, Intercompany: credit - debit (natural credit balance)
+        // This ensures all values are naturally positive for their balance type
+        let netAmount;
+        if (['Assets', 'Expenses'].includes(className)) {
+          netAmount = debit - credit;
+        } else {
+          netAmount = credit - debit;
+        }
         total += netAmount;
       });
     });
@@ -370,9 +376,14 @@ export default function ConsolidationWorkings() {
           const debitAmount = parseFloat(line.debit || 0);
           const creditAmount = parseFloat(line.credit || 0);
 
-          // Use same logic as getEntityValue: debit - credit for all classes
+          // Use same logic as getEntityValue: use natural balance direction
           // Elimination entries reduce balances, so we SUBTRACT them
-          const netElim = debitAmount - creditAmount;
+          let netElim;
+          if (['Assets', 'Expenses'].includes(className)) {
+            netElim = debitAmount - creditAmount;
+          } else {
+            netElim = creditAmount - debitAmount;
+          }
           total -= netElim; // Note the subtraction - eliminations reduce balances
         });
       });
@@ -417,8 +428,13 @@ export default function ConsolidationWorkings() {
           creditAmount = parseFloat(adj.amount || 0);
         }
 
-        // Use same logic as getEntityValue: debit - credit for all classes
-        const netAdj = debitAmount - creditAmount;
+        // Use same logic as getEntityValue: use natural balance direction
+        let netAdj;
+        if (['Assets', 'Expenses'].includes(className)) {
+          netAdj = debitAmount - creditAmount;
+        } else {
+          netAdj = creditAmount - debitAmount;
+        }
         total += netAdj;
       });
     });
@@ -557,8 +573,13 @@ export default function ConsolidationWorkings() {
         const debit = parseFloat(tb.debit || 0);
         const credit = parseFloat(tb.credit || 0);
 
-        // Use same logic as getEntityValue: debit - credit for all classes
-        const amount = debit - credit;
+        // Use same logic as getEntityValue: use natural balance direction
+        let amount;
+        if (['Assets', 'Expenses'].includes(className)) {
+          amount = debit - credit;
+        } else {
+          amount = credit - debit;
+        }
 
         if (amount !== 0) {
           details.push({
@@ -615,16 +636,17 @@ export default function ConsolidationWorkings() {
       }
     });
 
+    // Profit = Revenue - Expenses (all values are now naturally positive)
     totals.profit = totals.revenue - totals.expenses;
     return totals;
   };
 
   // Calculate BS Check: Assets = Liabilities + Equity + Profit
-  // In a trial balance before closing: Assets + Expenses = Liabilities + Equity + Revenue
-  // Therefore: Assets = Liabilities + Equity + (Revenue - Expenses) = Liabilities + Equity + Profit
+  // All values are naturally positive due to using correct debit/credit logic
   const calculateBSCheck = () => {
     const totals = calculateClassTotals();
 
+    // BS Check formula: Assets - Liabilities - Equity - Profit = 0
     const bsLeft = totals.assets;
     const bsRight = totals.liabilities + totals.equity + totals.profit;
     const difference = bsLeft - bsRight;
