@@ -56,9 +56,7 @@ export default function ConsolidationWorkings() {
   // Statement tabs
   const statementTabs = [
     { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
-    { id: 'income_statement', label: 'Income Statement', classes: ['Revenue', 'Income', 'Expenses'] },
-    { id: 'equity', label: 'Statement of Equity', classes: ['Equity'] },
-    { id: 'notes_to_accounts', label: 'Notes to Accounts', classes: ['Assets', 'Liability', 'Liabilities', 'Equity', 'Revenue', 'Income', 'Expenses'] }
+    { id: 'income_statement', label: 'Income Statement', classes: ['Revenue', 'Income', 'Expenses'] }
   ];
 
   useEffect(() => {
@@ -184,16 +182,11 @@ export default function ConsolidationWorkings() {
       setAdjustments(adjustmentsRes.data || []);
 
       // Build COA hierarchy for selected statement
-      let hierarchy;
-      if (selectedStatement === 'notes_to_accounts') {
-        hierarchy = buildNoteHierarchy(hierarchyRes.data || [], coaRes.data || []);
-      } else {
-        hierarchy = buildCOAHierarchy(
-          hierarchyRes.data || [],
-          coaRes.data || [],
-          selectedStatement
-        );
-      }
+      const hierarchy = buildCOAHierarchy(
+        hierarchyRes.data || [],
+        coaRes.data || [],
+        selectedStatement
+      );
       setCoaHierarchy(hierarchy);
 
     } catch (error) {
@@ -706,10 +699,12 @@ export default function ConsolidationWorkings() {
   };
 
   // Get GL details for a specific entity/accounts combination
-  const getGLDetails = (accounts, entityId, className) => {
+  const getGLDetails = (accounts, entityId, className, useComparePeriod = false) => {
     const details = [];
+    const tbData = useComparePeriod ? compareTrialBalances : trialBalances;
+
     accounts.forEach(account => {
-      const tbEntries = trialBalances.filter(
+      const tbEntries = tbData.filter(
         tb => tb.account_code === account.account_code && tb.entity_id === entityId
       );
 
@@ -1330,7 +1325,16 @@ export default function ConsolidationWorkings() {
 
                   return (
                     <td key={`fy23-${entity.id}`} className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-gray-300 bg-slate-800' : 'text-[#101828] bg-gray-50'}`}>
-                      {allClassAccounts.length > 0 ? formatCurrency(Math.abs(compareValue)) : '-'}
+                      {allClassAccounts.length > 0 ? (
+                        <button
+                          onClick={() => setShowGLDetail({ node, entityId: entity.id, entityName: entity.entity_name, className, accounts: allClassAccounts, useComparePeriod: true })}
+                          className="hover:underline hover:font-semibold cursor-pointer"
+                        >
+                          {formatCurrency(Math.abs(compareValue))}
+                        </button>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                   );
                 })}
@@ -1852,7 +1856,7 @@ export default function ConsolidationWorkings() {
 
             <div className="p-8 flex-1 overflow-y-auto">
               <div className="space-y-4">
-                {getGLDetails(showGLDetail.accounts, showGLDetail.entityId, showGLDetail.className).map((detail, index) => (
+                {getGLDetails(showGLDetail.accounts, showGLDetail.entityId, showGLDetail.className, showGLDetail.useComparePeriod || false).map((detail, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -1877,7 +1881,7 @@ export default function ConsolidationWorkings() {
                     </div>
                   </div>
                 ))}
-                {getGLDetails(showGLDetail.accounts, showGLDetail.entityId, showGLDetail.className).length === 0 && (
+                {getGLDetails(showGLDetail.accounts, showGLDetail.entityId, showGLDetail.className, showGLDetail.useComparePeriod || false).length === 0 && (
                   <div className="text-center text-gray-500 py-8">
                     No GL details found for this selection
                   </div>
