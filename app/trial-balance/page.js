@@ -338,7 +338,6 @@ export default function TrialBalancePage() {
     let totalAssets = 0;
     let totalLiability = 0;
     let totalEquity = 0;
-    let totalIntercompany = 0;
     let totalRevenue = 0;
     let totalExpenses = 0;
 
@@ -355,8 +354,6 @@ export default function TrialBalancePage() {
         totalLiability += netAmount;
       } else if (className === 'Equity') {
         totalEquity += netAmount;
-      } else if (className === 'Intercompany') {
-        totalIntercompany += netAmount;
       } else if (className === 'Revenue' || className === 'Income') {
         totalRevenue += netAmount;
       } else if (className === 'Expenses') {
@@ -368,16 +365,15 @@ export default function TrialBalancePage() {
     // Revenue has negative net (credit balance), Expenses has positive net (debit balance)
     const profitLoss = Math.abs(totalRevenue) - Math.abs(totalExpenses);
 
-    // BS Check = Assets + Intercompany - Liabilities - Equity -/+ P&L
+    // BS Check = Assets - Liabilities - Equity -/+ P&L
     // Using absolute values for all amounts:
-    // Assets (debit) + Intercompany - Liabilities (credit) - Equity (credit) - P&L (if profit) or + P&L (if loss)
-    const bsCheck = Math.abs(totalAssets) + Math.abs(totalIntercompany) - Math.abs(totalLiability) - Math.abs(totalEquity) - profitLoss;
+    // Assets (debit) - Liabilities (credit) - Equity (credit) - P&L (if profit) or + P&L (if loss)
+    const bsCheck = Math.abs(totalAssets) - Math.abs(totalLiability) - Math.abs(totalEquity) - profitLoss;
 
     return {
       totalAssets,
       totalLiability,
       totalEquity,
-      totalIntercompany,
       totalRevenue,
       totalExpenses,
       profitLoss,
@@ -565,7 +561,7 @@ export default function TrialBalancePage() {
             {/* Balance Sheet Items */}
             <div>
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Balance Sheet</h3>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                   <div className="text-sm text-blue-700 font-semibold">Assets</div>
                   <div className="text-2xl font-bold text-blue-900 mt-1">
@@ -582,12 +578,6 @@ export default function TrialBalancePage() {
                   <div className="text-sm text-purple-700 font-semibold">Equity</div>
                   <div className="text-2xl font-bold text-purple-900 mt-1">
                     {formatNumber(Math.abs(metrics.totalEquity))}
-                  </div>
-                </div>
-                <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
-                  <div className="text-sm text-orange-700 font-semibold">Intercompany</div>
-                  <div className="text-2xl font-bold text-orange-900 mt-1">
-                    {formatNumber(Math.abs(metrics.totalIntercompany))}
                   </div>
                 </div>
               </div>
@@ -636,7 +626,7 @@ export default function TrialBalancePage() {
                         Balance Sheet Check
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
-                        Assets + Intercompany - Liabilities - Equity {metrics.profitLoss >= 0 ? '-' : '+'} P&L = 0
+                        Assets - Liabilities - Equity {metrics.profitLoss >= 0 ? '-' : '+'} P&L = 0
                       </div>
                     </div>
                     <div className="text-right">
