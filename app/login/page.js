@@ -12,7 +12,8 @@ export default function LoginPage() {
 
   const handleBackToHome = () => {
     console.log('Navigating to /home');
-    router.push('/home');
+    // Use window.location for reliable navigation
+    window.location.href = '/home';
   };
 
   const handleSubmit = async (e) => {
