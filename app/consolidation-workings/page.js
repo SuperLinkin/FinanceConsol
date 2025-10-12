@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/PageHeader';
+import Link from 'next/link';
 import {
   Download,
   Save,
@@ -54,10 +55,6 @@ export default function ConsolidationWorkings() {
   const [editingNoteNumber, setEditingNoteNumber] = useState(null); // { noteId, currentNumber }
   const [fy2024Expanded, setFy2024Expanded] = useState(false); // Expand/collapse FY2024 details
   const [fy2023Expanded, setFy2023Expanded] = useState(false); // Expand/collapse FY2023 details
-  const [showNoteBuilder, setShowNoteBuilder] = useState(false); // Note Builder modal
-  const [noteDescriptions, setNoteDescriptions] = useState([]); // Store note descriptions
-  const [noteContents, setNoteContents] = useState({}); // Map of noteRef -> content
-  const [savingNotes, setSavingNotes] = useState({}); // Track saving state per note
 
   // Statement tabs
   const statementTabs = [
@@ -70,14 +67,6 @@ export default function ConsolidationWorkings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, selectedStatement, comparePeriod]);
 
-  // Load note descriptions when Note Builder opens
-  useEffect(() => {
-    if (showNoteBuilder) {
-      loadNoteDescriptions();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showNoteBuilder]);
-
   const displayToast = (message, type = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -86,95 +75,6 @@ export default function ConsolidationWorkings() {
   };
 
   // Load note descriptions from database
-  const loadNoteDescriptions = async () => {
-    try {
-      // Get current company - using entities[0].company_id as a proxy
-      if (!entities || entities.length === 0) {
-        console.log('⚠️ No entities loaded yet, skipping note descriptions load');
-        return;
-      }
-
-      const companyId = entities[0].company_id;
-      console.log('📖 Loading note descriptions for company:', companyId);
-
-      const response = await fetch(`/api/note-descriptions?company_id=${companyId}`);
-      if (!response.ok) {
-        throw new Error('Failed to load note descriptions');
-      }
-
-      const { data } = await response.json();
-      console.log('✅ Loaded note descriptions:', data?.length || 0, 'records');
-
-      setNoteDescriptions(data || []);
-
-      // Build a map of noteRef -> content for easy lookup
-      const contentsMap = {};
-      (data || []).forEach(desc => {
-        contentsMap[desc.note_ref] = desc.note_content || '';
-      });
-      setNoteContents(contentsMap);
-    } catch (error) {
-      console.error('Error loading note descriptions:', error);
-      displayToast('Error loading note descriptions', 'error');
-    }
-  };
-
-  // Save a note description
-  const saveNoteDescription = async (noteRef, noteTitle, noteContent, statementType, className, subclassName, noteName) => {
-    try {
-      // Get current company
-      if (!entities || entities.length === 0) {
-        displayToast('Cannot save: No company context available', 'error');
-        return;
-      }
-
-      const companyId = entities[0].company_id;
-
-      // Set saving state for this note
-      setSavingNotes(prev => ({ ...prev, [noteRef]: true }));
-
-      console.log('💾 Saving note description:', { noteRef, noteTitle, companyId });
-
-      const response = await fetch('/api/note-descriptions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          company_id: companyId,
-          note_ref: noteRef,
-          note_title: noteTitle,
-          note_content: noteContent,
-          statement_type: statementType,
-          class_name: className,
-          subclass_name: subclassName,
-          note_name: noteName,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save note description');
-      }
-
-      const { data } = await response.json();
-      console.log('✅ Note saved successfully:', data);
-
-      // Update local state
-      setNoteContents(prev => ({
-        ...prev,
-        [noteRef]: noteContent,
-      }));
-
-      displayToast(`Note ${noteRef} saved successfully!`, 'success');
-    } catch (error) {
-      console.error('Error saving note description:', error);
-      displayToast(`Error saving note: ${error.message}`, 'error');
-    } finally {
-      setSavingNotes(prev => ({ ...prev, [noteRef]: false }));
-    }
-  };
-
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -1659,13 +1559,13 @@ export default function ConsolidationWorkings() {
                 <RefreshCw size={16} />
                 Sync to Reports
               </button>
-              <button
-                onClick={() => setShowNoteBuilder(true)}
+              <Link
+                href="/note-builder"
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
               >
                 <BookOpen size={16} />
                 Note Builder
-              </button>
+              </Link>
               <button className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-700">
                 <Save size={16} />
                 Save
