@@ -12,8 +12,17 @@ export function AuthProvider({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Skip auth check for pre-authentication pages
+    const preAuthPages = ['/login', '/home', '/product', '/about'];
+    const isPreAuthPage = preAuthPages.includes(pathname);
+
+    if (isPreAuthPage) {
+      setLoading(false);
+      return;
+    }
+
     checkAuth();
-  }, []);
+  }, [pathname]);
 
   const checkAuth = async () => {
     try {
@@ -38,16 +47,13 @@ export function AuthProvider({ children }) {
           companyId: data.user.company_id
         }));
       } else {
-        // Not authenticated - redirect to login if not already there
-        if (pathname !== '/login') {
-          router.push('/login');
-        }
+        // Not authenticated - redirect to home page (landing page)
+        router.push('/home');
       }
     } catch (error) {
       console.error('Auth check error:', error);
-      if (pathname !== '/login') {
-        router.push('/login');
-      }
+      // Redirect to home page on error
+      router.push('/home');
     } finally {
       setLoading(false);
     }
