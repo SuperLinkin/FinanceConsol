@@ -50,7 +50,8 @@ export default function ConsolidationWorkings() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [editingNoteNumber, setEditingNoteNumber] = useState(null); // { noteId, currentNumber }
-  const [columnsExpanded, setColumnsExpanded] = useState(false); // Collapse/expand entity columns
+  const [fy2024Expanded, setFy2024Expanded] = useState(false); // Expand/collapse FY2024 details
+  const [fy2023Expanded, setFy2023Expanded] = useState(false); // Expand/collapse FY2023 details
 
   // Statement tabs
   const statementTabs = [
@@ -851,13 +852,13 @@ export default function ConsolidationWorkings() {
     if (node.level === 'note_group') {
       return (
         <React.Fragment key={node.id}>
-          <tr className="border-b border-slate-200 bg-indigo-100 text-indigo-900 font-bold text-sm">
-            <td className="py-3 px-4 sticky left-0 bg-indigo-100 z-10" style={{ paddingLeft: `${paddingLeft + 16}px` }}>
+          <tr className="border-b border-slate-200 bg-slate-100 text-[#101828] font-bold text-sm">
+            <td className="py-3 px-4 sticky left-0 bg-slate-100 z-10" style={{ paddingLeft: `${paddingLeft + 16}px` }}>
               <div className="flex items-center gap-2">
                 {hasChildren && (
                   <button
                     onClick={() => toggleRow(node.id)}
-                    className="rounded p-1 hover:bg-indigo-200 text-indigo-900"
+                    className="rounded p-1 hover:bg-slate-200 text-[#101828]"
                   >
                     {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
@@ -866,27 +867,36 @@ export default function ConsolidationWorkings() {
                 <span className="font-semibold text-base">{node.name}</span>
               </div>
             </td>
-            {/* Empty cells for entities, eliminations, adjustments, and consolidated */}
-            {columnsExpanded && entities.map(entity => (
-              <React.Fragment key={entity.id}>
-                <td className="py-3 px-4 text-right text-slate-400">-</td>
-                {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 bg-slate-100">-</td>}
-              </React.Fragment>
-            ))}
-            {columnsExpanded && (
+
+            {/* FY 2024 columns */}
+            {!fy2024Expanded ? (
+              <td className="py-3 px-4 text-right text-gray-400">-</td>
+            ) : (
               <>
-                <td className="py-3 px-4 text-right text-slate-400">-</td>
-                {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 bg-red-50">-</td>}
+                {entities.map(entity => (
+                  <td key={`fy24-${entity.id}`} className="py-3 px-4 text-right text-gray-400">-</td>
+                ))}
+                <td className="py-3 px-4 text-right text-gray-400">-</td>
+                <td className="py-3 px-4 text-right text-gray-400">-</td>
+                <td className="py-3 px-4 text-right text-gray-400">-</td>
               </>
             )}
-            {columnsExpanded && (
-              <>
-                <td className="py-3 px-4 text-right text-slate-400">-</td>
-                {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 bg-blue-50">-</td>}
-              </>
+
+            {/* FY 2023 columns if comparePeriod exists */}
+            {comparePeriod && (
+              !fy2023Expanded ? (
+                <td className="py-3 px-4 text-right text-gray-400 sticky right-0 bg-slate-100">-</td>
+              ) : (
+                <>
+                  {entities.map(entity => (
+                    <td key={`fy23-${entity.id}`} className="py-3 px-4 text-right text-gray-400 bg-gray-50">-</td>
+                  ))}
+                  <td className="py-3 px-4 text-right text-gray-400 bg-gray-50">-</td>
+                  <td className="py-3 px-4 text-right text-gray-400 bg-gray-50">-</td>
+                  <td className="py-3 px-4 text-right text-gray-400 sticky right-0 bg-slate-100">-</td>
+                </>
+              )
             )}
-            <td className="py-3 px-4 text-right text-slate-400 sticky right-0 bg-indigo-100">-</td>
-            {comparePeriod && <td className="py-3 px-4 text-right text-slate-400 sticky right-0 bg-indigo-50">-</td>}
           </tr>
           {/* Render children (notes) if expanded */}
           {isExpanded && hasChildren && node.children.map((child, index) => renderRow(child, depth + 1))}
@@ -919,97 +929,223 @@ export default function ConsolidationWorkings() {
                 <span className="text-xs opacity-75 ml-2">(Click to view Income Statement)</span>
               </div>
             </td>
-            {columnsExpanded && entities.map(entity => {
-              // Calculate revenue for this entity - use consistent debit - credit logic
-              let revenue = 0;
-              revenueAccounts.forEach(acc => {
-                const tbEntries = trialBalances.filter(tb =>
-                  tb.account_code === acc.account_code && tb.entity_id === entity.id
-                );
-                tbEntries.forEach(tb => {
-                  const debit = parseFloat(tb.debit || 0);
-                  const credit = parseFloat(tb.credit || 0);
-                  // Use consistent logic: debit - credit (will be negative for credit balances)
-                  const value = debit - credit;
-                  revenue += value;
-                  if (typeof window !== 'undefined' && value !== 0) {
-                    console.log(`  Rev Account ${acc.account_code}: Dr=${debit}, Cr=${credit}, Value=${value}`);
-                  }
-                });
-              });
 
-              // Calculate expenses for this entity - use consistent debit - credit logic
-              let expenses = 0;
-              expenseAccounts.forEach(acc => {
-                const tbEntries = trialBalances.filter(tb =>
-                  tb.account_code === acc.account_code && tb.entity_id === entity.id
-                );
-                tbEntries.forEach(tb => {
-                  const debit = parseFloat(tb.debit || 0);
-                  const credit = parseFloat(tb.credit || 0);
-                  // Use consistent logic: debit - credit (will be positive for debit balances)
-                  const value = debit - credit;
-                  expenses += value;
-                  if (typeof window !== 'undefined' && value !== 0) {
-                    console.log(`  Exp Account ${acc.account_code}: Dr=${debit}, Cr=${credit}, Value=${value}`);
-                  }
-                });
-              });
+            {/* FY 2024 Profit/Loss */}
+            {!fy2024Expanded ? (
+              <td className="py-2 px-4 text-right font-mono text-sm font-bold">
+                {(() => {
+                  const totals = calculateClassTotals();
+                  const profit = totals.profit;
+                  return (
+                    <span className={profit <= 0 ? 'text-green-300' : 'text-red-300'}>
+                      {formatCurrency(Math.abs(profit))}
+                    </span>
+                  );
+                })()}
+              </td>
+            ) : (
+              <>
+                {/* Entity columns for FY 2024 */}
+                {entities.map(entity => {
+                  // Calculate revenue for this entity
+                  let revenue = 0;
+                  revenueAccounts.forEach(acc => {
+                    const tbEntries = trialBalances.filter(tb =>
+                      tb.account_code === acc.account_code && tb.entity_id === entity.id
+                    );
+                    tbEntries.forEach(tb => {
+                      const debit = parseFloat(tb.debit || 0);
+                      const credit = parseFloat(tb.credit || 0);
+                      const value = debit - credit;
+                      revenue += value;
+                    });
+                  });
 
-              // Profit = Revenue - Expenses
-              // Revenue is negative (credit balance), Expenses is positive (debit balance)
-              // So: (-100) - (50) = -150 means Loss of 150
-              // Or: (-100) - (-20) = -80 means Loss of 80
-              // Display profit/loss correctly
-              const entityProfit = revenue - expenses;
+                  // Calculate expenses for this entity
+                  let expenses = 0;
+                  expenseAccounts.forEach(acc => {
+                    const tbEntries = trialBalances.filter(tb =>
+                      tb.account_code === acc.account_code && tb.entity_id === entity.id
+                    );
+                    tbEntries.forEach(tb => {
+                      const debit = parseFloat(tb.debit || 0);
+                      const credit = parseFloat(tb.credit || 0);
+                      const value = debit - credit;
+                      expenses += value;
+                    });
+                  });
 
-              if (typeof window !== 'undefined') {
-                console.log(`Entity ${entity.entity_name}: Revenue=${revenue}, Expenses=${expenses}, Profit=${entityProfit}`);
-              }
+                  const entityProfit = revenue - expenses;
 
-              return (
-                <td key={entity.id} className={`py-2 px-4 text-right font-mono text-sm ${entityProfit <= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                  {formatCurrency(Math.abs(entityProfit))}
+                  return (
+                    <td key={entity.id} className={`py-2 px-4 text-right font-mono text-sm ${entityProfit <= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                      {formatCurrency(Math.abs(entityProfit))}
+                    </td>
+                  );
+                })}
+
+                {/* Eliminations column */}
+                <td className="py-2 px-4 text-right font-mono text-sm text-white">
+                  {(() => {
+                    const revElim = getEliminationValue(revenueAccounts, 'Revenue');
+                    const expElim = getEliminationValue(expenseAccounts, 'Expenses');
+                    const netElim = revElim - expElim;
+                    return formatCurrency(Math.abs(netElim));
+                  })()}
                 </td>
-              );
-            })}
 
-            {/* Eliminations column */}
-            {columnsExpanded && (
-              <td className="py-2 px-4 text-right font-mono text-sm text-white">
-                {(() => {
-                  const revElim = getEliminationValue(revenueAccounts, 'Revenue');
-                  const expElim = getEliminationValue(expenseAccounts, 'Expenses');
-                  const netElim = revElim - expElim;
-                  return formatCurrency(Math.abs(netElim));
-                })()}
-              </td>
+                {/* Adjustments column */}
+                <td className="py-2 px-4 text-right font-mono text-sm text-white">
+                  {(() => {
+                    const revAdj = getAdjustmentValue(revenueAccounts, 'Revenue');
+                    const expAdj = getAdjustmentValue(expenseAccounts, 'Expenses');
+                    const netAdj = revAdj - expAdj;
+                    return formatCurrency(Math.abs(netAdj));
+                  })()}
+                </td>
+
+                {/* Consolidated column for FY 2024 */}
+                <td className="py-2 px-4 text-right font-mono text-sm font-bold">
+                  {(() => {
+                    const totals = calculateClassTotals();
+                    const profit = totals.profit;
+                    return (
+                      <span className={profit <= 0 ? 'text-green-300' : 'text-red-300'}>
+                        {formatCurrency(Math.abs(profit))}
+                      </span>
+                    );
+                  })()}
+                </td>
+              </>
             )}
 
-            {/* Adjustments column */}
-            {columnsExpanded && (
-              <td className="py-2 px-4 text-right font-mono text-sm text-white">
-                {(() => {
-                  const revAdj = getAdjustmentValue(revenueAccounts, 'Revenue');
-                  const expAdj = getAdjustmentValue(expenseAccounts, 'Expenses');
-                  const netAdj = revAdj - expAdj;
-                  return formatCurrency(Math.abs(netAdj));
-                })()}
-              </td>
-            )}
+            {/* FY 2023 Profit/Loss if comparePeriod exists */}
+            {comparePeriod && (
+              !fy2023Expanded ? (
+                <td className="py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 bg-[#101828]">
+                  {(() => {
+                    // Calculate FY2023 profit from compare trial balances
+                    let totalRev = 0;
+                    let totalExp = 0;
 
-            {/* Consolidated column */}
-            <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 bg-[#101828]`}>
-              {(() => {
-                const totals = calculateClassTotals();
-                const profit = totals.profit;
-                return (
-                  <span className={profit <= 0 ? 'text-green-300' : 'text-red-300'}>
-                    {formatCurrency(Math.abs(profit))}
-                  </span>
-                );
-              })()}
-            </td>
+                    entities.forEach(entity => {
+                      revenueAccounts.forEach(acc => {
+                        const tbEntries = compareTrialBalances.filter(tb =>
+                          tb.account_code === acc.account_code && tb.entity_id === entity.id
+                        );
+                        tbEntries.forEach(tb => {
+                          totalRev += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                        });
+                      });
+
+                      expenseAccounts.forEach(acc => {
+                        const tbEntries = compareTrialBalances.filter(tb =>
+                          tb.account_code === acc.account_code && tb.entity_id === entity.id
+                        );
+                        tbEntries.forEach(tb => {
+                          totalExp += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                        });
+                      });
+                    });
+
+                    const profit = totalRev - totalExp;
+                    return (
+                      <span className={profit <= 0 ? 'text-green-300' : 'text-red-300'}>
+                        {formatCurrency(Math.abs(profit))}
+                      </span>
+                    );
+                  })()}
+                </td>
+              ) : (
+                <>
+                  {/* Entity columns for FY 2023 */}
+                  {entities.map(entity => {
+                    let revenue = 0;
+                    revenueAccounts.forEach(acc => {
+                      const tbEntries = compareTrialBalances.filter(tb =>
+                        tb.account_code === acc.account_code && tb.entity_id === entity.id
+                      );
+                      tbEntries.forEach(tb => {
+                        revenue += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                      });
+                    });
+
+                    let expenses = 0;
+                    expenseAccounts.forEach(acc => {
+                      const tbEntries = compareTrialBalances.filter(tb =>
+                        tb.account_code === acc.account_code && tb.entity_id === entity.id
+                      );
+                      tbEntries.forEach(tb => {
+                        expenses += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                      });
+                    });
+
+                    const entityProfit = revenue - expenses;
+
+                    return (
+                      <td key={`fy23-${entity.id}`} className={`py-2 px-4 text-right font-mono text-sm bg-slate-800 ${entityProfit <= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                        {formatCurrency(Math.abs(entityProfit))}
+                      </td>
+                    );
+                  })}
+
+                  {/* Eliminations column for FY 2023 */}
+                  <td className="py-2 px-4 text-right font-mono text-sm text-white bg-slate-800">
+                    {(() => {
+                      const revElim = getEliminationValue(revenueAccounts, 'Revenue');
+                      const expElim = getEliminationValue(expenseAccounts, 'Expenses');
+                      const netElim = revElim - expElim;
+                      return formatCurrency(Math.abs(netElim));
+                    })()}
+                  </td>
+
+                  {/* Adjustments column for FY 2023 */}
+                  <td className="py-2 px-4 text-right font-mono text-sm text-white bg-slate-800">
+                    {(() => {
+                      const revAdj = getAdjustmentValue(revenueAccounts, 'Revenue');
+                      const expAdj = getAdjustmentValue(expenseAccounts, 'Expenses');
+                      const netAdj = revAdj - expAdj;
+                      return formatCurrency(Math.abs(netAdj));
+                    })()}
+                  </td>
+
+                  {/* Consolidated column for FY 2023 */}
+                  <td className="py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 bg-[#101828]">
+                    {(() => {
+                      let totalRev = 0;
+                      let totalExp = 0;
+
+                      entities.forEach(entity => {
+                        revenueAccounts.forEach(acc => {
+                          const tbEntries = compareTrialBalances.filter(tb =>
+                            tb.account_code === acc.account_code && tb.entity_id === entity.id
+                          );
+                          tbEntries.forEach(tb => {
+                            totalRev += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                          });
+                        });
+
+                        expenseAccounts.forEach(acc => {
+                          const tbEntries = compareTrialBalances.filter(tb =>
+                            tb.account_code === acc.account_code && tb.entity_id === entity.id
+                          );
+                          tbEntries.forEach(tb => {
+                            totalExp += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                          });
+                        });
+                      });
+
+                      const profit = totalRev - totalExp;
+                      return (
+                        <span className={profit <= 0 ? 'text-green-300' : 'text-red-300'}>
+                          {formatCurrency(Math.abs(profit))}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                </>
+              )
+            )}
           </tr>
         </React.Fragment>
       );
@@ -1018,22 +1154,22 @@ export default function ConsolidationWorkings() {
     // Get all accounts including children if collapsed
     const accountsToUse = (!isExpanded && hasChildren) ? getAllAccounts(node) : (node.accounts || []);
 
-    // Styles based on level with proper text colors
+    // Simplified styles with clear text visibility
     const rowStyles = {
       class: 'bg-[#101828] text-white font-bold text-sm',
-      subclass: 'bg-slate-100 font-semibold text-sm text-[#101828]',
+      subclass: 'bg-slate-50 font-semibold text-sm text-[#101828]',
       note: 'bg-white text-sm text-[#101828]',
-      subnote: 'bg-slate-50 text-xs text-[#101828]',
-      note_group: 'bg-indigo-100 font-bold text-sm text-indigo-900'
+      subnote: 'bg-gray-50 text-xs text-[#101828]',
+      note_group: 'bg-slate-100 font-bold text-sm text-[#101828]'
     };
 
     // Get specific background color for sticky cell
     const stickyBgColors = {
       class: 'bg-[#101828]',
-      subclass: 'bg-slate-100',
+      subclass: 'bg-slate-50',
       note: 'bg-white',
-      subnote: 'bg-slate-50',
-      note_group: 'bg-indigo-100'
+      subnote: 'bg-gray-50',
+      note_group: 'bg-slate-100'
     };
 
     return (
@@ -1058,7 +1194,7 @@ export default function ConsolidationWorkings() {
 
               {/* Show note number badge if available (all tabs) */}
               {node.level === 'note' && node.noteNumber && (
-                <span className="px-2 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded">
+                <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded">
                   {node.noteNumber}
                 </span>
               )}
@@ -1075,7 +1211,7 @@ export default function ConsolidationWorkings() {
               {node.level === 'note' && selectedStatement === 'notes_to_accounts' && (
                 <button
                   onClick={() => setEditingNoteNumber({ noteNode: node, currentNumber: node.noteNumber })}
-                  className="ml-auto p-1 hover:bg-indigo-100 rounded text-indigo-600 transition-colors"
+                  className="ml-auto p-1 hover:bg-blue-100 rounded text-blue-600 transition-colors"
                   title="Edit note number"
                 >
                   <Edit2 size={14} />
@@ -1084,118 +1220,149 @@ export default function ConsolidationWorkings() {
             </div>
           </td>
 
-          {/* Entity Columns */}
-          {columnsExpanded && entities.map(entity => {
-            // For class level, always show total of all children
-            const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-            const value = allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className, false) : 0;
-            const compareValue = comparePeriod && allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className, true) : 0;
-
-            return (
-              <React.Fragment key={entity.id}>
-                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-white' : 'text-[#101828]'}`}>
-                  {allClassAccounts.length > 0 ? (
-                    <button
-                      onClick={() => setShowGLDetail({ node, entityId: entity.id, entityName: entity.entity_name, className, accounts: allClassAccounts })}
-                      className="hover:underline hover:font-semibold cursor-pointer"
-                    >
-                      {formatCurrency(Math.abs(value))}
-                    </button>
-                  ) : (
-                    <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
-                  )}
-                </td>
-                {comparePeriod && (
-                  <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-slate-300 bg-slate-700' : 'text-slate-700 bg-slate-50'}`}>
-                    {allClassAccounts.length > 0 ? formatCurrency(Math.abs(compareValue)) : '-'}
-                  </td>
-                )}
-              </React.Fragment>
-            );
-          })}
-
-          {/* Eliminations Column */}
-          {columnsExpanded && (
+          {/* FY 2024 Columns */}
+          {!fy2024Expanded ? (
+            // Collapsed FY 2024 - Show only consolidated value
+            <td className={`py-2 px-4 text-right font-mono text-sm font-bold ${node.level === 'class' ? 'text-white' : 'bg-blue-50 text-[#101828]'}`}>
+              {(() => {
+                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, false);
+                return allClassAccounts.length > 0 ? (
+                  formatCurrency(Math.abs(consolidatedValue))
+                ) : (
+                  <span className={node.level === 'class' ? 'text-gray-400' : 'text-gray-400'}>-</span>
+                );
+              })()}
+            </td>
+          ) : (
+            // Expanded FY 2024 - Show entity, elim, adj, and consolidated columns
             <>
-              <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-red-50'}`}>
+              {/* Entity columns for FY 2024 */}
+              {entities.map(entity => {
+                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                const value = allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className, false) : 0;
+
+                return (
+                  <td key={entity.id} className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-white' : 'text-[#101828]'}`}>
+                    {allClassAccounts.length > 0 ? (
+                      <button
+                        onClick={() => setShowGLDetail({ node, entityId: entity.id, entityName: entity.entity_name, className, accounts: allClassAccounts })}
+                        className="hover:underline hover:font-semibold cursor-pointer"
+                      >
+                        {formatCurrency(Math.abs(value))}
+                      </button>
+                    ) : (
+                      <span className={node.level === 'class' ? 'text-gray-400' : 'text-gray-400'}>-</span>
+                    )}
+                  </td>
+                );
+              })}
+
+              {/* Eliminations column for FY 2024 */}
+              <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-orange-50'}`}>
                 {(() => {
                   const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
                   const elimValue = getEliminationValue(allClassAccounts, className);
                   return allClassAccounts.length > 0 ? (
                     <button
                       onClick={() => setShowEliminationDetail(node)}
-                      className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-red-800'}`}
+                      className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-[#101828]'}`}
                     >
                       {formatCurrency(Math.abs(elimValue))}
                     </button>
                   ) : (
-                    <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                    <span className={node.level === 'class' ? 'text-gray-400' : 'text-gray-400'}>-</span>
                   );
                 })()}
               </td>
-              {comparePeriod && (
-                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-slate-300 bg-red-800' : 'text-red-700 bg-red-50'}`}>
-                  {(() => {
-                    const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-                    const elimValue = getEliminationValue(allClassAccounts, className);
-                    return allClassAccounts.length > 0 ? formatCurrency(Math.abs(elimValue)) : '-';
-                  })()}
-                </td>
-              )}
-            </>
-          )}
 
-          {/* Adjustments Column */}
-          {columnsExpanded && (
-            <>
-              <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-blue-50'}`}>
+              {/* Adjustments column for FY 2024 */}
+              <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? '' : 'bg-green-50'}`}>
                 {(() => {
                   const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
                   const adjValue = getAdjustmentValue(allClassAccounts, className);
                   return allClassAccounts.length > 0 ? (
                     <button
                       onClick={() => setShowAdjustmentDetail(node)}
-                      className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-blue-800'}`}
+                      className={`hover:underline font-semibold ${node.level === 'class' ? 'text-white' : 'text-[#101828]'}`}
                     >
                       {formatCurrency(Math.abs(adjValue))}
                     </button>
                   ) : (
-                    <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
+                    <span className={node.level === 'class' ? 'text-gray-400' : 'text-gray-400'}>-</span>
                   );
                 })()}
               </td>
-              {comparePeriod && (
-                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-slate-300 bg-blue-800' : 'text-blue-700 bg-blue-50'}`}>
+
+              {/* Consolidated column for FY 2024 */}
+              <td className={`py-2 px-4 text-right font-mono text-sm font-bold ${node.level === 'class' ? 'text-white' : 'bg-blue-50 text-[#101828]'}`}>
+                {(() => {
+                  const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                  const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, false);
+                  return allClassAccounts.length > 0 ? (
+                    formatCurrency(Math.abs(consolidatedValue))
+                  ) : (
+                    <span className={node.level === 'class' ? 'text-gray-400' : 'text-gray-400'}>-</span>
+                  );
+                })()}
+              </td>
+            </>
+          )}
+
+          {/* FY 2023 Columns if comparePeriod exists */}
+          {comparePeriod && (
+            !fy2023Expanded ? (
+              // Collapsed FY 2023 - Show only consolidated value
+              <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-[#101828] text-white' : 'bg-gray-50 text-[#101828]'}`}>
+                {(() => {
+                  const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                  const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, true);
+                  return allClassAccounts.length > 0 ? formatCurrency(Math.abs(consolidatedValue)) : '-';
+                })()}
+              </td>
+            ) : (
+              // Expanded FY 2023 - Show entity, elim, adj, and consolidated columns
+              <>
+                {/* Entity columns for FY 2023 */}
+                {entities.map(entity => {
+                  const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                  const compareValue = allClassAccounts.length > 0 ? getEntityValue(allClassAccounts, entity.id, className, true) : 0;
+
+                  return (
+                    <td key={`fy23-${entity.id}`} className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-gray-300 bg-slate-800' : 'text-[#101828] bg-gray-50'}`}>
+                      {allClassAccounts.length > 0 ? formatCurrency(Math.abs(compareValue)) : '-'}
+                    </td>
+                  );
+                })}
+
+                {/* Eliminations column for FY 2023 */}
+                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-gray-300 bg-slate-800' : 'text-[#101828] bg-gray-50'}`}>
+                  {(() => {
+                    const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                    const elimValue = getEliminationValue(allClassAccounts, className);
+                    return allClassAccounts.length > 0 ? formatCurrency(Math.abs(elimValue)) : '-';
+                  })()}
+                </td>
+
+                {/* Adjustments column for FY 2023 */}
+                <td className={`py-2 px-4 text-right font-mono text-sm ${node.level === 'class' ? 'text-gray-300 bg-slate-800' : 'text-[#101828] bg-gray-50'}`}>
                   {(() => {
                     const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
                     const adjValue = getAdjustmentValue(allClassAccounts, className);
                     return allClassAccounts.length > 0 ? formatCurrency(Math.abs(adjValue)) : '-';
                   })()}
                 </td>
-              )}
-            </>
-          )}
 
-          {/* Consolidated Column */}
-          <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-[#101828] text-white' : 'bg-indigo-50 text-indigo-900'}`}>
-            {(() => {
-              const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-              const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, false);
-              return allClassAccounts.length > 0 ? (
-                formatCurrency(Math.abs(consolidatedValue))
-              ) : (
-                <span className={node.level === 'class' ? 'text-slate-300' : 'text-slate-400'}>-</span>
-              );
-            })()}
-          </td>
-          {comparePeriod && (
-            <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-indigo-800 text-slate-300' : 'bg-indigo-50 text-indigo-800'}`}>
-              {(() => {
-                const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
-                const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, true);
-                return allClassAccounts.length > 0 ? formatCurrency(Math.abs(consolidatedValue)) : '-';
-              })()}
-            </td>
+                {/* Consolidated column for FY 2023 */}
+                <td className={`py-2 px-4 text-right font-mono text-sm font-bold sticky right-0 ${node.level === 'class' ? 'bg-[#101828] text-white' : 'bg-gray-50 text-[#101828]'}`}>
+                  {(() => {
+                    const allClassAccounts = node.level === 'class' ? getAllAccounts(node) : accountsToUse;
+                    const consolidatedValue = getConsolidatedValue({ ...node, accounts: allClassAccounts }, true);
+                    return allClassAccounts.length > 0 ? formatCurrency(Math.abs(consolidatedValue)) : '-';
+                  })()}
+                </td>
+              </>
+            )
           )}
         </tr>
 
@@ -1311,12 +1478,12 @@ export default function ConsolidationWorkings() {
                 onClick={() => {
                   displayToast('Data ready to sync with Reporting Builder!', 'success');
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
               >
                 <RefreshCw size={16} />
                 Sync to Reports
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+              <button className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-700">
                 <Save size={16} />
                 Save
               </button>
@@ -1335,7 +1502,7 @@ export default function ConsolidationWorkings() {
                 onClick={() => setSelectedStatement(tab.id)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   selectedStatement === tab.id
-                    ? 'bg-indigo-600 text-white shadow-md'
+                    ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
                 }`}
               >
@@ -1414,105 +1581,112 @@ export default function ConsolidationWorkings() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="sticky top-0 z-20">
-                  {/* Period labels row (only if comparison period selected) */}
-                  {comparePeriod && (
-                    <tr className="bg-[#1e293b] text-white border-b border-slate-600">
-                      <th className="py-2 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#1e293b] z-30"></th>
-                      {columnsExpanded && entities.map(entity => (
-                        <th key={`${entity.id}-header`} colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase border-l border-slate-600">
-                          {entity.entity_name}
-                        </th>
-                      ))}
-                      {columnsExpanded && (
-                        <th colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase bg-red-900 border-l border-slate-600">
-                          Eliminations
-                        </th>
-                      )}
-                      {columnsExpanded && (
-                        <th colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase bg-blue-900 border-l border-slate-600">
-                          Adjustments
-                        </th>
-                      )}
-                      <th colSpan="2" className="py-2 px-4 text-center font-semibold text-xs uppercase bg-indigo-900 sticky right-0 z-30 border-l border-slate-600">
-                        Consolidated
-                      </th>
-                    </tr>
-                  )}
-
                   <tr className="bg-[#101828] text-white">
-                    <th className="py-3 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#101828] z-30">
-                      <div className="flex items-center justify-between">
-                        <span>Chart of Accounts</span>
-                        <button
-                          onClick={() => setColumnsExpanded(!columnsExpanded)}
-                          className="ml-2 p-1 hover:bg-white/10 rounded transition-colors"
-                          title={columnsExpanded ? "Collapse details" : "Expand details"}
-                        >
-                          {columnsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        </button>
-                      </div>
+                    {/* COA Column - Always visible, sticky left */}
+                    <th className="py-3 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#101828] z-30 min-w-[300px]">
+                      Chart of Accounts
                     </th>
-                    {columnsExpanded && entities.map(entity => (
-                      <React.Fragment key={entity.id}>
-                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px]">
-                          <div className="text-xs opacity-75 font-normal">{comparePeriod ? selectedPeriod : entity.entity_type}</div>
-                        </th>
-                        {comparePeriod && (
-                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-slate-700">
-                            <div className="text-xs opacity-75 font-normal">{comparePeriod}</div>
-                          </th>
-                        )}
-                      </React.Fragment>
-                    ))}
-                    {columnsExpanded && (
-                      <>
-                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-900">
-                          <div className="flex items-center justify-end gap-1">
-                            <Minus size={14} />
-                            {comparePeriod ? selectedPeriod : 'Eliminations'}
-                          </div>
-                        </th>
-                        {comparePeriod && (
-                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-red-800">
-                            <div className="flex items-center justify-end gap-1">
-                              <Minus size={14} />
-                              {comparePeriod}
-                            </div>
-                          </th>
-                        )}
-                      </>
-                    )}
-                    {columnsExpanded && (
-                      <>
-                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-900">
-                          <div className="flex items-center justify-end gap-1">
-                            <Plus size={14} />
-                            {comparePeriod ? selectedPeriod : 'Adjustments'}
-                          </div>
-                        </th>
-                        {comparePeriod && (
-                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-blue-800">
-                            <div className="flex items-center justify-end gap-1">
-                              <Plus size={14} />
-                              {comparePeriod}
-                            </div>
-                          </th>
-                        )}
-                      </>
-                    )}
-                    <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-indigo-900 sticky right-0 z-30">
-                      <div className="flex items-center justify-end gap-1">
-                        <Calculator size={14} />
-                        {comparePeriod ? selectedPeriod : 'Consolidated'}
-                      </div>
-                    </th>
-                    {comparePeriod && (
-                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-indigo-800 sticky right-0 z-30">
-                        <div className="flex items-center justify-end gap-1">
-                          <Calculator size={14} />
-                          {comparePeriod}
+
+                    {/* FY 2024 Column(s) - Collapsed or Expanded */}
+                    {!fy2024Expanded ? (
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-blue-700">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setFy2024Expanded(true)}
+                            className="p-1 hover:bg-white/10 rounded transition-colors"
+                            title="Expand FY 2024 details"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                          <span>{selectedPeriod || 'FY 2024'}</span>
                         </div>
                       </th>
+                    ) : (
+                      <>
+                        {/* Expanded FY 2024 - Show all entity columns */}
+                        {entities.map(entity => (
+                          <th key={`fy24-${entity.id}`} className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px]">
+                            <div className="text-xs opacity-75 font-normal">{entity.entity_name}</div>
+                          </th>
+                        ))}
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-orange-700">
+                          <div className="flex items-center justify-end gap-1">
+                            <Minus size={14} />
+                            Elim.
+                          </div>
+                        </th>
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-green-700">
+                          <div className="flex items-center justify-end gap-1">
+                            <Plus size={14} />
+                            Adj.
+                          </div>
+                        </th>
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-blue-700">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setFy2024Expanded(false)}
+                              className="p-1 hover:bg-white/10 rounded transition-colors"
+                              title="Collapse FY 2024 details"
+                            >
+                              <ChevronDown size={16} />
+                            </button>
+                            <Calculator size={14} />
+                            <span>{selectedPeriod || 'FY 2024'}</span>
+                          </div>
+                        </th>
+                      </>
+                    )}
+
+                    {/* FY 2023 Column(s) - Collapsed or Expanded - Only show if compare period selected */}
+                    {comparePeriod && (
+                      !fy2023Expanded ? (
+                        <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-blue-600 sticky right-0 z-30">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setFy2023Expanded(true)}
+                              className="p-1 hover:bg-white/10 rounded transition-colors"
+                              title="Expand FY 2023 details"
+                            >
+                              <ChevronRight size={16} />
+                            </button>
+                            <span>{comparePeriod || 'FY 2023'}</span>
+                          </div>
+                        </th>
+                      ) : (
+                        <>
+                          {/* Expanded FY 2023 - Show all entity columns */}
+                          {entities.map(entity => (
+                            <th key={`fy23-${entity.id}`} className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-slate-700">
+                              <div className="text-xs opacity-75 font-normal">{entity.entity_name}</div>
+                            </th>
+                          ))}
+                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-orange-600">
+                            <div className="flex items-center justify-end gap-1">
+                              <Minus size={14} />
+                              Elim.
+                            </div>
+                          </th>
+                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[140px] bg-green-600">
+                            <div className="flex items-center justify-end gap-1">
+                              <Plus size={14} />
+                              Adj.
+                            </div>
+                          </th>
+                          <th className="py-3 px-4 text-right font-semibold text-xs uppercase min-w-[160px] bg-blue-600 sticky right-0 z-30">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setFy2023Expanded(false)}
+                                className="p-1 hover:bg-white/10 rounded transition-colors"
+                                title="Collapse FY 2023 details"
+                              >
+                                <ChevronDown size={16} />
+                              </button>
+                              <Calculator size={14} />
+                              <span>{comparePeriod || 'FY 2023'}</span>
+                            </div>
+                          </th>
+                        </>
+                      )
                     )}
                   </tr>
                 </thead>
@@ -1537,10 +1711,10 @@ export default function ConsolidationWorkings() {
       {showEliminationDetail && (
         <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 overflow-y-auto animate-slideLeft">
           <div className="h-full flex flex-col">
-            <div className="bg-red-900 text-white px-8 py-6 flex items-center justify-between">
+            <div className="bg-orange-700 text-white px-8 py-6 flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold">Elimination Entries</h3>
-                <p className="text-sm text-red-100 mt-1">{showEliminationDetail.name}</p>
+                <p className="text-sm text-orange-100 mt-1">{showEliminationDetail.name}</p>
               </div>
               <button
                 onClick={() => setShowEliminationDetail(null)}
@@ -1597,7 +1771,7 @@ export default function ConsolidationWorkings() {
 
                   return elimDetails.length > 0 ? (
                     elimDetails.map((detail, index) => (
-                      <div key={index} className="border border-red-200 rounded-lg p-4 hover:bg-red-50">
+                      <div key={index} className="border border-orange-200 rounded-lg p-4 hover:bg-orange-50">
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="font-semibold text-gray-900">{detail.code}</div>
@@ -1608,12 +1782,12 @@ export default function ConsolidationWorkings() {
                             )}
                           </div>
                           <div className="text-right">
-                            <div className="font-mono font-bold text-lg text-red-900">
+                            <div className="font-mono font-bold text-lg text-[#101828]">
                               {formatCurrency(Math.abs(detail.amount))}
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-red-200">
+                        <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200">
                           <div>
                             <div className="text-xs text-gray-500">Debit</div>
                             <div className="font-mono text-sm text-gray-900">{formatCurrency(Math.abs(detail.debit))}</div>
@@ -1663,7 +1837,7 @@ export default function ConsolidationWorkings() {
       {showGLDetail && (
         <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 overflow-y-auto animate-slideLeft">
           <div className="h-full flex flex-col">
-            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+            <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold">GL Account Details</h3>
                 <p className="text-sm text-gray-300 mt-1">{showGLDetail.node.name} - {showGLDetail.entityName}</p>
@@ -1679,14 +1853,14 @@ export default function ConsolidationWorkings() {
             <div className="p-8 flex-1 overflow-y-auto">
               <div className="space-y-4">
                 {getGLDetails(showGLDetail.accounts, showGLDetail.entityId, showGLDetail.className).map((detail, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="font-semibold text-gray-900">{detail.code}</div>
                         <div className="text-sm text-gray-600">{detail.name}</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-mono font-bold text-lg text-indigo-900">
+                        <div className="font-mono font-bold text-lg text-[#101828]">
                           {formatCurrency(Math.abs(detail.amount))}
                         </div>
                       </div>
@@ -1791,7 +1965,7 @@ export default function ConsolidationWorkings() {
                     displayToast('Error updating note number: ' + error.message, 'error');
                   }
                 }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Save
               </button>
