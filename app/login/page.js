@@ -49,7 +49,8 @@ export default function LoginPage() {
         }));
 
         // Redirect to dashboard (Reporting module)
-        router.push('/');
+        // Use window.location.href for a full page reload to ensure authentication state is properly set
+        window.location.href = '/';
       } else {
         setError(data.error || 'Login failed');
       }
