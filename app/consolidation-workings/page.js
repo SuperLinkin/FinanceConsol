@@ -1029,7 +1029,8 @@ export default function ConsolidationWorkings() {
                           tb.account_code === acc.account_code && tb.entity_id === entity.id
                         );
                         tbEntries.forEach(tb => {
-                          totalRev += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                          // Revenue has natural credit balance: credit - debit
+                          totalRev += parseFloat(tb.credit || 0) - parseFloat(tb.debit || 0);
                         });
                       });
 
@@ -1038,6 +1039,7 @@ export default function ConsolidationWorkings() {
                           tb.account_code === acc.account_code && tb.entity_id === entity.id
                         );
                         tbEntries.forEach(tb => {
+                          // Expenses have natural debit balance: debit - credit
                           totalExp += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
                         });
                       });
@@ -1061,7 +1063,8 @@ export default function ConsolidationWorkings() {
                         tb.account_code === acc.account_code && tb.entity_id === entity.id
                       );
                       tbEntries.forEach(tb => {
-                        revenue += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                        // Revenue has natural credit balance: credit - debit
+                        revenue += parseFloat(tb.credit || 0) - parseFloat(tb.debit || 0);
                       });
                     });
 
@@ -1071,6 +1074,7 @@ export default function ConsolidationWorkings() {
                         tb.account_code === acc.account_code && tb.entity_id === entity.id
                       );
                       tbEntries.forEach(tb => {
+                        // Expenses have natural debit balance: debit - credit
                         expenses += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
                       });
                     });
@@ -1116,7 +1120,8 @@ export default function ConsolidationWorkings() {
                             tb.account_code === acc.account_code && tb.entity_id === entity.id
                           );
                           tbEntries.forEach(tb => {
-                            totalRev += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
+                            // Revenue has natural credit balance: credit - debit
+                            totalRev += parseFloat(tb.credit || 0) - parseFloat(tb.debit || 0);
                           });
                         });
 
@@ -1125,6 +1130,7 @@ export default function ConsolidationWorkings() {
                             tb.account_code === acc.account_code && tb.entity_id === entity.id
                           );
                           tbEntries.forEach(tb => {
+                            // Expenses have natural debit balance: debit - credit
                             totalExp += parseFloat(tb.debit || 0) - parseFloat(tb.credit || 0);
                           });
                         });
