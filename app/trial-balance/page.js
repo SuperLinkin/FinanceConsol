@@ -333,43 +333,72 @@ export default function TrialBalancePage() {
     return entity?.entity_name || tb.entity_id || '—';
   };
 
-  // Calculate class-based totals using net amounts (Debit - Credit)
+  // Calculate class-based totals using proper accounting sign conventions
   const calculateMetrics = () => {
-    let totalAssets = 0;
-    let totalLiability = 0;
-    let totalEquity = 0;
-    let totalRevenue = 0;
-    let totalExpenses = 0;
+    let totalAssetsDebits = 0;
+    let totalAssetsCredits = 0;
+    let totalLiabilityDebits = 0;
+    let totalLiabilityCredits = 0;
+    let totalEquityDebits = 0;
+    let totalEquityCredits = 0;
+    let totalRevenueDebits = 0;
+    let totalRevenueCredits = 0;
+    let totalExpensesDebits = 0;
+    let totalExpensesCredits = 0;
 
     filteredTBs.forEach(tb => {
       const className = tb.class_name || '';
       const debit = parseFloat(tb.debit || 0);
       const credit = parseFloat(tb.credit || 0);
-      const netAmount = debit - credit; // Net amount for this account
 
-      // Sum up by class using net amounts
+      // Sum up debits and credits separately by class
       if (className === 'Assets') {
-        totalAssets += netAmount;
+        totalAssetsDebits += debit;
+        totalAssetsCredits += credit;
       } else if (className === 'Liability') {
-        totalLiability += netAmount;
+        totalLiabilityDebits += debit;
+        totalLiabilityCredits += credit;
       } else if (className === 'Equity') {
-        totalEquity += netAmount;
+        totalEquityDebits += debit;
+        totalEquityCredits += credit;
       } else if (className === 'Revenue' || className === 'Income') {
-        totalRevenue += netAmount;
+        totalRevenueDebits += debit;
+        totalRevenueCredits += credit;
       } else if (className === 'Expenses') {
-        totalExpenses += netAmount;
+        totalExpensesDebits += debit;
+        totalExpensesCredits += credit;
       }
     });
 
-    // P&L = Revenue - Expenses (using signed values)
-    // Revenue has negative net (credit balance), Expenses has positive net (debit balance)
-    // This preserves the sign, so negative equity or other scenarios work correctly
-    const profitLoss = -totalRevenue - totalExpenses; // Revenue is negative (credit), so -totalRevenue makes it positive for P&L
+    // Assets = (Total Debits) - (Total Credits)
+    // Assets carry a debit balance, so Debits > Credits means positive asset
+    const totalAssets = totalAssetsDebits - totalAssetsCredits;
 
-    // BS Check = Assets - Liabilities - Equity - P&L = 0
-    // Using signed values (NOT absolute values) so negative balances are handled correctly
-    // Example: If Equity is negative, Assets - Liability - (-Equity) - P&L naturally becomes Assets - Liability + Equity - P&L
-    const bsCheck = totalAssets - totalLiability - totalEquity - profitLoss;
+    // Equity = (Total Credits) - (Total Debits)
+    // Equity carries a credit balance, so Credits > Debits means positive equity
+    const totalEquity = totalEquityCredits - totalEquityDebits;
+
+    // Liabilities = (Total Credits) - (Total Debits)
+    // Liabilities carry a credit balance, so Credits > Debits means positive liability
+    const totalLiability = totalLiabilityCredits - totalLiabilityDebits;
+
+    // Revenue = (Total Credits) - (Total Debits)
+    // If Credits > Debits → Revenue is positive (credit balance)
+    const totalRevenue = totalRevenueCredits - totalRevenueDebits;
+
+    // Expenses = (Total Debits) - (Total Credits)
+    // If Debits > Credits → Expense is positive (debit balance)
+    const totalExpenses = totalExpensesDebits - totalExpensesCredits;
+
+    // Profit or Loss = Revenue - Expenses
+    // If positive → profit (credit balance, added to Equity as Retained Earnings)
+    // If negative → loss (debit balance, reduces Equity)
+    const profitLoss = totalRevenue - totalExpenses;
+
+    // Balance Sheet Check: Assets - Equity - Liabilities - P&L = 0
+    // This automatically adjusts for sign conventions
+    // If Equity is negative (losses), the rule still holds: Assets - (-Equity) - Liabilities - P&L = 0
+    const bsCheck = totalAssets - totalEquity - totalLiability - profitLoss;
 
     return {
       totalAssets,
@@ -627,7 +656,7 @@ export default function TrialBalancePage() {
                         Balance Sheet Check
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
-                        Assets - Liabilities - Equity {metrics.profitLoss >= 0 ? '-' : '+'} P&L = 0
+                        Assets - Equity - Liabilities - P&L = 0
                       </div>
                     </div>
                     <div className="text-right">
