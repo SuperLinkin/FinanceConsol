@@ -6,12 +6,15 @@ import Sidebar from "@/components/Sidebar";
 
 export default function RootLayoutClient({ children }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
+
+  // Pre-authentication pages (no sidebar needed)
+  const preAuthPages = ['/login', '/home', '/product', '/about'];
+  const isPreAuthPage = preAuthPages.includes(pathname);
 
   return (
     <AuthProvider>
-      {isLoginPage ? (
-        // Login page - no sidebar
+      {isPreAuthPage ? (
+        // Pre-auth pages - no sidebar
         <div>{children}</div>
       ) : (
         // Main app - with sidebar
