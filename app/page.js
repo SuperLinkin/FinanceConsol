@@ -16,11 +16,13 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is authenticated (check for session token cookie)
+    // Check if user is authenticated
+    // Check both session token cookie AND localStorage for currentUser
     const hasSessionToken = document.cookie.includes('session_token');
+    const hasLocalStorageUser = localStorage.getItem('currentUser');
 
-    // If no session token, redirect to landing page
-    if (!hasSessionToken) {
+    // If no session token AND no localStorage user data, redirect to landing page
+    if (!hasSessionToken && !hasLocalStorageUser) {
       router.push('/home');
       return;
     }
