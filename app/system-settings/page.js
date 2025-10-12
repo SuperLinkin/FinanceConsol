@@ -43,14 +43,13 @@ export default function SystemSettingsPage() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
 
-  // Role definitions (kept for compatibility)
-  const roles = [
-    { value: 'primary_admin', label: 'Primary Admin', description: 'Full system access, cannot be modified by other admins' },
-    { value: 'admin', label: 'Administrator', description: 'Can manage users and all system settings' },
-    { value: 'manager', label: 'Manager', description: 'Can manage data and run reports' },
-    { value: 'user', label: 'User', description: 'Can view and edit assigned data' },
-    { value: 'viewer', label: 'Viewer', description: 'Read-only access' }
-  ];
+  // Get all available roles from customRoles (system + custom)
+  const allRoles = customRoles.map(role => ({
+    value: role.roleSlug,
+    label: role.roleName,
+    description: role.description,
+    isSystem: role.isSystemRole
+  }));
 
   useEffect(() => {
     checkAuth();
@@ -402,7 +401,7 @@ export default function SystemSettingsPage() {
                       className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="all">All Roles</option>
-                      {roles.map(role => (
+                      {allRoles.map(role => (
                         <option key={role.value} value={role.value}>{role.label}</option>
                       ))}
                     </select>
@@ -476,9 +475,10 @@ export default function SystemSettingsPage() {
                                 user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
                                 user.role === 'manager' ? 'bg-blue-100 text-blue-800' :
                                 user.role === 'user' ? 'bg-green-100 text-green-800' :
-                                'bg-gray-100 text-gray-800'
+                                user.role === 'viewer' ? 'bg-gray-100 text-gray-800' :
+                                'bg-indigo-100 text-indigo-800'
                               }`}>
-                                {roles.find(r => r.value === user.role)?.label || user.role}
+                                {allRoles.find(r => r.value === user.role)?.label || user.role}
                               </span>
                             </td>
                             <td className="px-4 py-4">
@@ -674,10 +674,23 @@ export default function SystemSettingsPage() {
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[#101828]"
                 >
-                  {roles.filter(r => r.value !== 'primary_admin').map(role => (
-                    <option key={role.value} value={role.value}>{role.label}</option>
-                  ))}
+                  <option value="">Select a role...</option>
+                  <optgroup label="System Roles">
+                    {allRoles.filter(r => r.isSystem && r.value !== 'primary_admin').map(role => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
+                    ))}
+                  </optgroup>
+                  {allRoles.some(r => !r.isSystem) && (
+                    <optgroup label="Custom Roles">
+                      {allRoles.filter(r => !r.isSystem).map(role => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Create custom roles in the Roles & Permissions tab
+                </p>
               </div>
 
               {/* Save Button */}
@@ -748,9 +761,18 @@ export default function SystemSettingsPage() {
                   disabled={selectedUser.role === 'primary_admin'}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[#101828] disabled:bg-gray-100"
                 >
-                  {roles.filter(r => currentUser?.role === 'primary_admin' || r.value !== 'primary_admin').map(role => (
-                    <option key={role.value} value={role.value}>{role.label}</option>
-                  ))}
+                  <optgroup label="System Roles">
+                    {allRoles.filter(r => r.isSystem && (currentUser?.role === 'primary_admin' || r.value !== 'primary_admin')).map(role => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
+                    ))}
+                  </optgroup>
+                  {allRoles.some(r => !r.isSystem) && (
+                    <optgroup label="Custom Roles">
+                      {allRoles.filter(r => !r.isSystem).map(role => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               <div>
