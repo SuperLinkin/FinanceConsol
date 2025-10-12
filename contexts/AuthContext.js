@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       localStorage.removeItem('currentUser');
       localStorage.removeItem('currentCompany');
-      router.push('/login');
+      router.push('/home');
     } catch (error) {
       console.error('Logout error:', error);
     }
