@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/PageHeader';
 import {
   Building2,
@@ -11,6 +13,18 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is authenticated (check for session token cookie)
+    const hasSessionToken = document.cookie.includes('session_token');
+
+    // If no session token, redirect to landing page
+    if (!hasSessionToken) {
+      router.push('/home');
+      return;
+    }
+  }, [router]);
   const quickLinks = [
     {
       icon: Building2,
