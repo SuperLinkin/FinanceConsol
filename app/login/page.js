@@ -1,20 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Lock, User, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({ username: '', password: '', module: 'reporting' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const handleBackToHome = () => {
-    console.log('Navigating to /home');
-    // Use window.location for reliable navigation
-    window.location.href = '/home';
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,25 +64,23 @@ export default function LoginPage() {
       <nav className="border-b border-gray-200 bg-white/95 backdrop-blur-xl">
         <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <button
-              type="button"
-              onClick={handleBackToHome}
+            <a
+              href="/home"
               className="flex items-center gap-3 group cursor-pointer"
             >
               <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
               <span className="text-2xl font-bold text-[#101828]">CLOE</span>
-            </button>
+            </a>
 
-            <button
-              type="button"
-              onClick={handleBackToHome}
+            <a
+              href="/home"
               className="flex items-center gap-2 text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 cursor-pointer"
             >
               <ArrowLeft size={18} />
               Back to Home
-            </button>
+            </a>
           </div>
         </div>
       </nav>
