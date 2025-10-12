@@ -1379,7 +1379,7 @@ export default function ConsolidationWorkings() {
           {/* Note Ref Column */}
           <td className={`py-2 px-4 text-center ${stickyBgColors[node.level]}`}>
             {node.level === 'note' && node.sequentialNoteRef ? (
-              <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white text-sm font-bold rounded-full">
+              <span className="inline-flex items-center justify-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-semibold rounded">
                 {node.sequentialNoteRef}
               </span>
             ) : (
@@ -2225,7 +2225,7 @@ export default function ConsolidationWorkings() {
                           {/* Note Header */}
                           <div className="flex items-start gap-4 mb-4">
                             <div className="flex-shrink-0">
-                              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                              <div className="px-3 py-1 bg-purple-100 text-purple-800 rounded font-bold text-sm">
                                 {note.noteRef}
                               </div>
                             </div>
