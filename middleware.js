@@ -4,6 +4,9 @@ import { jwtVerify } from 'jose';
 // Routes that don't require authentication
 const publicRoutes = [
   '/login',
+  '/home',
+  '/product',
+  '/about',
   '/api/auth/login',
   '/api/auth/logout',
 ];
