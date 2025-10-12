@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Download, Trash2, FileText, Edit2, Check, X, Calculator } from 'lucide-react';
+import { Search, Download, Trash2, FileText, Edit2, Check, X, Calculator, RefreshCw } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 
 export default function TrialBalancePage() {
@@ -426,6 +426,56 @@ export default function TrialBalancePage() {
   const metrics = calculateMetrics();
 
 
+  const handleSwapDebitCredit = async () => {
+    if (filterEntity === 'All Entities') {
+      alert('Please select a specific entity');
+      return;
+    }
+
+    if (filterPeriod === 'All Periods') {
+      alert('Please select a specific period');
+      return;
+    }
+
+    const confirmSwap = confirm(
+      `Are you sure you want to swap Debits and Credits for all entries in ${filterPeriod}?\n\nThis will:\n- Convert all Debits to Credits\n- Convert all Credits to Debits\n\nThis action is for fixing data that was uploaded with columns flipped.`
+    );
+
+    if (!confirmSwap) return;
+
+    try {
+      setLoading(true);
+
+      const selectedEntity = entities.find(e => e.entity_name === filterEntity);
+
+      const response = await fetch('/api/trial-balance/swap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          entityId: selectedEntity.id,
+          period: filterPeriod
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to swap debits and credits');
+      }
+
+      alert(`Success! Swapped debits and credits for ${result.updatedCount} entries.\n\nThe page will now refresh with corrected data.`);
+      await fetchAllData();
+
+    } catch (error) {
+      console.error('Error swapping debits/credits:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRoundBalances = async () => {
     if (!differenceAccount && !createNewGL) {
       alert('Please select or create a GL account for rounding differences');
@@ -511,7 +561,7 @@ export default function TrialBalancePage() {
       <div className="max-w-[1400px] mx-auto px-8 py-8">
         {/* Filters & Search */}
         <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-6 gap-4">
+          <div className="grid grid-cols-7 gap-4">
             {/* Search */}
             <div className="col-span-1">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -565,6 +615,22 @@ export default function TrialBalancePage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Swap Dr/Cr Button */}
+            <div className="col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Fix Data
+              </label>
+              <button
+                onClick={handleSwapDebitCredit}
+                disabled={filterEntity === 'All Entities' || filterPeriod === 'All Periods'}
+                className="w-full px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Swap Debits and Credits for selected period (use if data was uploaded with columns flipped)"
+              >
+                <RefreshCw className="w-5 h-5" />
+                Swap Dr/Cr
+              </button>
             </div>
 
             {/* Round Balances Button */}
