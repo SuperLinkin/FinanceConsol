@@ -400,6 +400,18 @@ export default function TrialBalancePage() {
     // If Equity is negative (losses), the rule still holds: Assets - (-Equity) - Liabilities - P&L = 0
     const bsCheck = totalAssets - totalEquity - totalLiability - profitLoss;
 
+    // Debug logging
+    if (typeof window !== 'undefined') {
+      console.log('=== METRICS CALCULATION ===');
+      console.log('Assets - Dr:', totalAssetsDebits, 'Cr:', totalAssetsCredits, '= Net:', totalAssets);
+      console.log('Equity - Dr:', totalEquityDebits, 'Cr:', totalEquityCredits, '= Net:', totalEquity);
+      console.log('Liabilities - Dr:', totalLiabilityDebits, 'Cr:', totalLiabilityCredits, '= Net:', totalLiability);
+      console.log('Revenue - Dr:', totalRevenueDebits, 'Cr:', totalRevenueCredits, '= Net:', totalRevenue);
+      console.log('Expenses - Dr:', totalExpensesDebits, 'Cr:', totalExpensesCredits, '= Net:', totalExpenses);
+      console.log('P&L = Revenue - Expenses =', totalRevenue, '-', totalExpenses, '=', profitLoss);
+      console.log('BS Check = Assets - Equity - Liabilities - P&L =', totalAssets, '-', totalEquity, '-', totalLiability, '-', profitLoss, '=', bsCheck);
+    }
+
     return {
       totalAssets,
       totalLiability,
