@@ -15,7 +15,10 @@ import {
   Sparkles,
   TrendingUp,
   Shield,
-  Clock
+  Clock,
+  Brain,
+  Activity,
+  Globe2
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -26,7 +29,7 @@ export default function HomePage() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add('animate-fadeIn');
+            entry.target.classList.add('animate-fadeInUp');
           }
         });
       },
@@ -40,287 +43,342 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
-  const features = [
+  const modules = [
     {
-      icon: Zap,
-      title: 'Smart Close Automation',
-      description: 'AI-powered automation for faster, error-free financial close processes'
-    },
-    {
+      title: 'Financial Close Module',
       icon: Calendar,
-      title: 'Close Calendar & Workflows',
-      description: 'Dynamic scheduling with real-time collaboration and approval workflows'
+      gradient: 'from-violet-600 via-purple-600 to-blue-600',
+      features: [
+        'Smart Close Calendar',
+        'Workflow Automation',
+        'Multi-Entity Reconciliation',
+        'AI Variance Analysis',
+        'Audit Trail Visibility',
+        'Real-time Collaboration'
+      ]
     },
     {
-      icon: Layers,
-      title: 'Multi-Entity Consolidation',
-      description: 'Seamlessly consolidate complex multi-entity financial structures'
-    },
-    {
-      icon: DollarSign,
-      title: 'Multi-Currency & Multi-GAAP',
-      description: 'Support for global operations with multiple accounting standards'
-    },
-    {
-      icon: Search,
-      title: 'AI Variance & Reconciliation',
-      description: 'Intelligent variance analysis and automated reconciliation'
-    },
-    {
+      title: 'Financial Reporting Module',
       icon: BarChart3,
-      title: 'End-to-End Financial Reporting',
-      description: 'Comprehensive reporting suite from trial balance to final statements'
+      gradient: 'from-blue-600 via-cyan-600 to-teal-600',
+      features: [
+        'Multi-GAAP & Multi-Currency',
+        'Consolidation Engine',
+        'Dynamic Notes & Disclosures',
+        'Real-time Dashboards',
+        'Industry-Agnostic',
+        'Export to PDF/Excel'
+      ]
     }
   ];
 
-  const benefits = [
-    {
-      icon: TrendingUp,
-      title: 'Accelerate Close Cycles',
-      description: 'Reduce close time by 50% with intelligent automation and real-time visibility'
-    },
-    {
-      icon: Shield,
-      title: 'Ensure Compliance',
-      description: 'Built-in controls and audit trails for SOX, IFRS, and US GAAP compliance'
-    },
-    {
-      icon: Clock,
-      title: 'Real-Time Insights',
-      description: 'Live dashboards and analytics for proactive decision-making'
-    }
-  ];
+  const integrations = ['SAP', 'NetSuite', 'Tally', 'QuickBooks'];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900">
       <PreAuthNav />
 
-      {/* Hero Section */}
+      {/* Hero Section with Animated Background */}
       <section
         ref={heroRef}
         className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20"
       >
-        {/* Animated Background */}
+        {/* Animated Gradient Background */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(127,86,217,0.15),transparent_50%)]"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.15),transparent_50%)]"></div>
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,#7F56D9_0%,#6A5AE0_40%,#3B82F6_100%)] opacity-5"></div>
+
+          {/* Animated Mesh Grid */}
+          <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+
+          {/* Floating Orbs */}
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/30 rounded-full blur-3xl animate-float-slow"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl animate-float-slow animation-delay-2000"></div>
+          <div className="absolute top-1/2 right-1/3 w-72 h-72 bg-purple-600/30 rounded-full blur-3xl animate-float-slow animation-delay-4000"></div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-6 opacity-0 animate-fadeIn">
-            <Sparkles className="text-indigo-600" size={20} />
-            <span className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">
-              AI-Native Finance Platform
-            </span>
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 text-center z-10">
+          {/* Badge */}
+          <div className="flex items-center justify-center gap-2 mb-8 opacity-0 animate-fadeInUp">
+            <div className="relative px-6 py-2 rounded-full bg-gradient-to-r from-violet-600/20 via-purple-600/20 to-blue-600/20 backdrop-blur-xl border border-violet-500/30">
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 to-blue-600/10 rounded-full animate-pulse"></div>
+              <div className="relative flex items-center gap-2">
+                <Sparkles className="text-violet-400" size={18} />
+                <span className="text-sm font-bold bg-gradient-to-r from-violet-300 via-purple-300 to-blue-300 bg-clip-text text-transparent tracking-wider uppercase">
+                  AI-Native Finance Platform
+                </span>
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 opacity-0 animate-fadeIn animation-delay-200">
-            Automating the Future
-            <br />
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          {/* Main Heading */}
+          <h1 className="text-6xl md:text-8xl font-extrabold mb-8 opacity-0 animate-fadeInUp animation-delay-200 tracking-tight">
+            <span className="block text-white mb-2" style={{ letterSpacing: '-0.02em' }}>
+              Automating the Future
+            </span>
+            <span className="block bg-gradient-to-r from-violet-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
               of Finance
             </span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-600 mb-8 max-w-3xl mx-auto opacity-0 animate-fadeIn animation-delay-400">
-            CLOE (Close Optimization Engine) is an AI-native platform for end-to-end{' '}
-            <span className="font-semibold text-slate-900">Financial Close and Reporting</span> —
-            multi-entity, multi-GAAP, and fully automated.
-          </p>
+          {/* Glass Card with Subtext */}
+          <div className="relative max-w-4xl mx-auto mb-12 opacity-0 animate-fadeInUp animation-delay-400">
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-600/20 to-blue-600/20 blur-2xl rounded-3xl"></div>
+            <div className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8">
+              <p className="text-xl md:text-2xl text-gray-300 leading-relaxed font-medium">
+                CLOE (Close Optimization Engine) is an AI-native platform for end-to-end{' '}
+                <span className="font-bold bg-gradient-to-r from-violet-300 to-blue-300 bg-clip-text text-transparent">
+                  Financial Close & Reporting
+                </span>{' '}
+                — multi-entity, multi-GAAP, and fully automated.
+              </p>
+            </div>
+          </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 opacity-0 animate-fadeIn animation-delay-600">
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16 opacity-0 animate-fadeInUp animation-delay-600">
             <button
               onClick={() => {
-                document.getElementById('features-section').scrollIntoView({ behavior: 'smooth' });
+                document.getElementById('modules-section').scrollIntoView({ behavior: 'smooth' });
               }}
-              className="px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-2xl font-semibold hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+              className="group relative px-10 py-5 rounded-2xl overflow-hidden font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-violet-500/50"
             >
-              Explore Product
-              <ArrowRight size={20} />
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,255,255,0.3),transparent_50%)]"></div>
+              </div>
+              <span className="relative flex items-center gap-2 text-white">
+                Explore Product
+                <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
+              </span>
             </button>
+
             <button
               onClick={() => {
                 const modal = document.getElementById('contact-modal');
                 if (modal) modal.classList.remove('hidden');
               }}
-              className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold border-2 border-slate-200 hover:border-indigo-600 hover:shadow-xl hover:scale-105 transition-all duration-300"
+              className="group relative px-10 py-5 rounded-2xl font-bold text-lg bg-white/5 backdrop-blur-xl border-2 border-white/20 text-white transition-all duration-300 hover:bg-white/10 hover:border-violet-400/50 hover:scale-105 hover:shadow-2xl hover:shadow-white/20"
             >
-              Get Demo
+              <span className="relative">Get Demo</span>
             </button>
           </div>
 
-          {/* Animated Dashboard Preview */}
-          <div className="relative max-w-5xl mx-auto opacity-0 animate-fadeIn animation-delay-800">
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white/50 backdrop-blur-sm">
-              <div className="bg-gradient-to-br from-slate-900 to-indigo-900 p-8 aspect-video flex items-center justify-center">
-                <div className="text-center">
-                  <BarChart3 className="mx-auto text-indigo-400 mb-4" size={64} />
-                  <p className="text-white text-xl font-semibold">Interactive Dashboard Preview</p>
-                  <p className="text-indigo-300 mt-2">Real-time consolidation and reporting</p>
+          {/* Floating Icons */}
+          <div className="relative opacity-0 animate-fadeInUp animation-delay-800">
+            <div className="flex items-center justify-center gap-12 mb-4">
+              <div className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-purple-600 blur-xl opacity-50 group-hover:opacity-75 transition-opacity rounded-2xl"></div>
+                <div className="relative bg-gradient-to-br from-violet-600 to-purple-600 p-6 rounded-2xl animate-float shadow-2xl">
+                  <BarChart3 className="text-white" size={40} />
+                </div>
+              </div>
+              <div className="group relative animation-delay-1000">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-fuchsia-600 blur-xl opacity-50 group-hover:opacity-75 transition-opacity rounded-2xl"></div>
+                <div className="relative bg-gradient-to-br from-purple-600 to-fuchsia-600 p-6 rounded-2xl animate-float shadow-2xl">
+                  <Brain className="text-white" size={40} />
+                </div>
+              </div>
+              <div className="group relative animation-delay-2000">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 blur-xl opacity-50 group-hover:opacity-75 transition-opacity rounded-2xl"></div>
+                <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 p-6 rounded-2xl animate-float shadow-2xl">
+                  <Globe2 className="text-white" size={40} />
                 </div>
               </div>
             </div>
-            {/* Floating Icons */}
-            <div className="absolute -top-8 -left-8 w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-lg flex items-center justify-center animate-float">
-              <Calendar className="text-white" size={32} />
-            </div>
-            <div className="absolute -top-8 -right-8 w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl shadow-lg flex items-center justify-center animate-float animation-delay-1000">
-              <Layers className="text-white" size={32} />
-            </div>
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-gradient-to-br from-pink-500 to-indigo-500 rounded-2xl shadow-lg flex items-center justify-center animate-float animation-delay-2000">
-              <Sparkles className="text-white" size={32} />
-            </div>
+          </div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <div className="w-6 h-10 border-2 border-white/30 rounded-full p-1">
+            <div className="w-1.5 h-3 bg-white/50 rounded-full mx-auto animate-scroll-indicator"></div>
           </div>
         </div>
       </section>
 
-      {/* Key Highlights Section */}
-      <section id="features-section" className="py-24 px-6 lg:px-8 fade-in-section">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Why Finance Teams Love CLOE
+      {/* Modules Section - 3D Flip Cards */}
+      <section id="modules-section" className="py-32 px-6 lg:px-8 fade-in-section relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-purple-950/50 to-slate-900"></div>
+
+        <div className="relative max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl md:text-6xl font-extrabold text-white mb-6 tracking-tight">
+              Two Core Modules.
+              <br />
+              <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+                Infinite Automation.
+              </span>
             </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              Intelligent automation meets enterprise-grade security and compliance
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto font-medium">
+              Comprehensive automation across your entire financial workflow
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
+          <div className="grid lg:grid-cols-2 gap-12">
+            {modules.map((module, index) => {
+              const Icon = module.icon;
+              return (
+                <div
+                  key={index}
+                  className="group relative perspective-1000"
+                  style={{ animationDelay: `${index * 200}ms` }}
+                >
+                  {/* Glow Effect */}
+                  <div className={`absolute -inset-1 bg-gradient-to-r ${module.gradient} opacity-20 group-hover:opacity-40 blur-2xl rounded-3xl transition-all duration-500`}></div>
+
+                  {/* Card */}
+                  <div className="relative bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-2xl border border-white/10 rounded-3xl p-10 transform-gpu transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 hover:shadow-2xl">
+                    {/* Shine Effect on Hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+                    </div>
+
+                    {/* Icon */}
+                    <div className="relative mb-8">
+                      <div className={`absolute inset-0 bg-gradient-to-r ${module.gradient} blur-xl opacity-50 rounded-2xl`}></div>
+                      <div className={`relative inline-flex p-6 bg-gradient-to-br ${module.gradient} rounded-2xl shadow-2xl group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className="text-white animate-pulse-slow" size={48} />
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-3xl font-bold text-white mb-6 tracking-tight">
+                      {module.title}
+                    </h3>
+
+                    {/* Features List */}
+                    <div className="space-y-4">
+                      {module.features.map((feature, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 text-gray-300 hover:text-white transition-colors group/item"
+                        >
+                          <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${module.gradient} group-hover/item:scale-150 transition-transform`}></div>
+                          <span className="font-medium">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Learn More */}
+                    <Link
+                      href="/product"
+                      className="inline-flex items-center gap-2 mt-8 text-violet-400 hover:text-violet-300 font-bold group/link transition-colors"
+                    >
+                      Learn More
+                      <ArrowRight className="group-hover/link:translate-x-1 transition-transform" size={18} />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Integrations Section */}
+      <section className="py-32 px-6 lg:px-8 fade-in-section relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-violet-950/30 to-slate-900"></div>
+
+        <div className="relative max-w-7xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
+            Seamless Integration
+          </h2>
+          <p className="text-xl text-gray-400 mb-12 font-medium">
+            Works with your existing systems
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-8">
+            {integrations.map((name, index) => (
               <div
                 key={index}
-                className="group relative bg-white/70 backdrop-blur-sm rounded-3xl p-8 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-slate-200 hover:border-indigo-300"
+                className="group relative"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="relative">
-                  <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <feature.icon className="text-white" size={28} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                  <p className="text-slate-600">{feature.description}</p>
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-blue-600 opacity-0 group-hover:opacity-20 blur-xl rounded-2xl transition-all duration-300"></div>
+                <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-12 py-8 hover:bg-white/10 hover:border-violet-400/50 transition-all duration-300 hover:scale-110">
+                  <span className="text-2xl font-bold text-white">{name}</span>
                 </div>
               </div>
             ))}
           </div>
+
+          <Link
+            href="/platform"
+            className="inline-flex items-center gap-2 mt-16 px-8 py-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl text-white font-bold hover:bg-white/10 hover:border-violet-400/50 transition-all duration-300 hover:scale-105"
+          >
+            View All Integrations
+            <ArrowRight size={20} />
+          </Link>
         </div>
       </section>
 
-      {/* Why CLOE Section */}
-      <section className="py-24 px-6 lg:px-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 fade-in-section">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: Visual */}
-            <div className="relative">
-              <div className="relative bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20 shadow-2xl">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-white">
-                    <CheckCircle2 className="text-green-300" size={24} />
-                    <span className="text-lg font-semibold">Automated Journal Entries</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-white">
-                    <CheckCircle2 className="text-green-300" size={24} />
-                    <span className="text-lg font-semibold">Real-time Consolidations</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-white">
-                    <CheckCircle2 className="text-green-300" size={24} />
-                    <span className="text-lg font-semibold">AI Variance Detection</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-white">
-                    <CheckCircle2 className="text-green-300" size={24} />
-                    <span className="text-lg font-semibold">Audit-Ready Reports</span>
-                  </div>
+      {/* Final CTA */}
+      <section className="py-32 px-6 lg:px-8 fade-in-section relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-slate-950"></div>
+
+        <div className="relative max-w-5xl mx-auto">
+          <div className="relative group">
+            {/* Animated Border */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-blue-600 rounded-3xl opacity-75 group-hover:opacity-100 blur-xl animate-gradient-xy"></div>
+
+            {/* Card */}
+            <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-16 border border-white/10">
+              <div className="text-center">
+                <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
+                  Ready to Transform Your
+                  <br />
+                  <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
+                    Finance Operations?
+                  </span>
+                </h2>
+                <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto font-medium">
+                  Join forward-thinking finance teams automating their close and reporting with CLOE
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <button
+                    onClick={() => {
+                      const modal = document.getElementById('contact-modal');
+                      if (modal) modal.classList.remove('hidden');
+                    }}
+                    className="group relative px-10 py-5 rounded-2xl overflow-hidden font-bold text-lg transition-all duration-300 hover:scale-105"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-blue-600"></div>
+                    <span className="relative text-white">Request Demo</span>
+                  </button>
+                  <Link
+                    href="/product"
+                    className="px-10 py-5 rounded-2xl font-bold text-lg bg-white/5 backdrop-blur-xl border-2 border-white/20 text-white hover:bg-white/10 hover:border-violet-400/50 transition-all duration-300 hover:scale-105"
+                  >
+                    Explore CLOE
+                  </Link>
                 </div>
               </div>
-              <div className="absolute -top-4 -right-4 w-24 h-24 bg-yellow-400 rounded-full blur-3xl opacity-50"></div>
-              <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-pink-400 rounded-full blur-3xl opacity-50"></div>
-            </div>
-
-            {/* Right: Content */}
-            <div className="text-white">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                Unify Finance Operations with AI
-              </h2>
-              <p className="text-xl text-indigo-100 mb-8">
-                CLOE eliminates spreadsheet dependency and manual processes, enabling faster,
-                compliant reporting designed for CFOs, auditors, and enterprise teams.
-              </p>
-
-              <div className="space-y-6">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <benefit.icon className="text-white" size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
-                      <p className="text-indigo-100">{benefit.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                href="/product"
-                className="inline-flex items-center gap-2 mt-8 px-8 py-4 bg-white text-indigo-600 rounded-2xl font-semibold hover:shadow-2xl hover:scale-105 transition-all duration-300"
-              >
-                Learn More
-                <ArrowRight size={20} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section className="py-24 px-6 lg:px-8 fade-in-section">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-slate-900 to-indigo-900 rounded-3xl p-12 shadow-2xl">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Transform Your Finance Operations?
-            </h2>
-            <p className="text-xl text-indigo-200 mb-8">
-              Join forward-thinking finance teams who are automating their close and reporting with CLOE.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button
-                onClick={() => {
-                  const modal = document.getElementById('contact-modal');
-                  if (modal) modal.classList.remove('hidden');
-                }}
-                className="px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-2xl font-semibold hover:shadow-2xl hover:scale-105 transition-all duration-300"
-              >
-                Request Demo
-              </button>
-              <Link
-                href="/product"
-                className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold hover:shadow-2xl hover:scale-105 transition-all duration-300"
-              >
-                Explore CLOE
-              </Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-12 px-6 lg:px-8">
+      <footer className="relative border-t border-white/10 bg-slate-950/50 backdrop-blur-xl py-12 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-violet-600 via-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
-              <span className="text-2xl font-bold">CLOE</span>
+              <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
+                CLOE
+              </span>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400 font-medium">
               <Link href="/product" className="hover:text-white transition-colors">
                 Product
               </Link>
               <Link href="/about" className="hover:text-white transition-colors">
-                About Us
+                About
               </Link>
               <button
                 onClick={() => {
@@ -331,21 +389,20 @@ export default function HomePage() {
               >
                 Contact
               </button>
-              <span>Terms</span>
               <span>Privacy</span>
             </div>
           </div>
-          <div className="text-center text-slate-500 text-sm mt-8">
-            © 2025 CLOE. All rights reserved.
+          <div className="text-center text-gray-500 text-sm mt-8">
+            © 2025 CLOE — Automating the Close.
           </div>
         </div>
       </footer>
 
       <style jsx>{`
-        @keyframes fadeIn {
+        @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
           }
           to {
             opacity: 1;
@@ -353,42 +410,80 @@ export default function HomePage() {
           }
         }
 
-        @keyframes blob {
-          0%,
-          100% {
-            transform: translate(0, 0) scale(1);
+        @keyframes float-slow {
+          0%, 100% {
+            transform: translateY(0) translateX(0);
           }
           25% {
-            transform: translate(20px, -20px) scale(1.1);
+            transform: translateY(-20px) translateX(10px);
           }
           50% {
-            transform: translate(-20px, 20px) scale(0.9);
+            transform: translateY(0) translateX(20px);
           }
           75% {
-            transform: translate(20px, 20px) scale(1.05);
+            transform: translateY(20px) translateX(10px);
           }
         }
 
         @keyframes float {
-          0%,
-          100% {
-            transform: translateY(0px);
+          0%, 100% {
+            transform: translateY(0);
           }
           50% {
-            transform: translateY(-20px);
+            transform: translateY(-15px);
           }
         }
 
-        .animate-fadeIn {
-          animation: fadeIn 0.8s ease-out forwards;
+        @keyframes scroll-indicator {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(8px);
+          }
         }
 
-        .animate-blob {
-          animation: blob 7s infinite;
+        @keyframes pulse-slow {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.7;
+          }
+        }
+
+        @keyframes gradient-xy {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+
+        .animate-fadeInUp {
+          animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .animate-float-slow {
+          animation: float-slow 20s ease-in-out infinite;
         }
 
         .animate-float {
           animation: float 3s ease-in-out infinite;
+        }
+
+        .animate-scroll-indicator {
+          animation: scroll-indicator 2s ease-in-out infinite;
+        }
+
+        .animate-pulse-slow {
+          animation: pulse-slow 3s ease-in-out infinite;
+        }
+
+        .animate-gradient-xy {
+          animation: gradient-xy 3s ease infinite;
+          background-size: 200% 200%;
         }
 
         .animation-delay-200 {
@@ -417,6 +512,16 @@ export default function HomePage() {
 
         .animation-delay-4000 {
           animation-delay: 4s;
+        }
+
+        .perspective-1000 {
+          perspective: 1000px;
+        }
+
+        .bg-grid-pattern {
+          background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+          background-size: 50px 50px;
         }
       `}</style>
     </div>

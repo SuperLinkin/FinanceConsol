@@ -26,7 +26,7 @@ export default function PreAuthNav() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/80 backdrop-blur-lg shadow-lg'
+          ? 'bg-slate-950/80 backdrop-blur-xl border-b border-white/10'
           : 'bg-transparent'
       }`}
     >
@@ -46,13 +46,13 @@ export default function PreAuthNav() {
           <div className="hidden md:flex items-center gap-8">
             <Link
               href="/product"
-              className="text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200"
+              className="text-gray-300 hover:text-white font-medium transition-colors duration-200"
             >
               Product
             </Link>
             <Link
               href="/about"
-              className="text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200"
+              className="text-gray-300 hover:text-white font-medium transition-colors duration-200"
             >
               About Us
             </Link>
@@ -61,22 +61,23 @@ export default function PreAuthNav() {
                 const modal = document.getElementById('contact-modal');
                 if (modal) modal.classList.remove('hidden');
               }}
-              className="text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200"
+              className="text-gray-300 hover:text-white font-medium transition-colors duration-200"
             >
               Contact Sales
             </button>
             <button
               onClick={handleLogin}
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-2xl font-medium hover:shadow-lg hover:scale-105 transition-all duration-300"
+              className="relative px-6 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-2xl font-medium hover:shadow-lg hover:shadow-violet-500/50 hover:scale-105 transition-all duration-300 overflow-hidden group"
             >
-              Log In
+              <span className="relative z-10">Log In</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-slate-700 hover:text-indigo-600"
+            className="md:hidden p-2 text-gray-300 hover:text-white"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -84,18 +85,18 @@ export default function PreAuthNav() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-slate-200 bg-white/95 backdrop-blur-lg">
+          <div className="md:hidden py-4 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl">
             <div className="flex flex-col gap-4">
               <Link
                 href="/product"
-                className="text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200 px-4 py-2"
+                className="text-gray-300 hover:text-white font-medium transition-colors duration-200 px-4 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Product
               </Link>
               <Link
                 href="/about"
-                className="text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200 px-4 py-2"
+                className="text-gray-300 hover:text-white font-medium transition-colors duration-200 px-4 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 About Us
@@ -106,7 +107,7 @@ export default function PreAuthNav() {
                   if (modal) modal.classList.remove('hidden');
                   setIsMobileMenuOpen(false);
                 }}
-                className="text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200 px-4 py-2 text-left"
+                className="text-gray-300 hover:text-white font-medium transition-colors duration-200 px-4 py-2 text-left"
               >
                 Contact Sales
               </button>
@@ -115,7 +116,7 @@ export default function PreAuthNav() {
                   handleLogin();
                   setIsMobileMenuOpen(false);
                 }}
-                className="mx-4 px-6 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-2xl font-medium hover:shadow-lg transition-all duration-300"
+                className="mx-4 px-6 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-2xl font-medium hover:shadow-lg hover:shadow-violet-500/50 transition-all duration-300"
               >
                 Log In
               </button>
