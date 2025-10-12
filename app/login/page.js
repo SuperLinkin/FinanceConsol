@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react';
+import PreAuthNav from '@/components/PreAuthNav';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ username: '', password: '', module: 'reporting' });
@@ -60,25 +61,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFB] flex flex-col">
-      {/* Navigation Bar */}
-      <nav className="border-b border-gray-200 bg-white/95 backdrop-blur-xl">
-        <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <a
-              href="/home"
-              className="flex items-center gap-3 group cursor-pointer"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
-                <span className="text-white font-bold text-xl">C</span>
-              </div>
-              <span className="text-2xl font-bold text-[#101828]">CLOE</span>
-            </a>
-          </div>
-        </div>
-      </nav>
+      <PreAuthNav />
 
       {/* Login Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center p-4 pt-24">
         <div className="w-full max-w-md">
           {/* Logo and Branding */}
           <div className="text-center mb-8">

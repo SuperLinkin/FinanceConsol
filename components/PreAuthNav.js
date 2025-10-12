@@ -38,6 +38,12 @@ export default function PreAuthNav() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             <a
+              href="/home"
+              className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200"
+            >
+              Home
+            </a>
+            <a
               href="/product"
               className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200"
             >
@@ -79,6 +85,13 @@ export default function PreAuthNav() {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200 bg-white/95 backdrop-blur-xl">
             <div className="flex flex-col gap-4">
+              <a
+                href="/home"
+                className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 px-4 py-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </a>
               <a
                 href="/product"
                 className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 px-4 py-2"
