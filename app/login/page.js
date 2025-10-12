@@ -7,7 +7,7 @@ import { Lock, User, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [formData, setFormData] = useState({ username: '', password: '', module: 'reporting' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,11 +16,18 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
+    // Check if Finance Close module is selected
+    if (formData.module === 'finance-close') {
+      setError('CLOE - Finance Close module is coming soon!');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ username: formData.username, password: formData.password })
       });
 
       const data = await response.json();
@@ -41,7 +48,7 @@ export default function LoginPage() {
           companyId: data.user.company_id
         }));
 
-        // Redirect to dashboard
+        // Redirect to dashboard (Reporting module)
         router.push('/');
       } else {
         setError(data.error || 'Login failed');
@@ -148,6 +155,22 @@ export default function LoginPage() {
                   disabled={loading}
                 />
               </div>
+            </div>
+
+            {/* Module Selector */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Select Module
+              </label>
+              <select
+                value={formData.module}
+                onChange={(e) => setFormData({ ...formData, module: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-800 bg-white"
+                disabled={loading}
+              >
+                <option value="reporting">CLOE - Reporting</option>
+                <option value="finance-close">CLOE - Finance Close (Coming Soon)</option>
+              </select>
             </div>
 
             {/* Submit Button */}
