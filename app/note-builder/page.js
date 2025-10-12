@@ -7,7 +7,13 @@ import {
   BookOpen,
   Save,
   Loader,
-  FileText
+  FileText,
+  Edit2,
+  X,
+  Table as TableIcon,
+  Hash,
+  Calculator,
+  Type
 } from 'lucide-react';
 
 export default function NoteBuilderPage() {
@@ -19,6 +25,15 @@ export default function NoteBuilderPage() {
   const [entities, setEntities] = useState([]);
   const [masterHierarchy, setMasterHierarchy] = useState([]);
   const [glAccounts, setGlAccounts] = useState([]);
+  const [periods, setPeriods] = useState([]);
+  const [currentPeriod, setCurrentPeriod] = useState('');
+  const [previousPeriod, setPreviousPeriod] = useState('');
+  const [trialBalances, setTrialBalances] = useState([]);
+
+  // Side panel states
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [editMode, setEditMode] = useState('text'); // 'text', 'table', 'gl', 'formula'
 
   const statementTabs = [
     { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
@@ -29,9 +44,26 @@ export default function NoteBuilderPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (currentPeriod) {
+      loadTrialBalances();
+    }
+  }, [currentPeriod, previousPeriod]);
+
   const showToast = (message, success) => {
     setToast({ message, success });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadTrialBalances = async () => {
+    try {
+      const response = await fetch('/api/trial-balance');
+      if (!response.ok) throw new Error('Failed to fetch trial balance');
+      const allTB = await response.json();
+      setTrialBalances(allTB || []);
+    } catch (error) {
+      console.error('Error loading trial balances:', error);
+    }
   };
 
   const loadData = async () => {
@@ -41,6 +73,19 @@ export default function NoteBuilderPage() {
       const entitiesResponse = await fetch('/api/entities');
       const entitiesData = await entitiesResponse.json();
       setEntities(entitiesData || []);
+
+      // Load periods
+      const tbResponse = await fetch('/api/trial-balance');
+      const allTBData = await tbResponse.json();
+      const uniquePeriods = [...new Set((allTBData || []).map(tb => tb.period))].sort().reverse();
+      setPeriods(uniquePeriods);
+
+      if (uniquePeriods.length > 0) {
+        setCurrentPeriod(uniquePeriods[0]);
+        if (uniquePeriods.length > 1) {
+          setPreviousPeriod(uniquePeriods[1]);
+        }
+      }
 
       // Load COA hierarchy and GL accounts
       const [coaRes, hierarchyRes] = await Promise.all([
@@ -196,7 +241,9 @@ export default function NoteBuilderPage() {
     }
   };
 
-  const saveNoteDescription = async (note) => {
+  const saveNoteDescription = async () => {
+    if (!editingNote) return;
+
     try {
       if (!entities || entities.length === 0) {
         showToast('Cannot save: No company context available', false);
@@ -204,7 +251,7 @@ export default function NoteBuilderPage() {
       }
 
       const companyId = entities[0].company_id;
-      setSavingNotes(prev => ({ ...prev, [note.noteRef]: true }));
+      setSavingNotes(prev => ({ ...prev, [editingNote.noteRef]: true }));
 
       const response = await fetch('/api/note-descriptions', {
         method: 'POST',
@@ -213,13 +260,13 @@ export default function NoteBuilderPage() {
         },
         body: JSON.stringify({
           company_id: companyId,
-          note_ref: note.noteRef,
-          note_title: note.noteName,
-          note_content: noteContents[note.noteRef] || '',
-          statement_type: note.statementType,
-          class_name: note.className,
-          subclass_name: note.subclassName,
-          note_name: note.noteName,
+          note_ref: editingNote.noteRef,
+          note_title: editingNote.noteName,
+          note_content: noteContents[editingNote.noteRef] || '',
+          statement_type: editingNote.statementType,
+          class_name: editingNote.className,
+          subclass_name: editingNote.subclassName,
+          note_name: editingNote.noteName,
         }),
       });
 
@@ -228,13 +275,53 @@ export default function NoteBuilderPage() {
         throw new Error(errorData.error || 'Failed to save note description');
       }
 
-      showToast(`Note ${note.noteRef} saved successfully!`, true);
+      showToast(`Note ${editingNote.noteRef} saved successfully!`, true);
+      setShowEditPanel(false);
+      setEditingNote(null);
     } catch (error) {
       console.error('Error saving note description:', error);
       showToast(`Error saving note: ${error.message}`, false);
     } finally {
-      setSavingNotes(prev => ({ ...prev, [note.noteRef]: false }));
+      setSavingNotes(prev => ({ ...prev, [editingNote?.noteRef]: false }));
     }
+  };
+
+  const openEditPanel = (note) => {
+    setEditingNote(note);
+    setEditMode('text');
+    setShowEditPanel(true);
+  };
+
+  const getNoteValue = (note, period) => {
+    if (!period || !trialBalances.length) return 0;
+
+    // Get all GL accounts for this note
+    const noteGLs = glAccounts.filter(gl =>
+      gl.class_name === note.className &&
+      gl.subclass_name === note.subclassName &&
+      gl.note_name === note.noteName
+    );
+
+    // Sum up trial balance values for this period
+    let total = 0;
+    noteGLs.forEach(gl => {
+      const tbEntry = trialBalances.find(tb =>
+        tb.account_code === gl.account_code &&
+        tb.period === period
+      );
+      if (tbEntry) {
+        total += (tbEntry.debit || 0) - (tbEntry.credit || 0);
+      }
+    });
+
+    return total;
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Math.abs(value));
   };
 
   if (loading) {
@@ -253,78 +340,96 @@ export default function NoteBuilderPage() {
         subtitle="Edit note descriptions and content for financial statements"
       />
 
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="space-y-6 max-w-6xl mx-auto">
-          {notes.length > 0 ? (
-            notes.map((note, index) => (
-              <div key={index} className="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-300 transition-all bg-white">
-                {/* Note Header */}
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="flex-shrink-0">
-                    <div className="px-3 py-1 bg-purple-100 text-purple-800 rounded font-bold text-sm">
-                      {note.noteRef}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-[#101828] mb-1">{note.noteName}</h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <span className="font-semibold">Class:</span> {note.className}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="font-semibold">Subclass:</span> {note.subclassName}
-                      </span>
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        note.statementType === 'balance_sheet' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                      }`}>
-                        {note.statementType === 'balance_sheet' ? 'Balance Sheet' : 'Income Statement'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Period Selectors */}
+        <div className="px-8 py-4 bg-white border-b border-gray-200">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">Current Period:</label>
+              <select
+                value={currentPeriod}
+                onChange={(e) => setCurrentPeriod(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                {periods.map(period => (
+                  <option key={period} value={period}>{period}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">Previous Period:</label>
+              <select
+                value={previousPeriod}
+                onChange={(e) => setPreviousPeriod(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">None</option>
+                {periods.map(period => (
+                  <option key={period} value={period}>{period}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
 
-                {/* Note Content Editor */}
-                <div className="ml-16">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Note Description
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder="Enter note description, accounting policies, or additional details here..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                    value={noteContents[note.noteRef] || ''}
-                    onChange={(e) => {
-                      setNoteContents(prev => ({
-                        ...prev,
-                        [note.noteRef]: e.target.value
-                      }));
-                    }}
-                  />
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-500">
-                      This will appear in the financial statement notes
-                    </span>
-                    <button
-                      onClick={() => saveNoteDescription(note)}
-                      disabled={savingNotes[note.noteRef]}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {savingNotes[note.noteRef] ? (
-                        <>
-                          <Loader size={14} className="animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save size={14} />
-                          Save Note
-                        </>
+        {/* Notes Table */}
+        <div className="flex-1 overflow-auto px-8 py-6">
+          {notes.length > 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-[#101828] text-white">
+                  <tr>
+                    <th className="py-3 px-4 text-left font-semibold text-xs uppercase w-24">Note No</th>
+                    <th className="py-3 px-4 text-left font-semibold text-xs uppercase">Note Name</th>
+                    <th className="py-3 px-4 text-right font-semibold text-xs uppercase w-48">
+                      {currentPeriod || 'Current Year'}
+                    </th>
+                    {previousPeriod && (
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase w-48">
+                        {previousPeriod}
+                      </th>
+                    )}
+                    <th className="py-3 px-4 text-center font-semibold text-xs uppercase w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notes.map((note, index) => (
+                    <tr key={index} className="border-b border-gray-100 hover:bg-purple-50 transition-colors">
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center justify-center px-3 py-1 bg-purple-100 text-purple-800 rounded font-bold text-sm">
+                          {note.noteRef}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <div className="font-semibold text-[#101828]">{note.noteName}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {note.className} → {note.subclassName}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-sm text-[#101828]">
+                        {formatCurrency(getNoteValue(note, currentPeriod))}
+                      </td>
+                      {previousPeriod && (
+                        <td className="py-3 px-4 text-right font-mono text-sm text-gray-600">
+                          {formatCurrency(getNoteValue(note, previousPeriod))}
+                        </td>
                       )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => openEditPanel(note)}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors"
+                        >
+                          <Edit2 size={14} />
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="text-center py-12 text-gray-500 bg-white rounded-xl">
               <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
@@ -334,6 +439,144 @@ export default function NoteBuilderPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Side Panel */}
+      {showEditPanel && editingNote && (
+        <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 flex flex-col animate-slideLeft">
+          {/* Header */}
+          <div className="bg-purple-600 text-white px-6 py-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold">Edit Note {editingNote.noteRef}</h3>
+              <p className="text-sm text-purple-100 mt-1">{editingNote.noteName}</p>
+            </div>
+            <button
+              onClick={() => setShowEditPanel(false)}
+              className="p-2 hover:bg-purple-700 rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Mode Selector */}
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditMode('text')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  editMode === 'text' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                <Type size={16} />
+                Text
+              </button>
+              <button
+                onClick={() => setEditMode('table')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  editMode === 'table' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                <TableIcon size={16} />
+                Table
+              </button>
+              <button
+                onClick={() => setEditMode('gl')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  editMode === 'gl' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                <Hash size={16} />
+                GL Tag
+              </button>
+              <button
+                onClick={() => setEditMode('formula')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  editMode === 'formula' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                <Calculator size={16} />
+                Formula
+              </button>
+            </div>
+          </div>
+
+          {/* Editor Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {editMode === 'text' && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Note Content
+                </label>
+                <textarea
+                  rows={20}
+                  placeholder="Enter note description, accounting policies, or additional details here..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  value={noteContents[editingNote.noteRef] || ''}
+                  onChange={(e) => {
+                    setNoteContents(prev => ({
+                      ...prev,
+                      [editingNote.noteRef]: e.target.value
+                    }));
+                  }}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  This will appear in the financial statement notes
+                </p>
+              </div>
+            )}
+
+            {editMode === 'table' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                <TableIcon size={48} className="mx-auto text-blue-400 mb-4" />
+                <p className="text-blue-900 font-semibold">Table Builder</p>
+                <p className="text-sm text-blue-700 mt-2">Coming soon - Insert tables into notes</p>
+              </div>
+            )}
+
+            {editMode === 'gl' && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                <Hash size={48} className="mx-auto text-green-400 mb-4" />
+                <p className="text-green-900 font-semibold">GL Tag Builder</p>
+                <p className="text-sm text-green-700 mt-2">Coming soon - Insert GL account values</p>
+              </div>
+            )}
+
+            {editMode === 'formula' && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 text-center">
+                <Calculator size={48} className="mx-auto text-purple-400 mb-4" />
+                <p className="text-purple-900 font-semibold">Formula Builder</p>
+                <p className="text-sm text-purple-700 mt-2">Coming soon - Insert calculated values</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3">
+            <button
+              onClick={saveNoteDescription}
+              disabled={savingNotes[editingNote.noteRef]}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {savingNotes[editingNote.noteRef] ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  Save Note
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setShowEditPanel(false)}
+              className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
