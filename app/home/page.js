@@ -64,25 +64,19 @@ export default function HomePage() {
   const benefits = [
     {
       icon: Zap,
-      title: 'Faster close',
-      description: 'Reduce close time by 50% with intelligent automation and real-time collaboration'
+      title: 'Faster Close',
+      description: 'Accelerate your financial close with AI-driven workflows that eliminate manual tasks, streamline approvals, and keep every stakeholder in sync — reducing close time from weeks to days.'
     },
     {
       icon: Shield,
-      title: 'Always compliant',
-      description: 'Built-in controls for SOX, IFRS, and US GAAP with complete audit trails'
+      title: 'Always Compliant',
+      description: 'Stay effortlessly compliant with built-in SOX, IFRS, and US GAAP controls. CLOE maintains a full audit trail, exception monitoring, and real-time validation to ensure every number stands scrutiny.'
     },
     {
       icon: Globe,
-      title: 'Global scale',
-      description: 'Handle complex multi-entity structures across currencies and GAAPs'
+      title: 'Global Scale',
+      description: 'Power your consolidation across multiple entities, currencies, and accounting frameworks with ease. CLOE adapts to complex ownership structures and evolving reporting standards — no manual rework required.'
     }
-  ];
-
-  const stats = [
-    { value: '50%', label: 'Faster close cycles' },
-    { value: '100%', label: 'Audit-ready reports' },
-    { value: '24/7', label: 'Enterprise support' }
   ];
 
   return (
@@ -158,20 +152,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats Section - Clean and Simple */}
-      <section className="py-16 px-6 lg:px-8 border-y border-gray-100 bg-gray-50 fade-in-section">
-        <div className="max-w-[1100px] mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-5xl font-bold text-[#0F172A] mb-2">{stat.value}</div>
-                <div className="text-gray-600 font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Modules Section - Mercury-inspired cards */}
       <section className="py-32 px-6 lg:px-8 fade-in-section">
         <div className="max-w-[1100px] mx-auto">
@@ -239,7 +219,7 @@ export default function HomePage() {
         <div className="max-w-[1100px] mx-auto">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-4 tracking-tight">
-              Why finance teams choose CLOE
+              Why should finance teams choose CLOE
             </h2>
           </div>
 
