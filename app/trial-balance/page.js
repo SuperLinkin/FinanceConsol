@@ -361,14 +361,15 @@ export default function TrialBalancePage() {
       }
     });
 
-    // P&L = Revenue - Expenses (using absolute values)
+    // P&L = Revenue - Expenses (using signed values)
     // Revenue has negative net (credit balance), Expenses has positive net (debit balance)
-    const profitLoss = Math.abs(totalRevenue) - Math.abs(totalExpenses);
+    // This preserves the sign, so negative equity or other scenarios work correctly
+    const profitLoss = -totalRevenue - totalExpenses; // Revenue is negative (credit), so -totalRevenue makes it positive for P&L
 
-    // BS Check = Assets - Liabilities - Equity -/+ P&L
-    // Using absolute values for all amounts:
-    // Assets (debit) - Liabilities (credit) - Equity (credit) - P&L (if profit) or + P&L (if loss)
-    const bsCheck = Math.abs(totalAssets) - Math.abs(totalLiability) - Math.abs(totalEquity) - profitLoss;
+    // BS Check = Assets - Liabilities - Equity - P&L = 0
+    // Using signed values (NOT absolute values) so negative balances are handled correctly
+    // Example: If Equity is negative, Assets - Liability - (-Equity) - P&L naturally becomes Assets - Liability + Equity - P&L
+    const bsCheck = totalAssets - totalLiability - totalEquity - profitLoss;
 
     return {
       totalAssets,
