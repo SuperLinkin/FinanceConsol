@@ -33,6 +33,7 @@ import {
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: Sparkles, label: 'Integrations Hub', href: '/platform' },
   { icon: Settings, label: 'Consol Config', href: '/settings' },
   { icon: FileText, label: 'Chart of Accounts', href: '/chart-of-accounts' },
   { icon: Upload, label: 'Upload TB', href: '/upload' },
@@ -46,7 +47,6 @@ const menuItems = [
   { icon: BookOpen, label: 'Note Builder', href: '/note-builder' },
   { icon: FileBarChart, label: 'MD&A', href: '/mda' },
   { icon: FileBarChart, label: 'Reporting', href: '/reporting' },
-  { icon: Sparkles, label: 'The Platform', href: '/platform' },
 ];
 
 export default function Sidebar() {
