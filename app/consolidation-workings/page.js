@@ -18,7 +18,9 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Edit2
+  Edit2,
+  FileText,
+  BookOpen
 } from 'lucide-react';
 
 export default function ConsolidationWorkings() {
@@ -52,6 +54,10 @@ export default function ConsolidationWorkings() {
   const [editingNoteNumber, setEditingNoteNumber] = useState(null); // { noteId, currentNumber }
   const [fy2024Expanded, setFy2024Expanded] = useState(false); // Expand/collapse FY2024 details
   const [fy2023Expanded, setFy2023Expanded] = useState(false); // Expand/collapse FY2023 details
+  const [showNoteBuilder, setShowNoteBuilder] = useState(false); // Note Builder modal
+  const [noteDescriptions, setNoteDescriptions] = useState([]); // Store note descriptions
+  const [noteContents, setNoteContents] = useState({}); // Map of noteRef -> content
+  const [savingNotes, setSavingNotes] = useState({}); // Track saving state per note
 
   // Statement tabs
   const statementTabs = [
@@ -64,11 +70,109 @@ export default function ConsolidationWorkings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, selectedStatement, comparePeriod]);
 
+  // Load note descriptions when Note Builder opens
+  useEffect(() => {
+    if (showNoteBuilder) {
+      loadNoteDescriptions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showNoteBuilder]);
+
   const displayToast = (message, type = 'success') => {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Load note descriptions from database
+  const loadNoteDescriptions = async () => {
+    try {
+      // Get current company - using entities[0].company_id as a proxy
+      if (!entities || entities.length === 0) {
+        console.log('⚠️ No entities loaded yet, skipping note descriptions load');
+        return;
+      }
+
+      const companyId = entities[0].company_id;
+      console.log('📖 Loading note descriptions for company:', companyId);
+
+      const response = await fetch(`/api/note-descriptions?company_id=${companyId}`);
+      if (!response.ok) {
+        throw new Error('Failed to load note descriptions');
+      }
+
+      const { data } = await response.json();
+      console.log('✅ Loaded note descriptions:', data?.length || 0, 'records');
+
+      setNoteDescriptions(data || []);
+
+      // Build a map of noteRef -> content for easy lookup
+      const contentsMap = {};
+      (data || []).forEach(desc => {
+        contentsMap[desc.note_ref] = desc.note_content || '';
+      });
+      setNoteContents(contentsMap);
+    } catch (error) {
+      console.error('Error loading note descriptions:', error);
+      displayToast('Error loading note descriptions', 'error');
+    }
+  };
+
+  // Save a note description
+  const saveNoteDescription = async (noteRef, noteTitle, noteContent, statementType, className, subclassName, noteName) => {
+    try {
+      // Get current company
+      if (!entities || entities.length === 0) {
+        displayToast('Cannot save: No company context available', 'error');
+        return;
+      }
+
+      const companyId = entities[0].company_id;
+
+      // Set saving state for this note
+      setSavingNotes(prev => ({ ...prev, [noteRef]: true }));
+
+      console.log('💾 Saving note description:', { noteRef, noteTitle, companyId });
+
+      const response = await fetch('/api/note-descriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          company_id: companyId,
+          note_ref: noteRef,
+          note_title: noteTitle,
+          note_content: noteContent,
+          statement_type: statementType,
+          class_name: className,
+          subclass_name: subclassName,
+          note_name: noteName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save note description');
+      }
+
+      const { data } = await response.json();
+      console.log('✅ Note saved successfully:', data);
+
+      // Update local state
+      setNoteContents(prev => ({
+        ...prev,
+        [noteRef]: noteContent,
+      }));
+
+      displayToast(`Note ${noteRef} saved successfully!`, 'success');
+    } catch (error) {
+      console.error('Error saving note description:', error);
+      displayToast(`Error saving note: ${error.message}`, 'error');
+    } finally {
+      setSavingNotes(prev => ({ ...prev, [noteRef]: false }));
+    }
   };
 
   const loadData = async () => {
@@ -187,6 +291,17 @@ export default function ConsolidationWorkings() {
         coaRes.data || [],
         selectedStatement
       );
+
+      // Assign sequential note numbers across BS and IS
+      // Build both hierarchies to get complete note list
+      const bsHierarchy = buildCOAHierarchy(hierarchyRes.data || [], coaRes.data || [], 'balance_sheet');
+      const isHierarchy = buildCOAHierarchy(hierarchyRes.data || [], coaRes.data || [], 'income_statement');
+
+      // Combine and assign sequential numbers (BS first, then IS)
+      const combinedForNumbering = [...bsHierarchy, ...isHierarchy];
+      assignSequentialNoteNumbers(combinedForNumbering);
+
+      // The current statement hierarchy will have the assigned numbers
       setCoaHierarchy(hierarchy);
 
     } catch (error) {
@@ -196,6 +311,36 @@ export default function ConsolidationWorkings() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Function to assign sequential note numbers across Balance Sheet and Income Statement
+  const assignSequentialNoteNumbers = (hierarchy) => {
+    let noteCounter = 1;
+    const noteMapping = new Map(); // Map note IDs to sequential numbers
+
+    // Helper function to traverse and assign numbers
+    const traverseAndAssign = (nodes) => {
+      nodes.forEach(node => {
+        if (node.level === 'note' && !node.isProfitRow) {
+          // Assign sequential number if not already assigned
+          if (!noteMapping.has(node.id)) {
+            noteMapping.set(node.id, noteCounter);
+            node.sequentialNoteRef = noteCounter;
+            noteCounter++;
+          } else {
+            node.sequentialNoteRef = noteMapping.get(node.id);
+          }
+        }
+
+        // Recursively process children
+        if (node.children && node.children.length > 0) {
+          traverseAndAssign(node.children);
+        }
+      });
+    };
+
+    traverseAndAssign(hierarchy);
+    return hierarchy;
   };
 
   const buildCOAHierarchy = (masterHierarchy, coa, statementType) => {
@@ -863,6 +1008,9 @@ export default function ConsolidationWorkings() {
               </div>
             </td>
 
+            {/* Note Ref column */}
+            <td className="py-3 px-4 text-center text-gray-400 bg-slate-100">-</td>
+
             {/* FY 2024 columns */}
             {!fy2024Expanded ? (
               <td className="py-3 px-4 text-right text-gray-400">-</td>
@@ -924,6 +1072,9 @@ export default function ConsolidationWorkings() {
                 <span className="text-xs opacity-75 ml-2">(Click to view Income Statement)</span>
               </div>
             </td>
+
+            {/* Note Ref column */}
+            <td className="py-2 px-4 text-center text-gray-400 bg-[#101828]">-</td>
 
             {/* FY 2024 Profit/Loss */}
             {!fy2024Expanded ? (
@@ -1221,6 +1372,17 @@ export default function ConsolidationWorkings() {
             </div>
           </td>
 
+          {/* Note Ref Column */}
+          <td className={`py-2 px-4 text-center ${stickyBgColors[node.level]}`}>
+            {node.level === 'note' && node.sequentialNoteRef ? (
+              <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white text-sm font-bold rounded-full">
+                {node.sequentialNoteRef}
+              </span>
+            ) : (
+              <span className={node.level === 'class' ? 'text-gray-400' : 'text-gray-400'}>-</span>
+            )}
+          </td>
+
           {/* FY 2024 Columns */}
           {!fy2024Expanded ? (
             // Collapsed FY 2024 - Show only consolidated value
@@ -1493,6 +1655,13 @@ export default function ConsolidationWorkings() {
                 <RefreshCw size={16} />
                 Sync to Reports
               </button>
+              <button
+                onClick={() => setShowNoteBuilder(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+              >
+                <BookOpen size={16} />
+                Note Builder
+              </button>
               <button className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-700">
                 <Save size={16} />
                 Save
@@ -1595,6 +1764,11 @@ export default function ConsolidationWorkings() {
                     {/* COA Column - Always visible, sticky left */}
                     <th className="py-3 px-4 text-left font-semibold text-xs uppercase sticky left-0 bg-[#101828] z-30 min-w-[300px]">
                       Chart of Accounts
+                    </th>
+
+                    {/* Note Ref Column */}
+                    <th className="py-3 px-4 text-center font-semibold text-xs uppercase bg-[#101828] min-w-[80px]">
+                      Note Ref
                     </th>
 
                     {/* FY 2024 Column(s) - Collapsed or Expanded */}
@@ -1978,6 +2152,171 @@ export default function ConsolidationWorkings() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Note Builder Modal */}
+      {showNoteBuilder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="bg-purple-600 text-white px-8 py-6 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <BookOpen size={32} />
+                <div>
+                  <h2 className="text-3xl font-bold">Note Builder</h2>
+                  <p className="text-sm text-purple-100 mt-1">Edit note descriptions and content for financial statements</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNoteBuilder(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-8">
+              <div className="space-y-6">
+                {(() => {
+                  // Collect all notes from both BS and IS with sequential numbers
+                  const allNotes = [];
+
+                  const collectNotes = (nodes) => {
+                    nodes.forEach(node => {
+                      if (node.level === 'note' && node.sequentialNoteRef) {
+                        allNotes.push({
+                          noteRef: node.sequentialNoteRef,
+                          noteName: node.name,
+                          className: node.className,
+                          subclassName: node.subclassName,
+                          statementType: ['Assets', 'Liability', 'Liabilities', 'Equity'].includes(node.className) ? 'balance_sheet' : 'income_statement'
+                        });
+                      }
+
+                      if (node.children && node.children.length > 0) {
+                        collectNotes(node.children);
+                      }
+                    });
+                  };
+
+                  // Build both hierarchies to collect all notes
+                  const bsHierarchy = buildCOAHierarchy(masterHierarchy, glAccounts, 'balance_sheet');
+                  const isHierarchy = buildCOAHierarchy(masterHierarchy, glAccounts, 'income_statement');
+                  const combined = [...bsHierarchy, ...isHierarchy];
+                  assignSequentialNoteNumbers(combined);
+                  collectNotes(combined);
+
+                  // Sort by note ref
+                  allNotes.sort((a, b) => a.noteRef - b.noteRef);
+
+                  return allNotes.length > 0 ? (
+                    <div className="grid gap-6">
+                      {allNotes.map((note, index) => (
+                        <div key={index} className="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-300 transition-all">
+                          {/* Note Header */}
+                          <div className="flex items-start gap-4 mb-4">
+                            <div className="flex-shrink-0">
+                              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                                {note.noteRef}
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-xl font-bold text-[#101828] mb-1">{note.noteName}</h3>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <span className="font-semibold">Class:</span> {note.className}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <span className="font-semibold">Subclass:</span> {note.subclassName}
+                                </span>
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                  note.statementType === 'balance_sheet' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {note.statementType === 'balance_sheet' ? 'Balance Sheet' : 'Income Statement'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Note Content Editor */}
+                          <div className="ml-16">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Note Description
+                            </label>
+                            <textarea
+                              rows={4}
+                              placeholder="Enter note description, accounting policies, or additional details here..."
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                              value={noteContents[note.noteRef] || ''}
+                              onChange={(e) => {
+                                setNoteContents(prev => ({
+                                  ...prev,
+                                  [note.noteRef]: e.target.value
+                                }));
+                              }}
+                            />
+                            <div className="mt-2 flex items-center justify-between">
+                              <span className="text-xs text-gray-500">
+                                This will appear in the financial statement notes
+                              </span>
+                              <button
+                                onClick={() => {
+                                  saveNoteDescription(
+                                    note.noteRef,
+                                    note.noteName,
+                                    noteContents[note.noteRef] || '',
+                                    note.statementType,
+                                    note.className,
+                                    note.subclassName,
+                                    note.noteName
+                                  );
+                                }}
+                                disabled={savingNotes[note.noteRef]}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                              >
+                                {savingNotes[note.noteRef] ? (
+                                  <>
+                                    <Loader size={14} className="animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save size={14} />
+                                    Save Note
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">No notes found</p>
+                      <p className="text-sm">Notes will appear here once you have data in your chart of accounts</p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 px-8 py-4 flex items-center justify-between rounded-b-2xl bg-gray-50">
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold">Tip:</span> Note descriptions will be included in your financial statement exports
+              </div>
+              <button
+                onClick={() => setShowNoteBuilder(false)}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
