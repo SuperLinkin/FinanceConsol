@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, User, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { Lock, User, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ username: '', password: '', module: 'reporting' });
@@ -72,14 +72,6 @@ export default function LoginPage() {
                 <span className="text-white font-bold text-xl">C</span>
               </div>
               <span className="text-2xl font-bold text-[#101828]">CLOE</span>
-            </a>
-
-            <a
-              href="/home"
-              className="flex items-center gap-2 text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 cursor-pointer"
-            >
-              <ArrowLeft size={18} />
-              Back to Home
             </a>
           </div>
         </div>

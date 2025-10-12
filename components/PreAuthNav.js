@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 
 export default function PreAuthNav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,10 +14,6 @@ export default function PreAuthNav() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const handleLogin = () => {
-    router.push('/login');
-  };
 
   return (
     <nav
@@ -33,44 +26,44 @@ export default function PreAuthNav() {
       <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link href="/home" className="flex items-center gap-3 group">
+          <a href="/home" className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
               <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="text-2xl font-bold text-[#0F172A]">
+            <span className="text-2xl font-bold text-[#101828]">
               CLOE
             </span>
-          </Link>
+          </a>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <Link
+            <a
               href="/product"
-              className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
+              className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200"
             >
               Product
-            </Link>
-            <Link
+            </a>
+            <a
               href="/about"
-              className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
+              className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200"
             >
               About Us
-            </Link>
+            </a>
             <button
               onClick={() => {
                 const modal = document.getElementById('contact-modal');
                 if (modal) modal.classList.remove('hidden');
               }}
-              className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
+              className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200"
             >
               Contact Sales
             </button>
-            <button
-              onClick={handleLogin}
+            <a
+              href="/login"
               className="px-6 py-2.5 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:scale-105 transition-all duration-300"
             >
               Log In
-            </button>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -86,39 +79,37 @@ export default function PreAuthNav() {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200 bg-white/95 backdrop-blur-xl">
             <div className="flex flex-col gap-4">
-              <Link
+              <a
                 href="/product"
-                className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200 px-4 py-2"
+                className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 px-4 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Product
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/about"
-                className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200 px-4 py-2"
+                className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 px-4 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 About Us
-              </Link>
+              </a>
               <button
                 onClick={() => {
                   const modal = document.getElementById('contact-modal');
                   if (modal) modal.classList.remove('hidden');
                   setIsMobileMenuOpen(false);
                 }}
-                className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200 px-4 py-2 text-left"
+                className="text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 px-4 py-2 text-left"
               >
                 Contact Sales
               </button>
-              <button
-                onClick={() => {
-                  handleLogin();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="mx-4 px-6 py-2.5 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300"
+              <a
+                href="/login"
+                className="mx-4 px-6 py-2.5 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300 text-center"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 Log In
-              </button>
+              </a>
             </div>
           </div>
         )}
