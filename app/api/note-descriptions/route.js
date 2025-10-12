@@ -1,11 +1,23 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { supabaseAdmin } from '@/lib/supabase';
+import { verifySessionToken } from '@/lib/auth';
 
 // GET - Fetch all note descriptions for a company
 export async function GET(request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('company_id');
 
@@ -16,7 +28,12 @@ export async function GET(request) {
       );
     }
 
-    const { data, error } = await supabase
+    // Verify the requested company matches the user's company
+    if (companyId !== payload.companyId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data, error } = await supabaseAdmin
       .from('note_descriptions')
       .select('*')
       .eq('company_id', companyId)
@@ -43,7 +60,18 @@ export async function GET(request) {
 // POST - Create or update a note description (upsert)
 export async function POST(request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const {
@@ -65,21 +93,13 @@ export async function POST(request) {
       );
     }
 
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Verify the requested company matches the user's company
+    if (company_id !== payload.companyId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if note description already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('note_descriptions')
       .select('id')
       .eq('company_id', company_id)
@@ -89,7 +109,7 @@ export async function POST(request) {
     let result;
     if (existing) {
       // Update existing note description
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('note_descriptions')
         .update({
           note_title,
@@ -98,7 +118,7 @@ export async function POST(request) {
           class_name,
           subclass_name,
           note_name,
-          updated_by: user.id,
+          updated_by: payload.userId,
         })
         .eq('company_id', company_id)
         .eq('note_ref', note_ref)
@@ -116,7 +136,7 @@ export async function POST(request) {
       result = data;
     } else {
       // Insert new note description
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('note_descriptions')
         .insert({
           company_id,
@@ -127,8 +147,8 @@ export async function POST(request) {
           class_name,
           subclass_name,
           note_name,
-          created_by: user.id,
-          updated_by: user.id,
+          created_by: payload.userId,
+          updated_by: payload.userId,
         })
         .select()
         .single();
@@ -157,7 +177,18 @@ export async function POST(request) {
 // DELETE - Delete a note description
 export async function DELETE(request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = await cookies();
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('company_id');
     const noteRef = searchParams.get('note_ref');
@@ -169,7 +200,12 @@ export async function DELETE(request) {
       );
     }
 
-    const { error } = await supabase
+    // Verify the requested company matches the user's company
+    if (companyId !== payload.companyId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { error } = await supabaseAdmin
       .from('note_descriptions')
       .delete()
       .eq('company_id', companyId)
