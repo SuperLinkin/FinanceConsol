@@ -167,21 +167,21 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Credentials - Only show in development */}
-          {process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && (
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-              <div className="space-y-1">
-                <p className="text-xs text-blue-800">
-                  <span className="font-medium">Username:</span> Admin
-                </p>
-                <p className="text-xs text-blue-800">
-                  <span className="font-medium">Password:</span> Test
-                </p>
+            {/* Demo Credentials - Only show in development */}
+            {process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && (
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs font-semibold text-blue-900 mb-2">Demo Credentials:</p>
+                <div className="space-y-1">
+                  <p className="text-xs text-blue-800">
+                    <span className="font-medium">Username:</span> Admin
+                  </p>
+                  <p className="text-xs text-blue-800">
+                    <span className="font-medium">Password:</span> Test
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
           {/* Footer */}
           <div className="mt-6 text-center">
