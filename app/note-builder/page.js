@@ -13,7 +13,8 @@ import {
   Table as TableIcon,
   Hash,
   Calculator,
-  Type
+  Type,
+  Plus
 } from 'lucide-react';
 
 export default function NoteBuilderPage() {
@@ -33,7 +34,20 @@ export default function NoteBuilderPage() {
   // Side panel states
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
-  const [editMode, setEditMode] = useState('text'); // 'text', 'table', 'gl', 'formula'
+  const [editMode, setEditMode] = useState('text');
+
+  // Table builder states
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
+  const [tableData, setTableData] = useState([]);
+
+  // GL Tag builder states
+  const [selectedGL, setSelectedGL] = useState('');
+  const [selectedEntity, setSelectedEntity] = useState('');
+  const [selectedPeriodForGL, setSelectedPeriodForGL] = useState('');
+
+  // Formula builder states
+  const [formulaText, setFormulaText] = useState('');
 
   const statementTabs = [
     { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
@@ -69,12 +83,10 @@ export default function NoteBuilderPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load entities first to get company_id
       const entitiesResponse = await fetch('/api/entities');
       const entitiesData = await entitiesResponse.json();
       setEntities(entitiesData || []);
 
-      // Load periods
       const tbResponse = await fetch('/api/trial-balance');
       const allTBData = await tbResponse.json();
       const uniquePeriods = [...new Set((allTBData || []).map(tb => tb.period))].sort().reverse();
@@ -82,12 +94,12 @@ export default function NoteBuilderPage() {
 
       if (uniquePeriods.length > 0) {
         setCurrentPeriod(uniquePeriods[0]);
+        setSelectedPeriodForGL(uniquePeriods[0]);
         if (uniquePeriods.length > 1) {
           setPreviousPeriod(uniquePeriods[1]);
         }
       }
 
-      // Load COA hierarchy and GL accounts
       const [coaRes, hierarchyRes] = await Promise.all([
         supabase.from('chart_of_accounts').select('*').eq('is_active', true),
         supabase.from('coa_master_hierarchy').select('*').eq('is_active', true)
@@ -96,13 +108,11 @@ export default function NoteBuilderPage() {
       setGlAccounts(coaRes.data || []);
       setMasterHierarchy(hierarchyRes.data || []);
 
-      // Build hierarchies and assign sequential numbers
       const bsHierarchy = buildCOAHierarchy(hierarchyRes.data || [], coaRes.data || [], 'balance_sheet');
       const isHierarchy = buildCOAHierarchy(hierarchyRes.data || [], coaRes.data || [], 'income_statement');
       const combinedForNumbering = [...bsHierarchy, ...isHierarchy];
       assignSequentialNoteNumbers(combinedForNumbering);
 
-      // Collect all notes
       const allNotes = [];
       const collectNotes = (nodes) => {
         nodes.forEach(node => {
@@ -124,7 +134,6 @@ export default function NoteBuilderPage() {
       allNotes.sort((a, b) => a.noteRef - b.noteRef);
       setNotes(allNotes);
 
-      // Load existing note descriptions if we have entities
       if (entitiesData && entitiesData.length > 0) {
         await loadNoteDescriptions(entitiesData[0].company_id);
       }
@@ -295,14 +304,12 @@ export default function NoteBuilderPage() {
   const getNoteValue = (note, period) => {
     if (!period || !trialBalances.length) return 0;
 
-    // Get all GL accounts for this note
     const noteGLs = glAccounts.filter(gl =>
       gl.class_name === note.className &&
       gl.subclass_name === note.subclassName &&
       gl.note_name === note.noteName
     );
 
-    // Sum up trial balance values for this period
     let total = 0;
     noteGLs.forEach(gl => {
       const tbEntry = trialBalances.find(tb =>
@@ -322,6 +329,76 @@ export default function NoteBuilderPage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(Math.abs(value));
+  };
+
+  // Table Builder Functions
+  const initializeTable = () => {
+    const newTableData = Array(tableRows).fill(null).map(() =>
+      Array(tableCols).fill('')
+    );
+    setTableData(newTableData);
+  };
+
+  const updateTableCell = (rowIndex, colIndex, value) => {
+    const newTableData = [...tableData];
+    newTableData[rowIndex][colIndex] = value;
+    setTableData(newTableData);
+  };
+
+  const insertTable = () => {
+    let tableHTML = `<table border="1" style="border-collapse: collapse; width: 100%;">\n`;
+    tableData.forEach((row) => {
+      tableHTML += '  <tr>\n';
+      row.forEach((cell) => {
+        tableHTML += `    <td style="padding: 8px;">${cell || '&nbsp;'}</td>\n`;
+      });
+      tableHTML += '  </tr>\n';
+    });
+    tableHTML += '</table>\n\n';
+
+    setNoteContents(prev => ({
+      ...prev,
+      [editingNote.noteRef]: (prev[editingNote.noteRef] || '') + tableHTML
+    }));
+    showToast('Table inserted into note', true);
+    setEditMode('text');
+  };
+
+  // GL Tag Functions
+  const insertGLTag = () => {
+    if (!selectedGL) {
+      showToast('Please select a GL account', false);
+      return;
+    }
+
+    const glTag = `{{GL:${selectedGL}${selectedEntity ? ':' + selectedEntity : ''}${selectedPeriodForGL ? ':' + selectedPeriodForGL : ''}}}`;
+    setNoteContents(prev => ({
+      ...prev,
+      [editingNote.noteRef]: (prev[editingNote.noteRef] || '') + glTag
+    }));
+    showToast('GL tag inserted', true);
+    setSelectedGL('');
+    setSelectedEntity('');
+  };
+
+  // Formula Functions
+  const insertFormula = () => {
+    if (!formulaText) {
+      showToast('Please enter a formula', false);
+      return;
+    }
+
+    const formulaTag = `{{FORMULA:${formulaText}}}`;
+    setNoteContents(prev => ({
+      ...prev,
+      [editingNote.noteRef]: (prev[editingNote.noteRef] || '') + formulaTag
+    }));
+    showToast('Formula inserted', true);
+    setFormulaText('');
+  };
+
+  const addGLToFormula = (glCode) => {
+    setFormulaText(prev => prev + `GL(${glCode})`);
   };
 
   if (loading) {
@@ -442,7 +519,7 @@ export default function NoteBuilderPage() {
 
       {/* Edit Side Panel */}
       {showEditPanel && editingNote && (
-        <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-50 flex flex-col animate-slideLeft">
+        <div className="fixed right-0 top-0 h-full w-[700px] bg-white shadow-2xl z-50 flex flex-col animate-slideLeft">
           {/* Header */}
           <div className="bg-purple-600 text-white px-6 py-4 flex items-center justify-between">
             <div>
@@ -501,6 +578,7 @@ export default function NoteBuilderPage() {
 
           {/* Editor Content */}
           <div className="flex-1 overflow-y-auto p-6">
+            {/* TEXT MODE */}
             {editMode === 'text' && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -509,7 +587,7 @@ export default function NoteBuilderPage() {
                 <textarea
                   rows={20}
                   placeholder="Enter note description, accounting policies, or additional details here..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-mono text-sm"
                   value={noteContents[editingNote.noteRef] || ''}
                   onChange={(e) => {
                     setNoteContents(prev => ({
@@ -519,32 +597,218 @@ export default function NoteBuilderPage() {
                   }}
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  This will appear in the financial statement notes
+                  Use {"{{GL:code}}"} for GL tags and {"{{FORMULA:expression}}"} for formulas
                 </p>
               </div>
             )}
 
+            {/* TABLE MODE */}
             {editMode === 'table' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-                <TableIcon size={48} className="mx-auto text-blue-400 mb-4" />
-                <p className="text-blue-900 font-semibold">Table Builder</p>
-                <p className="text-sm text-blue-700 mt-2">Coming soon - Insert tables into notes</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Table Dimensions
+                  </label>
+                  <div className="flex gap-4">
+                    <div>
+                      <label className="text-xs text-gray-600">Rows</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={tableRows}
+                        onChange={(e) => setTableRows(parseInt(e.target.value) || 1)}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Columns</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={tableCols}
+                        onChange={(e) => setTableCols(parseInt(e.target.value) || 1)}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={initializeTable}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+                    >
+                      Create Table
+                    </button>
+                  </div>
+                </div>
+
+                {tableData.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Table Content
+                    </label>
+                    <div className="border border-gray-300 rounded-lg overflow-auto">
+                      <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+                        <tbody>
+                          {tableData.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                              {row.map((cell, colIndex) => (
+                                <td key={colIndex} style={{ border: '1px solid #ddd', padding: '4px' }}>
+                                  <input
+                                    type="text"
+                                    value={cell}
+                                    onChange={(e) => updateTableCell(rowIndex, colIndex, e.target.value)}
+                                    className="w-full px-2 py-1 text-sm border-0 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    placeholder={`R${rowIndex + 1}C${colIndex + 1}`}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      onClick={insertTable}
+                      className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                    >
+                      <Plus size={16} className="inline mr-2" />
+                      Insert Table into Note
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* GL TAG MODE */}
             {editMode === 'gl' && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-                <Hash size={48} className="mx-auto text-green-400 mb-4" />
-                <p className="text-green-900 font-semibold">GL Tag Builder</p>
-                <p className="text-sm text-green-700 mt-2">Coming soon - Insert GL account values</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Select GL Account
+                  </label>
+                  <select
+                    value={selectedGL}
+                    onChange={(e) => setSelectedGL(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Choose GL Account</option>
+                    {glAccounts.map(gl => (
+                      <option key={gl.account_code} value={gl.account_code}>
+                        {gl.account_code} - {gl.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Entity (Optional)
+                  </label>
+                  <select
+                    value={selectedEntity}
+                    onChange={(e) => setSelectedEntity(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">All Entities</option>
+                    {entities.map(entity => (
+                      <option key={entity.id} value={entity.id}>
+                        {entity.entity_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Period (Optional)
+                  </label>
+                  <select
+                    value={selectedPeriodForGL}
+                    onChange={(e) => setSelectedPeriodForGL(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Current Period</option>
+                    {periods.map(period => (
+                      <option key={period} value={period}>
+                        {period}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-bold text-green-900 mb-2">Preview:</h4>
+                  <p className="text-sm text-green-800 font-mono break-all">
+                    {selectedGL ? `{{GL:${selectedGL}${selectedEntity ? ':' + selectedEntity : ''}${selectedPeriodForGL ? ':' + selectedPeriodForGL : ''}}}` : 'Select a GL account to see preview'}
+                  </p>
+                </div>
+
+                <button
+                  onClick={insertGLTag}
+                  disabled={!selectedGL}
+                  className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} className="inline mr-2" />
+                  Insert GL Tag
+                </button>
               </div>
             )}
 
+            {/* FORMULA MODE */}
             {editMode === 'formula' && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 text-center">
-                <Calculator size={48} className="mx-auto text-purple-400 mb-4" />
-                <p className="text-purple-900 font-semibold">Formula Builder</p>
-                <p className="text-sm text-purple-700 mt-2">Coming soon - Insert calculated values</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Formula Expression
+                  </label>
+                  <textarea
+                    rows={6}
+                    placeholder="e.g., GL(1000) + GL(2000) or (GL(5000) / GL(4000)) * 100"
+                    value={formulaText}
+                    onChange={(e) => setFormulaText(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Quick Add GL to Formula
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addGLToFormula(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Click to add GL code</option>
+                    {glAccounts.map(gl => (
+                      <option key={gl.account_code} value={gl.account_code}>
+                        {gl.account_code} - {gl.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h4 className="font-bold text-purple-900 mb-2">Formula Examples:</h4>
+                  <ul className="text-sm text-purple-800 space-y-1 font-mono">
+                    <li>• GL(1000) + GL(2000)</li>
+                    <li>• (GL(5000) - GL(5100)) / GL(4000) * 100</li>
+                    <li>• (GL(1000) - GL(1100)) / GL(1000) * 100</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={insertFormula}
+                  disabled={!formulaText}
+                  className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} className="inline mr-2" />
+                  Insert Formula
+                </button>
               </div>
             )}
           </div>
