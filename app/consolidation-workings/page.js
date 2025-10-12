@@ -285,23 +285,23 @@ export default function ConsolidationWorkings() {
       setEliminations(allEliminations);
       setAdjustments(adjustmentsRes.data || []);
 
-      // Build COA hierarchy for selected statement
-      const hierarchy = buildCOAHierarchy(
-        hierarchyRes.data || [],
-        coaRes.data || [],
-        selectedStatement
-      );
-
       // Assign sequential note numbers across BS and IS
       // Build both hierarchies to get complete note list
       const bsHierarchy = buildCOAHierarchy(hierarchyRes.data || [], coaRes.data || [], 'balance_sheet');
       const isHierarchy = buildCOAHierarchy(hierarchyRes.data || [], coaRes.data || [], 'income_statement');
 
+      console.log('📊 Built BS hierarchy with', bsHierarchy.length, 'top-level nodes');
+      console.log('📊 Built IS hierarchy with', isHierarchy.length, 'top-level nodes');
+
       // Combine and assign sequential numbers (BS first, then IS)
       const combinedForNumbering = [...bsHierarchy, ...isHierarchy];
       assignSequentialNoteNumbers(combinedForNumbering);
 
-      // The current statement hierarchy will have the assigned numbers
+      // Now get the hierarchy for the selected statement (which will have the assigned numbers)
+      const hierarchy = selectedStatement === 'balance_sheet' ? bsHierarchy : isHierarchy;
+      console.log('📊 Setting hierarchy for statement:', selectedStatement);
+      console.log('📊 Hierarchy has', hierarchy.length, 'top-level nodes');
+
       setCoaHierarchy(hierarchy);
 
     } catch (error) {
@@ -318,6 +318,8 @@ export default function ConsolidationWorkings() {
     let noteCounter = 1;
     const noteMapping = new Map(); // Map note IDs to sequential numbers
 
+    console.log('🔢 Starting to assign sequential note numbers...');
+
     // Helper function to traverse and assign numbers
     const traverseAndAssign = (nodes) => {
       nodes.forEach(node => {
@@ -326,6 +328,7 @@ export default function ConsolidationWorkings() {
           if (!noteMapping.has(node.id)) {
             noteMapping.set(node.id, noteCounter);
             node.sequentialNoteRef = noteCounter;
+            console.log(`✅ Assigned note number ${noteCounter} to: ${node.name} (ID: ${node.id})`);
             noteCounter++;
           } else {
             node.sequentialNoteRef = noteMapping.get(node.id);
@@ -340,6 +343,7 @@ export default function ConsolidationWorkings() {
     };
 
     traverseAndAssign(hierarchy);
+    console.log(`🔢 Finished assigning note numbers. Total notes: ${noteCounter - 1}`);
     return hierarchy;
   };
 
