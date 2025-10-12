@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import PreAuthNav from '@/components/PreAuthNav';
 import Link from 'next/link';
 import {
@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   Shield,
   Zap,
-  Clock
+  Clock,
+  Globe,
+  Lock
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -20,11 +22,11 @@ export default function HomePage() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add('animate-fadeInUp');
+            entry.target.classList.add('fade-in');
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: '50px' }
     );
 
     document.querySelectorAll('.fade-in-section').forEach((el) => {
@@ -36,27 +38,25 @@ export default function HomePage() {
 
   const modules = [
     {
-      title: 'Financial Close Module',
+      title: 'Financial Close',
+      subtitle: 'Automate your close cycle',
       icon: Calendar,
       features: [
-        'Smart Close Calendar',
-        'Workflow Automation',
-        'Multi-Entity Reconciliation',
-        'AI Variance Analysis',
-        'Audit Trail Visibility',
-        'Real-time Collaboration'
+        'Smart close calendar with automated task tracking',
+        'AI-driven variance analysis and exception detection',
+        'Multi-entity reconciliation workflows',
+        'Real-time collaboration and approvals'
       ]
     },
     {
-      title: 'Financial Reporting Module',
+      title: 'Financial Reporting',
+      subtitle: 'Consolidate and report with confidence',
       icon: BarChart3,
       features: [
-        'Multi-GAAP & Multi-Currency',
-        'Consolidation Engine',
-        'Dynamic Notes & Disclosures',
-        'Real-time Dashboards',
-        'Industry-Agnostic',
-        'Export to PDF/Excel'
+        'Multi-GAAP, multi-currency consolidation',
+        'Dynamic notes and disclosure builder',
+        'Automated intercompany eliminations',
+        'Export-ready financial statements'
       ]
     }
   ];
@@ -64,194 +64,168 @@ export default function HomePage() {
   const benefits = [
     {
       icon: Zap,
-      title: 'Accelerate Close Cycles',
-      description: 'Reduce close time by 50% with intelligent automation'
+      title: 'Faster close',
+      description: 'Reduce close time by 50% with intelligent automation and real-time collaboration'
     },
     {
       icon: Shield,
-      title: 'Ensure Compliance',
-      description: 'Built-in controls for SOX, IFRS, and US GAAP'
+      title: 'Always compliant',
+      description: 'Built-in controls for SOX, IFRS, and US GAAP with complete audit trails'
     },
     {
-      icon: Clock,
-      title: 'Real-Time Insights',
-      description: 'Live dashboards for proactive decision-making'
+      icon: Globe,
+      title: 'Global scale',
+      description: 'Handle complex multi-entity structures across currencies and GAAPs'
     }
   ];
 
+  const stats = [
+    { value: '50%', label: 'Faster close cycles' },
+    { value: '100%', label: 'Audit-ready reports' },
+    { value: '24/7', label: 'Enterprise support' }
+  ];
+
   return (
-    <div className="min-h-screen bg-[#FAFAFB]">
+    <div className="min-h-screen bg-white">
       <PreAuthNav />
 
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-32 px-6 lg:px-8 overflow-hidden min-h-[90vh] flex items-center">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0">
-          {/* Floating Gradient Orbs */}
-          <div className="absolute top-20 right-20 w-[500px] h-[500px] bg-gradient-to-br from-purple-200 to-blue-200 rounded-full blur-3xl opacity-40 animate-float"></div>
-          <div className="absolute bottom-32 left-20 w-[600px] h-[600px] bg-gradient-to-tr from-violet-200 to-purple-200 rounded-full blur-3xl opacity-30 animate-float animation-delay-2000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-to-br from-indigo-200 to-purple-200 rounded-full blur-3xl opacity-20 animate-float animation-delay-4000"></div>
-
-          {/* Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(123,97,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(123,97,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-        </div>
-
-        <div className="relative max-w-[1280px] mx-auto w-full">
-          <div className="text-center max-w-5xl mx-auto">
-            {/* Animated Badge */}
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200/60 mb-10 opacity-0 animate-fadeInUp backdrop-blur-sm shadow-lg shadow-purple-500/10">
-              <Sparkles className="text-purple-600 animate-pulse" size={18} />
-              <span className="text-sm font-bold text-purple-900 tracking-wide">
-                AI-Native Finance Platform
-              </span>
+      {/* Hero Section - Clean and Minimal */}
+      <section className="relative pt-32 pb-24 px-6 lg:px-8">
+        <div className="max-w-[1100px] mx-auto">
+          {/* Subtle badge */}
+          <div className="flex justify-center mb-8 fade-in-section">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 border border-purple-100">
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
+              <span className="text-sm font-semibold text-purple-900">AI-Native Finance Platform</span>
             </div>
+          </div>
 
-            {/* Dynamic Heading with Gradient */}
-            <h1 className="text-6xl md:text-8xl font-extrabold text-[#101828] mb-8 tracking-tight leading-[1.1] opacity-0 animate-fadeInUp animation-delay-100">
-              Automating the Future
+          {/* Hero Headline - Mercury style */}
+          <div className="text-center fade-in-section">
+            <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold text-[#0F172A] mb-6 tracking-tight leading-[0.95]">
+              Finance automation
               <br />
-              <span className="relative inline-block mt-2">
-                <span className="bg-gradient-to-r from-[#7B61FF] via-[#A78BFA] to-[#7B61FF] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
-                  of Finance
-                </span>
-                {/* Underline Animation */}
-                <span className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-r from-[#7B61FF]/20 to-[#A78BFA]/20 blur-sm"></span>
-              </span>
+              <span className="text-[#7B61FF]">built for scale</span>
             </h1>
 
-            {/* Enhanced Subheading */}
-            <p className="text-xl md:text-2xl text-[#475569] mb-14 leading-relaxed font-medium opacity-0 animate-fadeInUp animation-delay-200 max-w-4xl mx-auto">
-              CLOE (Close Optimization Engine) is an AI-native platform for end-to-end{' '}
-              <span className="text-[#101828] font-bold bg-gradient-to-r from-purple-100 to-blue-100 px-2 py-1 rounded">Financial Close & Reporting</span>{' '}
-              — multi-entity, multi-GAAP, and fully automated.
+            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed font-normal">
+              CLOE is the AI-native platform for financial close and reporting —
+              multi-entity, multi-GAAP, fully automated.
             </p>
 
-            {/* Enhanced CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-5 opacity-0 animate-fadeInUp animation-delay-300">
-              <button
-                onClick={() => {
-                  document.getElementById('modules-section').scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="group relative px-12 py-5 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-2xl font-bold text-lg shadow-2xl shadow-purple-500/30 hover:shadow-purple-500/40 hover:scale-105 transition-all duration-300 flex items-center gap-3 overflow-hidden"
-              >
-                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
-                <span className="relative">Explore Product</span>
-                <ArrowRight className="relative group-hover:translate-x-2 transition-transform duration-300" size={22} />
-              </button>
-
+            {/* CTA Buttons - Clean style */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 fade-in-section">
               <button
                 onClick={() => {
                   const modal = document.getElementById('contact-modal');
                   if (modal) modal.classList.remove('hidden');
                 }}
-                className="px-12 py-5 bg-white text-[#101828] rounded-2xl font-bold text-lg border-2 border-gray-200 hover:border-purple-300 hover:shadow-2xl hover:shadow-purple-500/10 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+                className="px-8 py-4 bg-[#0F172A] text-white rounded-xl font-semibold hover:bg-[#1e293b] transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                Get Demo
+                Request demo
               </button>
+
+              <Link
+                href="/product"
+                className="px-8 py-4 bg-white text-[#0F172A] rounded-xl font-semibold border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200"
+              >
+                Explore product
+              </Link>
             </div>
 
-            {/* Trust Indicators */}
-            <div className="mt-16 flex flex-wrap items-center justify-center gap-8 opacity-0 animate-fadeInUp animation-delay-400">
-              <div className="flex items-center gap-2 text-[#475569] text-sm font-medium">
-                <CheckCircle2 className="text-green-500" size={18} />
-                <span>SOX Compliant</span>
+            {/* Trust indicators - Minimal */}
+            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-gray-500 fade-in-section">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-green-500" />
+                <span>SOX compliant</span>
               </div>
-              <div className="flex items-center gap-2 text-[#475569] text-sm font-medium">
-                <CheckCircle2 className="text-green-500" size={18} />
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-green-500" />
                 <span>IFRS & US GAAP</span>
               </div>
-              <div className="flex items-center gap-2 text-[#475569] text-sm font-medium">
-                <CheckCircle2 className="text-green-500" size={18} />
-                <span>Enterprise-Grade Security</span>
-              </div>
-              <div className="flex items-center gap-2 text-[#475569] text-sm font-medium">
-                <CheckCircle2 className="text-green-500" size={18} />
-                <span>24/7 Support</span>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-green-500" />
+                <span>Enterprise-grade security</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 animate-fadeInUp animation-delay-500">
-          <div className="flex flex-col items-center gap-2 text-[#475569] animate-bounce-slow">
-            <span className="text-xs font-semibold uppercase tracking-wider">Scroll to explore</span>
-            <ArrowRight className="rotate-90" size={16} />
+        {/* Subtle background gradient */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-4xl -z-10">
+          <div className="absolute top-40 left-1/4 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+          <div className="absolute top-60 right-1/4 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        </div>
+      </section>
+
+      {/* Stats Section - Clean and Simple */}
+      <section className="py-16 px-6 lg:px-8 border-y border-gray-100 bg-gray-50 fade-in-section">
+        <div className="max-w-[1100px] mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-5xl font-bold text-[#0F172A] mb-2">{stat.value}</div>
+                <div className="text-gray-600 font-medium">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Modules Section */}
-      <section id="modules-section" className="relative py-32 px-6 lg:px-8 fade-in-section bg-gradient-to-b from-white to-gray-50 overflow-hidden">
-        {/* Background Decoration */}
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-purple-100/40 to-blue-100/40 rounded-full blur-3xl opacity-50"></div>
-
-        <div className="relative max-w-[1280px] mx-auto">
+      {/* Modules Section - Mercury-inspired cards */}
+      <section className="py-32 px-6 lg:px-8 fade-in-section">
+        <div className="max-w-[1100px] mx-auto">
+          {/* Section header */}
           <div className="text-center mb-20">
-            <div className="inline-block mb-6">
-              <span className="px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 text-[#101828] text-sm font-bold rounded-full border border-purple-200">
-                Platform Capabilities
-              </span>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-extrabold text-[#101828] mb-6 tracking-tight leading-tight">
-              Two Core Modules.
-              <br />
-              <span className="bg-gradient-to-r from-[#7B61FF] via-[#A78BFA] to-[#7B61FF] bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
-                Infinite Automation.
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-4 tracking-tight">
+              Two core modules
             </h2>
-            <p className="text-xl text-[#475569] max-w-2xl mx-auto font-medium leading-relaxed">
-              Comprehensive automation across your entire financial workflow
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              End-to-end automation for your entire financial workflow
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-10">
+          {/* Module cards */}
+          <div className="space-y-8">
             {modules.map((module, index) => {
               const Icon = module.icon;
               return (
                 <div
                   key={index}
-                  className="group relative bg-white rounded-3xl p-10 border-2 border-gray-100 hover:border-purple-300 shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 hover:-translate-y-3 overflow-hidden"
-                  style={{ animationDelay: `${index * 100}ms` }}
+                  className="group bg-white rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-xl transition-all duration-300 overflow-hidden"
                 >
-                  {/* Hover Gradient Background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 to-blue-50/0 group-hover:from-purple-50/50 group-hover:to-blue-50/50 transition-all duration-500"></div>
+                  <div className="p-12">
+                    <div className="flex flex-col lg:flex-row gap-12">
+                      {/* Left: Icon and title */}
+                      <div className="lg:w-2/5">
+                        <div className="inline-flex p-4 bg-purple-50 rounded-xl mb-6">
+                          <Icon className="text-[#7B61FF]" size={32} />
+                        </div>
+                        <h3 className="text-3xl font-bold text-[#0F172A] mb-2 tracking-tight">
+                          {module.title}
+                        </h3>
+                        <p className="text-lg text-gray-600 mb-6">{module.subtitle}</p>
+                        <Link
+                          href="/product"
+                          className="inline-flex items-center gap-2 text-[#7B61FF] font-semibold hover:gap-3 transition-all duration-200"
+                        >
+                          <span>Learn more</span>
+                          <ArrowRight size={18} />
+                        </Link>
+                      </div>
 
-                  {/* Content */}
-                  <div className="relative">
-                    {/* Icon with animated ring */}
-                    <div className="relative inline-flex mb-8">
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-2xl blur-md opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                      <div className="relative inline-flex p-6 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-2xl shadow-lg shadow-purple-500/25 group-hover:scale-110 transition-transform duration-300">
-                        <Icon className="text-white" size={44} />
+                      {/* Right: Features */}
+                      <div className="lg:w-3/5">
+                        <div className="space-y-4">
+                          {module.features.map((feature, idx) => (
+                            <div key={idx} className="flex items-start gap-3">
+                              <CheckCircle2 className="text-[#7B61FF] flex-shrink-0 mt-0.5" size={20} />
+                              <span className="text-gray-700">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-
-                    {/* Title */}
-                    <h3 className="text-3xl font-bold text-[#101828] mb-6 tracking-tight group-hover:text-[#7B61FF] transition-colors duration-300">
-                      {module.title}
-                    </h3>
-
-                    {/* Features */}
-                    <div className="space-y-4 mb-8">
-                      {module.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-3 group/item">
-                          <div className="flex-shrink-0 mt-0.5">
-                            <CheckCircle2 className="text-[#7B61FF] group-hover/item:scale-110 transition-transform" size={20} />
-                          </div>
-                          <span className="text-[#475569] font-medium group-hover/item:text-[#101828] transition-colors">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Learn More Link */}
-                    <Link
-                      href="/product"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white font-bold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-105 transition-all duration-300 group/link"
-                    >
-                      <span>Learn More</span>
-                      <ArrowRight className="group-hover/link:translate-x-1 transition-transform" size={18} />
-                    </Link>
                   </div>
                 </div>
               );
@@ -260,32 +234,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-24 px-6 lg:px-8 fade-in-section bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-6 tracking-tight">
-              Why Finance Teams Choose CLOE
+      {/* Benefits Section - Clean grid */}
+      <section className="py-32 px-6 lg:px-8 bg-gray-50 fade-in-section">
+        <div className="max-w-[1100px] mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-4 tracking-tight">
+              Why finance teams choose CLOE
             </h2>
-            <p className="text-xl text-[#475569] max-w-2xl mx-auto font-medium">
-              Intelligent automation meets enterprise-grade security
-            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {benefits.map((benefit, index) => {
               const Icon = benefit.icon;
               return (
-                <div
-                  key={index}
-                  className="bg-white rounded-2xl p-8 border border-gray-100 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 hover:-translate-y-1"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="inline-flex p-4 bg-gradient-to-br from-purple-100 to-blue-100 rounded-xl mb-6">
-                    <Icon className="text-[#7B61FF]" size={28} />
+                <div key={index} className="bg-white rounded-2xl p-8 border border-gray-100">
+                  <div className="inline-flex p-3 bg-purple-50 rounded-xl mb-4">
+                    <Icon className="text-[#7B61FF]" size={24} />
                   </div>
-                  <h3 className="text-xl font-bold text-[#0F172A] mb-3">{benefit.title}</h3>
-                  <p className="text-[#475569] leading-relaxed">{benefit.description}</p>
+                  <h3 className="text-xl font-bold text-[#0F172A] mb-2">{benefit.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{benefit.description}</p>
                 </div>
               );
             })}
@@ -293,62 +260,67 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="py-24 px-6 lg:px-8 fade-in-section bg-white">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="relative bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] rounded-3xl p-16 overflow-hidden shadow-2xl shadow-purple-500/20">
-            {/* Subtle Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+      {/* Security Section */}
+      <section className="py-32 px-6 lg:px-8 fade-in-section">
+        <div className="max-w-[1100px] mx-auto">
+          <div className="bg-[#0F172A] rounded-3xl p-16 text-center text-white">
+            <div className="inline-flex p-4 bg-white/10 rounded-xl mb-6">
+              <Lock className="text-white" size={32} />
             </div>
-
-            <div className="relative text-center">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-                Ready to Transform Your
-                <br />
-                Finance Operations?
-              </h2>
-              <p className="text-xl text-purple-100 mb-10 max-w-2xl mx-auto font-medium">
-                Join forward-thinking finance teams automating their close and reporting with CLOE
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button
-                  onClick={() => {
-                    const modal = document.getElementById('contact-modal');
-                    if (modal) modal.classList.remove('hidden');
-                  }}
-                  className="px-10 py-4 bg-white text-[#7B61FF] rounded-xl font-semibold hover:shadow-2xl hover:scale-105 transition-all duration-300"
-                >
-                  Request Demo
-                </button>
-                <Link
-                  href="/product"
-                  className="px-10 py-4 bg-transparent text-white rounded-xl font-semibold border-2 border-white hover:bg-white hover:text-[#7B61FF] transition-all duration-300 hover:scale-105"
-                >
-                  Explore CLOE
-                </Link>
-              </div>
-            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+              Enterprise-grade security
+            </h2>
+            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+              SOC 2 Type II certified with bank-level encryption, role-based access control, and complete audit trails
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-[#0F172A] text-white py-12 px-6 lg:px-8">
-        <div className="max-w-[1280px] mx-auto">
+      {/* Final CTA */}
+      <section className="py-32 px-6 lg:px-8 fade-in-section">
+        <div className="max-w-[1100px] mx-auto text-center">
+          <h2 className="text-5xl md:text-6xl font-bold text-[#0F172A] mb-6 tracking-tight">
+            Ready to automate your close?
+          </h2>
+          <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
+            Join forward-thinking finance teams using CLOE to close faster and report with confidence
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={() => {
+                const modal = document.getElementById('contact-modal');
+                if (modal) modal.classList.remove('hidden');
+              }}
+              className="px-10 py-5 bg-[#0F172A] text-white rounded-xl font-semibold text-lg hover:bg-[#1e293b] transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              Request demo
+            </button>
+            <Link
+              href="/product"
+              className="px-10 py-5 bg-white text-[#0F172A] rounded-xl font-semibold text-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200"
+            >
+              View product
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer - Minimal */}
+      <footer className="border-t border-gray-200 py-12 px-6 lg:px-8">
+        <div className="max-w-[1100px] mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-[#7B61FF] rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
-              <span className="text-2xl font-bold">CLOE</span>
+              <span className="text-xl font-bold text-[#0F172A]">CLOE</span>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-8 text-sm font-medium text-gray-400">
-              <Link href="/product" className="hover:text-white transition-colors">
+            <div className="flex items-center gap-8 text-sm font-medium text-gray-600">
+              <Link href="/product" className="hover:text-[#0F172A] transition-colors">
                 Product
               </Link>
-              <Link href="/about" className="hover:text-white transition-colors">
+              <Link href="/about" className="hover:text-[#0F172A] transition-colors">
                 About
               </Link>
               <button
@@ -356,106 +328,28 @@ export default function HomePage() {
                   const modal = document.getElementById('contact-modal');
                   if (modal) modal.classList.remove('hidden');
                 }}
-                className="hover:text-white transition-colors"
+                className="hover:text-[#0F172A] transition-colors"
               >
                 Contact
               </button>
-              <span className="hover:text-white transition-colors cursor-pointer">Privacy</span>
             </div>
           </div>
-          <div className="text-center text-gray-500 text-sm border-t border-gray-800 pt-8">
-            © 2025 CLOE — Automating the Close.
+          <div className="text-center text-sm text-gray-500 pt-8 border-t border-gray-100">
+            © 2025 CLOE. All rights reserved.
           </div>
         </div>
       </footer>
 
       <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        .fade-in-section {
+          opacity: 0;
+          transform: translateY(20px);
+          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
         }
 
-        @keyframes float {
-          0%, 100% {
-            transform: translate(0, 0) scale(1);
-          }
-          33% {
-            transform: translate(30px, -30px) scale(1.1);
-          }
-          66% {
-            transform: translate(-20px, 20px) scale(0.9);
-          }
-        }
-
-        @keyframes gradient {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
-        }
-
-        @keyframes bounce-slow {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
-        }
-
-        .animate-fadeInUp {
-          animation: fadeInUp 0.8s ease-out forwards;
-        }
-
-        .animate-float {
-          animation: float 20s ease-in-out infinite;
-        }
-
-        .animate-gradient {
-          animation: gradient 8s linear infinite;
-        }
-
-        .animate-bounce-slow {
-          animation: bounce-slow 2s ease-in-out infinite;
-        }
-
-        .animation-delay-100 {
-          animation-delay: 0.1s;
-        }
-
-        .animation-delay-200 {
-          animation-delay: 0.2s;
-        }
-
-        .animation-delay-300 {
-          animation-delay: 0.3s;
-        }
-
-        .animation-delay-400 {
-          animation-delay: 0.4s;
-        }
-
-        .animation-delay-500 {
-          animation-delay: 0.5s;
-        }
-
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-
-        .animation-delay-4000 {
-          animation-delay: 4s;
+        .fade-in-section.fade-in {
+          opacity: 1;
+          transform: translateY(0);
         }
       `}</style>
     </div>

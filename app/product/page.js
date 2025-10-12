@@ -106,11 +106,31 @@ export default function ProductPage() {
     }
   ];
 
-  const erpLogos = [
-    { name: 'Tally', color: 'from-red-500 to-orange-500' },
-    { name: 'SAP', color: 'from-blue-500 to-cyan-500' },
-    { name: 'NetSuite', color: 'from-green-500 to-emerald-500' },
-    { name: 'QuickBooks', color: 'from-yellow-500 to-amber-500' }
+  const addOns = [
+    {
+      name: 'Revenue Analysis',
+      color: 'from-blue-500 to-cyan-500',
+      icon: '📊',
+      description: 'Deep dive into revenue streams with AI-powered insights'
+    },
+    {
+      name: 'Accounting Bot',
+      color: 'from-purple-500 to-pink-500',
+      icon: '🤖',
+      description: 'AI assistant for accounting queries and automation'
+    },
+    {
+      name: 'Cash Flow Intelligence',
+      color: 'from-green-500 to-emerald-500',
+      icon: '💰',
+      description: 'Predictive cash flow forecasting and optimization'
+    },
+    {
+      name: 'Expense Analytics',
+      color: 'from-orange-500 to-red-500',
+      icon: '📈',
+      description: 'Smart expense categorization and anomaly detection'
+    }
   ];
 
   return (
@@ -297,30 +317,31 @@ export default function ProductPage() {
         </div>
       </section>
 
-      {/* Integrations Section */}
+      {/* Tailored Add-Ons Section */}
       <section className="py-20 px-6 lg:px-8 bg-white fade-in-section">
         <div className="max-w-[1280px] mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-4 tracking-tight">
-            Seamless ERP Integration
+            Tailored Add-Ons
           </h2>
           <p className="text-xl text-[#475569] mb-12 max-w-2xl mx-auto font-medium">
-            Connect with your existing systems in minutes. Plug. Sync. Automate.
+            Extend CLOE with powerful AI-driven modules designed to solve every accounting and finance team need.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            {erpLogos.map((erp, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {addOns.map((addon, index) => (
               <div
                 key={index}
                 className="relative group"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="bg-white rounded-3xl p-8 border-2 border-gray-100 hover:border-purple-200 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 group-hover:-translate-y-2">
+                <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 border-2 border-gray-100 hover:border-purple-200 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 group-hover:-translate-y-2">
                   <div
-                    className={`w-16 h-16 mx-auto bg-gradient-to-br ${erp.color} rounded-2xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300`}
+                    className={`w-20 h-20 mx-auto bg-gradient-to-br ${addon.color} rounded-2xl flex items-center justify-center shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300`}
                   >
-                    <span className="text-white font-bold text-2xl">{erp.name[0]}</span>
+                    <span className="text-4xl">{addon.icon}</span>
                   </div>
-                  <p className="font-semibold text-[#0F172A]">{erp.name}</p>
+                  <h3 className="text-2xl font-bold text-[#0F172A] mb-3">{addon.name}</h3>
+                  <p className="text-[#475569] font-medium">{addon.description}</p>
                 </div>
               </div>
             ))}
@@ -332,7 +353,7 @@ export default function ProductPage() {
               className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:scale-105 transition-all duration-300"
             >
               <Play size={20} />
-              View Integration Hub
+              Explore All Add-Ons
             </Link>
           </div>
         </div>
