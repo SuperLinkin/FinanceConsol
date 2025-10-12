@@ -26,18 +26,18 @@ export default function PreAuthNav() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-slate-950/80 backdrop-blur-xl border-b border-white/10'
+          ? 'bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm'
           : 'bg-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/home" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
               <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold text-[#0F172A]">
               CLOE
             </span>
           </Link>
@@ -46,13 +46,13 @@ export default function PreAuthNav() {
           <div className="hidden md:flex items-center gap-8">
             <Link
               href="/product"
-              className="text-gray-300 hover:text-white font-medium transition-colors duration-200"
+              className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
             >
               Product
             </Link>
             <Link
               href="/about"
-              className="text-gray-300 hover:text-white font-medium transition-colors duration-200"
+              className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
             >
               About Us
             </Link>
@@ -61,23 +61,22 @@ export default function PreAuthNav() {
                 const modal = document.getElementById('contact-modal');
                 if (modal) modal.classList.remove('hidden');
               }}
-              className="text-gray-300 hover:text-white font-medium transition-colors duration-200"
+              className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
             >
               Contact Sales
             </button>
             <button
               onClick={handleLogin}
-              className="relative px-6 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-2xl font-medium hover:shadow-lg hover:shadow-violet-500/50 hover:scale-105 transition-all duration-300 overflow-hidden group"
+              className="px-6 py-2.5 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:scale-105 transition-all duration-300"
             >
-              <span className="relative z-10">Log In</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              Log In
             </button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-gray-300 hover:text-white"
+            className="md:hidden p-2 text-[#475569] hover:text-[#0F172A]"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -85,18 +84,18 @@ export default function PreAuthNav() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl">
+          <div className="md:hidden py-4 border-t border-gray-200 bg-white/95 backdrop-blur-xl">
             <div className="flex flex-col gap-4">
               <Link
                 href="/product"
-                className="text-gray-300 hover:text-white font-medium transition-colors duration-200 px-4 py-2"
+                className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200 px-4 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Product
               </Link>
               <Link
                 href="/about"
-                className="text-gray-300 hover:text-white font-medium transition-colors duration-200 px-4 py-2"
+                className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200 px-4 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 About Us
@@ -107,7 +106,7 @@ export default function PreAuthNav() {
                   if (modal) modal.classList.remove('hidden');
                   setIsMobileMenuOpen(false);
                 }}
-                className="text-gray-300 hover:text-white font-medium transition-colors duration-200 px-4 py-2 text-left"
+                className="text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200 px-4 py-2 text-left"
               >
                 Contact Sales
               </button>
@@ -116,7 +115,7 @@ export default function PreAuthNav() {
                   handleLogin();
                   setIsMobileMenuOpen(false);
                 }}
-                className="mx-4 px-6 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-2xl font-medium hover:shadow-lg hover:shadow-violet-500/50 transition-all duration-300"
+                className="mx-4 px-6 py-2.5 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300"
               >
                 Log In
               </button>

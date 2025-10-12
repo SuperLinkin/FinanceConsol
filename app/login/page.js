@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User, AlertCircle, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Lock, User, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,30 +54,51 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo and Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-xl mb-4">
-            <span className="text-3xl font-bold text-slate-800">C</span>
-          </div>
-          <h1
-            className="text-4xl font-bold text-white mb-2"
-            style={{ fontFamily: 'var(--font-satoshi), Satoshi, sans-serif' }}
-          >
-            CLOE
-          </h1>
-          <p className="text-slate-300 text-sm uppercase tracking-wider">
-            Your Optimization Engine
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#FAFAFB] flex flex-col">
+      {/* Navigation Bar */}
+      <nav className="border-b border-gray-200 bg-white/95 backdrop-blur-xl">
+        <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <Link href="/home" className="flex items-center gap-3 group">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                <span className="text-white font-bold text-xl">C</span>
+              </div>
+              <span className="text-2xl font-bold text-[#0F172A]">CLOE</span>
+            </Link>
 
-        {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h2>
-            <p className="text-gray-600 text-sm">Sign in to access your account</p>
+            <Link
+              href="/home"
+              className="flex items-center gap-2 text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
+            >
+              <ArrowLeft size={18} />
+              Back to Home
+            </Link>
           </div>
+        </div>
+      </nav>
+
+      {/* Login Content */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Logo and Branding */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-2xl shadow-xl mb-4">
+              <span className="text-3xl font-bold text-white">C</span>
+            </div>
+            <h1 className="text-4xl font-bold text-[#0F172A] mb-2">
+              CLOE
+            </h1>
+            <p className="text-[#475569] text-sm font-semibold tracking-wider">
+              Close Optimization Engine
+            </p>
+          </div>
+
+          {/* Login Card */}
+          <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-lg p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#0F172A] mb-2">Welcome Back</h2>
+              <p className="text-[#475569] text-sm">Sign in to access your account</p>
+            </div>
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
@@ -132,7 +154,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -161,11 +183,12 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-400">
-            © 2024 CLOE. All rights reserved.
-          </p>
+          {/* Footer */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-[#475569]">
+              © 2025 CLOE. All rights reserved.
+            </p>
+          </div>
         </div>
       </div>
     </div>
