@@ -67,20 +67,23 @@ export default function LoginPage() {
       <nav className="border-b border-gray-200 bg-white/95 backdrop-blur-xl">
         <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <Link href="/home" className="flex items-center gap-3 group">
+            <button
+              onClick={() => router.push('/home')}
+              className="flex items-center gap-3 group cursor-pointer"
+            >
               <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
-              <span className="text-2xl font-bold text-[#0F172A]">CLOE</span>
-            </Link>
+              <span className="text-2xl font-bold text-[#101828]">CLOE</span>
+            </button>
 
-            <Link
-              href="/home"
-              className="flex items-center gap-2 text-[#475569] hover:text-[#0F172A] font-semibold transition-colors duration-200"
+            <button
+              onClick={() => router.push('/home')}
+              className="flex items-center gap-2 text-[#475569] hover:text-[#101828] font-semibold transition-colors duration-200 cursor-pointer"
             >
               <ArrowLeft size={18} />
               Back to Home
-            </Link>
+            </button>
           </div>
         </div>
       </nav>
@@ -93,7 +96,7 @@ export default function LoginPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-2xl shadow-xl mb-4">
               <span className="text-3xl font-bold text-white">C</span>
             </div>
-            <h1 className="text-4xl font-bold text-[#0F172A] mb-2">
+            <h1 className="text-4xl font-bold text-[#101828] mb-2">
               CLOE
             </h1>
             <p className="text-[#475569] text-sm font-semibold tracking-wider">
@@ -104,7 +107,7 @@ export default function LoginPage() {
           {/* Login Card */}
           <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-lg p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-[#0F172A] mb-2">Welcome Back</h2>
+              <h2 className="text-2xl font-bold text-[#101828] mb-2">Welcome Back</h2>
               <p className="text-[#475569] text-sm">Sign in to access your account</p>
             </div>
 
