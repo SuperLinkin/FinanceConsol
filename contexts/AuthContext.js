@@ -12,11 +12,12 @@ export function AuthProvider({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Skip auth check for pre-authentication pages
+    // Skip auth check for pre-authentication pages and Finance Close pages
     const preAuthPages = ['/login', '/home', '/product', '/about'];
     const isPreAuthPage = preAuthPages.includes(pathname);
+    const isClosePage = pathname.startsWith('/close');
 
-    if (isPreAuthPage) {
+    if (isPreAuthPage || isClosePage) {
       setLoading(false);
       return;
     }
