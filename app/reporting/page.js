@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
@@ -44,7 +44,8 @@ import {
   Move,
   Maximize2,
   AlignCenter,
-  AlignRight
+  AlignRight,
+  BookOpen
 } from 'lucide-react';
 
 export default function ReportingBuilder() {
@@ -98,6 +99,7 @@ export default function ReportingBuilder() {
   const [currentFormula, setCurrentFormula] = useState('');
   const [selectedCell, setSelectedCell] = useState(null);
 
+
   // GL Picker state
   const [showGLPicker, setShowGLPicker] = useState(false);
   const [glAccounts, setGLAccounts] = useState([]);
@@ -120,6 +122,10 @@ export default function ReportingBuilder() {
     width: '100%',
     height: 'auto'
   });
+
+  // Notes Library Panel state
+  const [showNotesLibrary, setShowNotesLibrary] = useState(false);
+  const [savedNotes, setSavedNotes] = useState([]);
 
   // Report settings
   const [reportSettings, setReportSettings] = useState({
@@ -255,6 +261,216 @@ export default function ReportingBuilder() {
     };
 
     setReportContent(defaultContent);
+  };
+
+  const generateAnnualReport = () => {
+    const annualReportContent = {
+      sections: [
+        // Cover Page
+        {
+          id: 'cover',
+          type: 'cover',
+          title: 'Annual Report',
+          companyName: reportSettings.companyName || 'Company Name',
+          period: selectedPeriod,
+          subtitle: `For the year ended December 31, ${selectedPeriod}`,
+          editable: true
+        },
+        // Index
+        {
+          id: 'index',
+          type: 'custom',
+          title: 'Index',
+          content: `
+            <div class="text-center mb-8">
+              <h1 class="text-4xl font-bold text-[#101828] mb-4 pb-4 border-b-2">Index</h1>
+            </div>
+            <div class="space-y-3">
+              <div class="flex justify-between py-2 border-b"><span class="font-medium">Management Discussion and Analysis (Executive Summary)</span><span class="text-gray-600">3</span></div>
+              <div class="flex justify-between py-2 border-b"><span class="font-medium">Consolidated Financial Statements</span><span class="text-gray-600">5</span></div>
+              <div class="flex justify-between py-2 border-b pl-6"><span>Consolidated Balance Sheet</span><span class="text-gray-600">6</span></div>
+              <div class="flex justify-between py-2 border-b pl-6"><span>Consolidated Profit & Loss Statement</span><span class="text-gray-600">7</span></div>
+              <div class="flex justify-between py-2 border-b pl-6"><span>Statement of Changes in Equity</span><span class="text-gray-600">8</span></div>
+              <div class="flex justify-between py-2 border-b pl-6"><span>Consolidated Cash Flow Statement</span><span class="text-gray-600">9</span></div>
+              <div class="flex justify-between py-2 border-b"><span class="font-medium">Accounting Policies</span><span class="text-gray-600">10</span></div>
+              <div class="flex justify-between py-2 border-b"><span class="font-medium">Notes to the Accounts</span><span class="text-gray-600">15</span></div>
+            </div>
+          `,
+          editable: true
+        },
+        // Management Discussion and Analysis
+        {
+          id: 'mda',
+          type: 'custom',
+          title: 'Management Discussion and Analysis',
+          subtitle: 'Executive Summary',
+          content: `
+            <div class="text-center mb-8">
+              <h1 class="text-4xl font-bold text-[#101828] mb-4 pb-4 border-b-2">Management Discussion and Analysis</h1>
+              <h2 class="text-2xl font-semibold text-[#334155] mb-6">Executive Summary</h2>
+            </div>
+
+            <div class="space-y-6 text-gray-700 leading-relaxed">
+              <section>
+                <h3 class="text-xl font-semibold text-[#101828] mb-3">Overview</h3>
+                <p class="mb-4">This section provides management's perspective on the financial performance and position of ${reportSettings.companyName || 'the Company'} for the fiscal year ${selectedPeriod}.</p>
+                <p class="text-gray-500 italic">[Add detailed discussion of company performance, key achievements, and strategic initiatives]</p>
+              </section>
+
+              <section>
+                <h3 class="text-xl font-semibold text-[#101828] mb-3">Financial Highlights</h3>
+                <ul class="list-disc pl-6 space-y-2 text-gray-500 italic">
+                  <li>[Total Revenue: $XXX million]</li>
+                  <li>[Net Profit: $XXX million]</li>
+                  <li>[Total Assets: $XXX million]</li>
+                  <li>[Key financial ratios and metrics]</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 class="text-xl font-semibold text-[#101828] mb-3">Business Performance</h3>
+                <p class="text-gray-500 italic">[Discuss operational performance, market conditions, and business segments]</p>
+              </section>
+
+              <section>
+                <h3 class="text-xl font-semibold text-[#101828] mb-3">Outlook</h3>
+                <p class="text-gray-500 italic">[Provide forward-looking statements and future expectations]</p>
+              </section>
+            </div>
+          `,
+          editable: true
+        },
+        // Consolidated Financial Statements Heading
+        {
+          id: 'cfs-heading',
+          type: 'custom',
+          title: 'Consolidated Financial Statements',
+          content: `
+            <div class="h-[500px] flex items-center justify-center">
+              <div class="text-center">
+                <h1 class="text-5xl font-bold text-[#101828]">Consolidated Financial Statements</h1>
+                <p class="text-xl text-gray-600 mt-6">For the year ended December 31, ${selectedPeriod}</p>
+              </div>
+            </div>
+          `,
+          editable: true
+        },
+        // Consolidated Balance Sheet
+        {
+          id: 'balance-sheet',
+          type: 'statement',
+          title: 'Consolidated Balance Sheet',
+          subtitle: `As at December 31, ${selectedPeriod}`,
+          data: workingData?.lineItems?.balanceSheet || [],
+          totals: workingData?.totals?.balanceSheet || {},
+          editable: true
+        },
+        // Consolidated P&L
+        {
+          id: 'profit-loss',
+          type: 'statement',
+          title: 'Consolidated Statement of Profit and Loss',
+          subtitle: `For the year ended December 31, ${selectedPeriod}`,
+          data: workingData?.lineItems?.incomeStatement || [],
+          totals: workingData?.totals?.incomeStatement || {},
+          editable: true
+        },
+        // Statement of Equity
+        {
+          id: 'equity',
+          type: 'statement',
+          title: 'Consolidated Statement of Changes in Equity',
+          subtitle: `For the year ended December 31, ${selectedPeriod}`,
+          data: workingData?.lineItems?.equity || [],
+          totals: workingData?.totals?.equity || {},
+          editable: true
+        },
+        // Cash Flow Statement
+        {
+          id: 'cash-flow',
+          type: 'statement',
+          title: 'Consolidated Cash Flow Statement',
+          subtitle: `For the year ended December 31, ${selectedPeriod}`,
+          data: workingData?.lineItems?.cashFlow || [],
+          totals: workingData?.totals?.cashFlow || {},
+          editable: true
+        },
+        // Accounting Policies
+        {
+          id: 'accounting-policies',
+          type: 'custom',
+          title: 'Significant Accounting Policies',
+          content: `
+            <div class="text-center mb-8">
+              <h1 class="text-4xl font-bold text-[#101828] mb-4 pb-4 border-b-2">Significant Accounting Policies</h1>
+            </div>
+
+            <div class="space-y-6 text-sm">
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">1. Corporate Information</h2>
+                <p class="text-gray-700 leading-relaxed">${reportSettings.companyName || 'The Company'} is a company incorporated under the Companies Act. The company is engaged in [describe business activities].</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">2. Basis of Preparation</h2>
+                <p class="text-gray-700 leading-relaxed mb-2">These consolidated financial statements have been prepared in accordance with International Financial Reporting Standards (IFRS) as issued by the International Accounting Standards Board (IASB).</p>
+                <p class="text-gray-700 leading-relaxed">The financial statements have been prepared on a historical cost basis, except for certain financial instruments that are measured at fair value.</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">3. Consolidation</h2>
+                <p class="text-gray-700 leading-relaxed">The consolidated financial statements comprise the financial statements of the Company and its subsidiaries. Control is achieved when the Company has power over the investee, is exposed to variable returns from its involvement with the investee, and has the ability to use its power to affect its returns.</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">4. Property, Plant and Equipment</h2>
+                <p class="text-gray-700 leading-relaxed">Property, plant and equipment are stated at cost less accumulated depreciation and impairment losses. Depreciation is calculated on a straight-line basis over the estimated useful lives of the assets.</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">5. Revenue Recognition</h2>
+                <p class="text-gray-700 leading-relaxed">Revenue from contracts with customers is recognized when control of goods or services is transferred to the customer at an amount that reflects the consideration to which the Company expects to be entitled.</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">6. Financial Instruments</h2>
+                <p class="text-gray-700 leading-relaxed">Financial assets and liabilities are recognized when the Company becomes a party to the contractual provisions of the instrument. Financial assets are derecognized when the contractual rights to the cash flows expire or are transferred.</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">7. Taxation</h2>
+                <p class="text-gray-700 leading-relaxed">Current tax is provided at amounts expected to be paid using the tax rates and laws that have been enacted or substantively enacted by the balance sheet date. Deferred tax is recognized on temporary differences between the carrying amounts of assets and liabilities and their tax bases.</p>
+              </section>
+
+              <section>
+                <h2 class="text-xl font-bold text-[#101828] mb-3">8. Foreign Currency Translation</h2>
+                <p class="text-gray-700 leading-relaxed">Transactions in foreign currencies are translated at the exchange rates prevailing on the transaction dates. Monetary assets and liabilities denominated in foreign currencies are retranslated at the exchange rate prevailing on the balance sheet date.</p>
+              </section>
+            </div>
+          `,
+          editable: true
+        },
+        // Notes to Accounts
+        {
+          id: 'notes',
+          type: 'notes',
+          title: 'Notes to the Consolidated Financial Statements',
+          subtitle: `For the year ended December 31, ${selectedPeriod}`,
+          notes: workingData?.notes || [],
+          editable: true
+        }
+      ],
+      metadata: {
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser,
+        version: 1,
+        reportType: 'annual_report'
+      }
+    };
+
+    setReportContent(annualReportContent);
+    setShowTemplateModal(false);
+    setIsEditMode(true);
   };
 
   const handleSaveReport = async () => {
@@ -419,7 +635,7 @@ export default function ReportingBuilder() {
             ]);
           });
 
-          pdf.autoTable({
+          autoTable(pdf, {
             startY: yPos,
             head: [['Particulars', 'Note', reportSettings.period, (parseInt(reportSettings.period) - 1).toString()]],
             body: tableData,
@@ -889,6 +1105,23 @@ export default function ReportingBuilder() {
     }
   };
 
+  // Load saved notes from note builder
+  const loadSavedNotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notes_builder')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setSavedNotes(data || []);
+    } catch (error) {
+      console.error('Error loading saved notes:', error);
+      alert('Failed to load saved notes');
+    }
+  };
+
   // Insert table with formula support
   const handleInsertTable = () => {
     const { rows, columns, headers } = tableConfig;
@@ -1118,6 +1351,17 @@ export default function ReportingBuilder() {
             <Calculator size={18} className="text-slate-600" />
           </button>
 
+          <button
+            onClick={() => {
+              loadSavedNotes();
+              setShowNotesLibrary(true);
+            }}
+            className="p-2 hover:bg-slate-100 rounded transition-colors"
+            title="Insert Saved Notes"
+          >
+            <FileText size={18} className="text-slate-600" />
+          </button>
+
           <div className="w-px h-6 bg-slate-300 mx-2"></div>
 
           <button
@@ -1170,9 +1414,32 @@ export default function ReportingBuilder() {
   const renderStatementSection = (section) => {
     if (!section.data) return null;
 
+    // Handle both array and object data formats
+    const lineItems = Array.isArray(section.data) ? section.data : (section.data.lineItems || []);
+
+    if (lineItems.length === 0) {
+      return (
+        <div className="mb-12">
+          <h2
+            className="text-2xl font-bold mb-2"
+            style={{ color: reportSettings.primaryColor }}
+            contentEditable={isEditMode}
+            suppressContentEditableWarning
+            onBlur={(e) => handleContentEdit(section.id, 'title', e.target.textContent)}
+          >
+            {section.title}
+          </h2>
+          <p className="text-sm text-slate-600 mb-6">{section.subtitle}</p>
+          <div className="text-center py-12 text-gray-500 italic border border-gray-200 rounded-lg">
+            No data available. Add line items using the table builder or sync with consolidation data.
+          </div>
+        </div>
+      );
+    }
+
     // Group by account class
     const groupedItems = {};
-    section.data.lineItems.forEach(item => {
+    lineItems.forEach(item => {
       const group = item.accountClass || 'Other';
       if (!groupedItems[group]) {
         groupedItems[group] = [];
@@ -1265,12 +1532,33 @@ export default function ReportingBuilder() {
               </td>
               <td></td>
               <td className="text-right py-3 px-4" style={{ color: reportSettings.primaryColor }}>
-                {formatCurrency(section.totals.assets || section.totals.netIncome || section.totals.closingBalance || section.totals.netCashFlow)}
+                {formatCurrency((section.totals?.assets || section.totals?.netIncome || section.totals?.closingBalance || section.totals?.netCashFlow) || 0)}
               </td>
               <td className="text-right py-3 px-4 text-slate-400">-</td>
             </tr>
           </tbody>
         </table>
+      </div>
+    );
+  };
+
+  const renderCustomSection = (section) => {
+    return (
+      <div className="mb-12">
+        <div
+          contentEditable={isEditMode}
+          suppressContentEditableWarning
+          onBlur={(e) => {
+            const updatedContent = { ...reportContent };
+            const targetSection = updatedContent.sections.find(s => s.id === section.id);
+            if (targetSection) {
+              targetSection.content = e.currentTarget.innerHTML;
+              setReportContent(updatedContent);
+            }
+          }}
+          dangerouslySetInnerHTML={{ __html: section.content }}
+          className="custom-content focus:outline-none focus:ring-2 focus:ring-indigo-300 rounded p-2"
+        />
       </div>
     );
   };
@@ -1478,6 +1766,30 @@ export default function ReportingBuilder() {
                     className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
                   >
                     Save as Template
+                  </button>
+                </div>
+              </div>
+
+              {/* Annual Report Generator */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-lg p-6 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center">
+                      <BookOpen size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-[#101828] mb-1">Generate Annual Report</h4>
+                      <p className="text-sm text-gray-600">
+                        Create a complete annual report with Cover Page, Index, MDA, Financial Statements, Policies & Notes
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={generateAnnualReport}
+                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-lg"
+                  >
+                    <FileText size={18} />
+                    Generate Report
                   </button>
                 </div>
               </div>
@@ -2078,6 +2390,113 @@ export default function ReportingBuilder() {
     );
   };
 
+  const renderNotesLibrary = () => {
+    if (!showNotesLibrary) return null;
+
+    const handleInsertNote = (note) => {
+      // Insert the note content at cursor position or at the end of notes section
+      const noteHTML = `
+        <div class="note-entry mb-6 p-4 border-l-4 border-indigo-500 bg-indigo-50 rounded">
+          <h3 class="text-lg font-bold text-[#101828] mb-2">Note ${note.note_number}: ${note.note_title}</h3>
+          <div class="text-sm text-gray-700">${note.note_content}</div>
+        </div>
+      `;
+
+      // Add to Notes section
+      const updatedContent = { ...reportContent };
+      const notesSection = updatedContent.sections.find(s => s.type === 'notes');
+
+      if (notesSection) {
+        if (!notesSection.notes) {
+          notesSection.notes = [];
+        }
+        notesSection.notes.push({
+          id: note.id,
+          noteNumber: note.note_number,
+          noteTitle: note.note_title,
+          content: note.note_content
+        });
+        setReportContent(updatedContent);
+        setShowNotesLibrary(false);
+        alert(`Note ${note.note_number} has been added to the report!`);
+      } else {
+        alert('No Notes section found in the report. Please add a Notes section first.');
+      }
+    };
+
+    return (
+      <>
+        <div className="fixed inset-0 bg-slate-900/60 z-50" onClick={() => setShowNotesLibrary(false)} />
+        <div className="fixed right-0 top-0 bottom-0 w-[500px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="bg-[#101828] text-white px-6 py-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileText size={24} />
+              <h3 className="text-xl font-semibold">Notes Library</h3>
+            </div>
+            <button onClick={() => setShowNotesLibrary(false)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <p className="text-sm text-slate-600 mb-4">
+              Click on any note to add it to your report's Notes section.
+            </p>
+
+            {savedNotes.length === 0 ? (
+              <div className="text-center text-slate-500 py-12">
+                <FileText size={48} className="mx-auto mb-4 text-slate-300" />
+                <p>No saved notes found</p>
+                <p className="text-sm mt-2">Create notes in the Note Builder first</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {savedNotes.map(note => (
+                  <div
+                    key={note.id}
+                    onClick={() => handleInsertNote(note)}
+                    className="p-4 border border-slate-200 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <span className="inline-block px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded mb-2">
+                          Note {note.note_number}
+                        </span>
+                        <h4 className="font-semibold text-[#101828]">{note.note_title}</h4>
+                      </div>
+                      <Plus size={20} className="text-indigo-600 flex-shrink-0" />
+                    </div>
+                    <div
+                      className="text-sm text-slate-600 line-clamp-3"
+                      dangerouslySetInnerHTML={{ __html: note.note_content }}
+                    />
+                    <div className="mt-2 text-xs text-slate-400">
+                      {note.note_category && (
+                        <span className="mr-2">Category: {note.note_category}</span>
+                      )}
+                      {note.created_at && (
+                        <span>{new Date(note.created_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 border-t border-slate-200 bg-slate-50">
+            <button
+              onClick={() => setShowNotesLibrary(false)}
+              className="w-full px-4 py-2 text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   const renderPositionTools = () => {
     if (!showPositionTools) return null;
 
@@ -2362,6 +2781,7 @@ export default function ReportingBuilder() {
           {reportContent?.sections.map((section, index) => (
             <div key={section.id}>
               {section.type === 'cover' && renderCoverPage(section)}
+              {section.type === 'custom' && renderCustomSection(section)}
               {section.type === 'statement' && renderStatementSection(section)}
               {section.type === 'notes' && renderNotesSection(section)}
             </div>
@@ -2386,6 +2806,7 @@ export default function ReportingBuilder() {
       {renderTableBuilder()}
       {renderFormulaBuilder()}
       {renderGLPicker()}
+      {renderNotesLibrary()}
       {renderPositionTools()}
     </div>
   );

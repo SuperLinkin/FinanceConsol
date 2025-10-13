@@ -14,15 +14,13 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    // Check if Finance Close module is selected
-    if (formData.module === 'finance-close') {
-      setError('CLOE - Finance Close module is coming soon!');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('/api/auth/login', {
+      // Choose API endpoint based on selected module
+      const apiEndpoint = formData.module === 'finance-close'
+        ? '/api/auth/login-close'
+        : '/api/auth/login';
+
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: formData.username, password: formData.password })
@@ -31,28 +29,50 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store user data in localStorage
-        localStorage.setItem('currentUser', JSON.stringify({
-          name: `${data.user.first_name} ${data.user.last_name}`,
-          email: data.user.email,
-          role: data.user.role,
-          userId: data.user.id,
-          isPrimary: data.user.is_primary
-        }));
+        // Store user data based on module
+        if (formData.module === 'finance-close') {
+          // Finance Close user data structure
+          localStorage.setItem('currentUser', JSON.stringify({
+            name: data.user.full_name,
+            email: data.user.email,
+            userId: data.user.id,
+            username: data.user.username,
+            module: 'finance-close'
+          }));
 
-        localStorage.setItem('currentCompany', JSON.stringify({
-          name: data.user.company.company_name,
-          env: 'Production',
-          companyId: data.user.company_id
-        }));
+          localStorage.setItem('currentCompany', JSON.stringify({
+            name: data.user.company_name,
+            env: 'Production',
+            companyId: data.user.company_id
+          }));
 
-        // Redirect to dashboard (Reporting module)
-        // Use window.location.href for a full page reload to ensure authentication state is properly set
-        window.location.href = '/';
+          // Redirect to Finance Close dashboard
+          window.location.href = '/close';
+        } else {
+          // Reporting module user data structure
+          localStorage.setItem('currentUser', JSON.stringify({
+            name: `${data.user.first_name} ${data.user.last_name}`,
+            email: data.user.email,
+            role: data.user.role,
+            userId: data.user.id,
+            isPrimary: data.user.is_primary,
+            module: 'reporting'
+          }));
+
+          localStorage.setItem('currentCompany', JSON.stringify({
+            name: data.user.company.company_name,
+            env: 'Production',
+            companyId: data.user.company_id
+          }));
+
+          // Redirect to Reporting dashboard
+          window.location.href = '/';
+        }
       } else {
         setError(data.error || 'Login failed');
       }
     } catch (error) {
+      console.error('Login error:', error);
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -148,7 +168,7 @@ export default function LoginPage() {
                 disabled={loading}
               >
                 <option value="reporting">CLOE - Reporting</option>
-                <option value="finance-close">CLOE - Finance Close (Coming Soon)</option>
+                <option value="finance-close">CLOE - Finance Close</option>
               </select>
             </div>
 
@@ -172,14 +192,32 @@ export default function LoginPage() {
             {/* Demo Credentials - Only show in development */}
             {process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && (
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-                <div className="space-y-1">
-                  <p className="text-xs text-blue-800">
-                    <span className="font-medium">Username:</span> Admin
-                  </p>
-                  <p className="text-xs text-blue-800">
-                    <span className="font-medium">Password:</span> Test
-                  </p>
+                <p className="text-xs font-semibold text-blue-900 mb-3">Demo Credentials:</p>
+
+                {/* Reporting Module Credentials */}
+                <div className="mb-3 pb-3 border-b border-blue-200">
+                  <p className="text-xs font-semibold text-blue-800 mb-1">CLOE - Reporting:</p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-blue-800">
+                      <span className="font-medium">Username:</span> Admin
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      <span className="font-medium">Password:</span> Test
+                    </p>
+                  </div>
+                </div>
+
+                {/* Finance Close Module Credentials */}
+                <div>
+                  <p className="text-xs font-semibold text-blue-800 mb-1">CLOE - Finance Close:</p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-blue-800">
+                      <span className="font-medium">Username:</span> close_demo
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      <span className="font-medium">Password:</span> Demo@2025
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

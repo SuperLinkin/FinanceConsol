@@ -11,13 +11,16 @@ export default function RootLayoutClient({ children }) {
   const preAuthPages = ['/login', '/home', '/product', '/about'];
   const isPreAuthPage = preAuthPages.includes(pathname);
 
+  // Finance Close pages (have their own CloseSidebar)
+  const isClosePage = pathname.startsWith('/close');
+
   return (
     <AuthProvider>
-      {isPreAuthPage ? (
-        // Pre-auth pages - no sidebar
+      {isPreAuthPage || isClosePage ? (
+        // Pre-auth pages and Close pages - no Reporting sidebar
         <div>{children}</div>
       ) : (
-        // Main app - with sidebar
+        // Reporting module - with Reporting sidebar
         <div className="flex h-screen overflow-hidden bg-[#f7f5f2]">
           <Sidebar />
           <main className="flex-1 overflow-y-auto">

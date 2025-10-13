@@ -236,12 +236,59 @@ For issues or questions:
 
 ## Files
 
+### Core Database Files
 - `00_DROP_EVERYTHING.sql` - Clean slate (2.2 KB)
 - `01_CREATE_EVERYTHING.sql` - Complete setup (28.7 KB)
-- `README.md` - This file
+- `Current_SQL_SUPABASE.sql` - Reference schema for all Reporting module tables
+
+### Finance Close Module (NEW)
+- **`Finance_Close_Auth_Setup.sql`** - Separate authentication setup for Finance Close module
+
+---
+
+## Finance Close Module Setup
+
+### NEW: Dual Authentication System
+
+The application now supports TWO completely isolated modules:
+
+1. **CLOE - Reporting** (Consolidation) - Uses `users` table
+2. **CLOE - Finance Close** (Period-End Close) - Uses `close_users` table
+
+### Setup Finance Close Authentication
+
+After setting up the Reporting module, run this separate file:
+
+```sql
+-- Run in Supabase SQL Editor
+\i Finance_Close_Auth_Setup.sql
+```
+
+**What it creates:**
+- ✅ `close_users` table (isolated from Reporting)
+- ✅ Indexes and RLS policies
+- ✅ Demo user (username: `close_demo`, password: `Demo@2025`)
+
+**Important:**
+- This table has NO foreign keys to any Reporting tables
+- Completely separate authentication flow
+- Different API endpoint: `/api/auth/login-close`
+- Different base route: `/close`
+
+### Demo Credentials
+
+| Module | Username | Password | Route |
+|--------|----------|----------|-------|
+| Reporting | `Admin` | `Test` | `/` |
+| Finance Close | `close_demo` | `Demo@2025` | `/close` |
+
+For complete documentation, see:
+- `FINANCE_CLOSE_AUTH_README.md` - Full technical docs
+- `DUAL_AUTH_SUMMARY.md` - Quick reference
 
 ---
 
 **Ready to set up your database!** 🚀
 
-Run `01_CREATE_EVERYTHING.sql` in Supabase SQL Editor and you're good to go.
+1. Run `01_CREATE_EVERYTHING.sql` for Reporting module
+2. Run `Finance_Close_Auth_Setup.sql` for Finance Close module

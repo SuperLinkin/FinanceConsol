@@ -224,6 +224,57 @@ CREATE TABLE public.elimination_entries (
   CONSTRAINT elimination_entries_entity_from_fkey FOREIGN KEY (entity_from) REFERENCES public.entities(id),
   CONSTRAINT elimination_entries_entity_to_fkey FOREIGN KEY (entity_to) REFERENCES public.entities(id)
 );
+CREATE TABLE public.elimination_gl_pairs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  pair_name text NOT NULL,
+  description text,
+  gl1_entity uuid NOT NULL,
+  gl1_code text NOT NULL,
+  gl2_entity uuid NOT NULL,
+  gl2_code text NOT NULL,
+  difference_gl_code text,
+  is_active boolean DEFAULT true,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT elimination_gl_pairs_pkey PRIMARY KEY (id),
+  CONSTRAINT elimination_gl_pairs_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT elimination_gl_pairs_gl1_entity_fkey FOREIGN KEY (gl1_entity) REFERENCES public.entities(id),
+  CONSTRAINT elimination_gl_pairs_gl2_entity_fkey FOREIGN KEY (gl2_entity) REFERENCES public.entities(id),
+  CONSTRAINT elimination_gl_pairs_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.elimination_journal_entries (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  entry_name text NOT NULL,
+  entry_date date NOT NULL,
+  description text,
+  total_debit numeric DEFAULT 0,
+  total_credit numeric DEFAULT 0,
+  is_posted boolean DEFAULT true,
+  period date NOT NULL,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT elimination_journal_entries_pkey PRIMARY KEY (id),
+  CONSTRAINT elimination_journal_entries_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT elimination_journal_entries_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.elimination_journal_entry_lines (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  entry_id uuid NOT NULL,
+  entity_id uuid NOT NULL,
+  gl_code text NOT NULL,
+  gl_name text,
+  debit numeric DEFAULT 0,
+  credit numeric DEFAULT 0,
+  line_number integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT elimination_journal_entry_lines_pkey PRIMARY KEY (id),
+  CONSTRAINT elimination_journal_entry_lines_entry_id_fkey FOREIGN KEY (entry_id) REFERENCES public.elimination_journal_entries(id),
+  CONSTRAINT elimination_journal_entry_lines_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
+);
 CREATE TABLE public.elimination_templates (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   template_name character varying NOT NULL,
@@ -276,11 +327,14 @@ CREATE TABLE public.entities (
   notes text,
   include_in_consolidation boolean DEFAULT true,
   company_id uuid,
+  parent_entity_id_2 uuid,
+  ownership_percentage_2 numeric CHECK (ownership_percentage_2 IS NULL OR ownership_percentage_2 >= 0::numeric AND ownership_percentage_2 <= 100::numeric),
   CONSTRAINT entities_pkey PRIMARY KEY (id),
   CONSTRAINT entities_parent_entity_id_fkey FOREIGN KEY (parent_entity_id) REFERENCES public.entities(id),
   CONSTRAINT entities_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id),
   CONSTRAINT entities_controller_id_fkey FOREIGN KEY (controller_id) REFERENCES public.entity_controllers(id),
-  CONSTRAINT entities_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
+  CONSTRAINT entities_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT entities_parent_entity_id_2_fkey FOREIGN KEY (parent_entity_id_2) REFERENCES public.entities(id)
 );
 CREATE TABLE public.entity_controllers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -395,6 +449,25 @@ CREATE TABLE public.intercompany_transactions (
   CONSTRAINT intercompany_transactions_from_entity_id_fkey FOREIGN KEY (from_entity_id) REFERENCES public.entities(id),
   CONSTRAINT intercompany_transactions_to_entity_id_fkey FOREIGN KEY (to_entity_id) REFERENCES public.entities(id),
   CONSTRAINT intercompany_transactions_elimination_entry_id_fkey FOREIGN KEY (elimination_entry_id) REFERENCES public.elimination_entries(id)
+);
+CREATE TABLE public.note_descriptions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  company_id uuid NOT NULL,
+  note_ref integer NOT NULL,
+  note_title text NOT NULL,
+  note_content text,
+  statement_type text NOT NULL CHECK (statement_type = ANY (ARRAY['balance_sheet'::text, 'income_statement'::text])),
+  class_name text,
+  subclass_name text,
+  note_name text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  updated_by uuid,
+  CONSTRAINT note_descriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT note_descriptions_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id),
+  CONSTRAINT note_descriptions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT note_descriptions_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.permission_categories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -679,3 +752,13 @@ CREATE TABLE public.world_currencies (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT world_currencies_pkey PRIMARY KEY (id)
 );
+
+-- =====================================================
+-- NOTE: Finance Close Module Authentication
+-- =====================================================
+-- For Finance Close module setup (isolated from this schema),
+-- run the separate SQL file:
+--   sql/Finance_Close_Auth_Setup.sql
+--
+-- This keeps the Finance Close authentication completely
+-- isolated from the Reporting module tables above.

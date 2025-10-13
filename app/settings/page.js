@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { ChevronDown, ChevronUp, Lock, Unlock, Check, X, Save } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Unlock, Check, X, Save, Shield, Plus, Edit, Trash2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import GroupStructureTab from '@/components/GroupStructureTab';
 
