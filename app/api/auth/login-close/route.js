@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { SignJWT } from 'jose';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -79,7 +80,25 @@ export async function POST(request) {
     // Return user data (excluding password_hash)
     const { password_hash, ...userData } = user;
 
-    return Response.json({
+    // Create JWT token for session
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || 'your-secret-key-change-this-in-production'
+    );
+
+    const token = await new SignJWT({
+      userId: userData.id,
+      email: userData.email,
+      username: userData.username,
+      companyId: userData.company_id,
+      module: 'finance-close'
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(secret);
+
+    // Create response with session cookie
+    const response = Response.json({
       success: true,
       user: {
         id: userData.id,
@@ -90,6 +109,20 @@ export async function POST(request) {
         company_id: userData.company_id
       }
     });
+
+    // Set session token cookie
+    const cookieOptions = [
+      `session_token=${token}`,
+      'Path=/',
+      'HttpOnly',
+      'SameSite=Lax',
+      'Max-Age=86400', // 24 hours
+      process.env.NODE_ENV === 'production' ? 'Secure' : ''
+    ].filter(Boolean).join('; ');
+
+    response.headers.set('Set-Cookie', cookieOptions);
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return Response.json(

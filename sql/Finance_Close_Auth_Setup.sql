@@ -73,7 +73,7 @@ INSERT INTO public.close_users (
 )
 VALUES (
   'close_demo',
-  '$2b$10$plKQPsrzxqoH5bicXwnfreaQ1G6cF/MMArM3RvkjyJeN4VQeSyeki',
+  '$2b$10$Ff5ztFxWlasacnbPzApaWeklsSJ5X0wSro3D.0x3imRDj6O5Pqb6q',
   'Demo User',
   'demo@financeclose.com',
   'Acme Corporation',

@@ -8,6 +8,7 @@ const publicRoutes = [
   '/product',
   '/about',
   '/api/auth/login',
+  '/api/auth/login-close',
   '/api/auth/logout',
 ];
 
