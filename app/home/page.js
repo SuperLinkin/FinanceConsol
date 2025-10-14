@@ -78,11 +78,42 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Subtle Background */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 relative overflow-hidden">
+      {/* Dynamic Tech Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-slate-100 via-gray-50 to-slate-100 rounded-full blur-3xl opacity-40 animate-blob"></div>
-        <div className="absolute -bottom-40 left-0 w-[600px] h-[600px] bg-gradient-to-br from-gray-100 via-slate-50 to-gray-100 rounded-full blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+        {/* Animated gradient orbs */}
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-purple-200 via-indigo-200 to-blue-200 rounded-full blur-3xl opacity-30 animate-blob"></div>
+        <div className="absolute top-1/3 left-0 w-[600px] h-[600px] bg-gradient-to-br from-cyan-200 via-blue-200 to-indigo-200 rounded-full blur-3xl opacity-25 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 right-1/4 w-[700px] h-[700px] bg-gradient-to-br from-violet-200 via-purple-200 to-fuchsia-200 rounded-full blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNDgsIDExNiwgMjU1LCAwLjA4KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40"></div>
+
+        {/* Floating data points - AI/Tech theme */}
+        <div className="absolute top-20 left-[10%] w-2 h-2 bg-purple-400 rounded-full animate-float opacity-60"></div>
+        <div className="absolute top-40 right-[15%] w-3 h-3 bg-blue-400 rounded-full animate-float animation-delay-1000 opacity-50"></div>
+        <div className="absolute top-[60%] left-[20%] w-2 h-2 bg-indigo-400 rounded-full animate-float animation-delay-2000 opacity-60"></div>
+        <div className="absolute bottom-40 right-[25%] w-3 h-3 bg-cyan-400 rounded-full animate-float animation-delay-3000 opacity-50"></div>
+        <div className="absolute top-[30%] right-[30%] w-2 h-2 bg-violet-400 rounded-full animate-float animation-delay-1500 opacity-60"></div>
+        <div className="absolute bottom-[30%] left-[15%] w-3 h-3 bg-fuchsia-400 rounded-full animate-float animation-delay-2500 opacity-50"></div>
+
+        {/* Connecting lines - Network effect */}
+        <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#7B61FF" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
+          <line x1="10%" y1="10%" x2="90%" y2="30%" stroke="url(#line-gradient)" strokeWidth="1" className="animate-dash" />
+          <line x1="20%" y1="60%" x2="80%" y2="80%" stroke="url(#line-gradient)" strokeWidth="1" className="animate-dash animation-delay-1000" />
+          <line x1="30%" y1="20%" x2="70%" y2="70%" stroke="url(#line-gradient)" strokeWidth="1" className="animate-dash animation-delay-2000" />
+        </svg>
+
+        {/* Subtle noise texture */}
+        <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+        }}></div>
       </div>
 
       <PreAuthNav />
@@ -574,12 +605,61 @@ export default function HomePage() {
           }
         }
 
+        @keyframes float {
+          0% {
+            transform: translateY(0px) translateX(0px);
+            opacity: 0.6;
+          }
+          33% {
+            transform: translateY(-20px) translateX(10px);
+            opacity: 0.8;
+          }
+          66% {
+            transform: translateY(-10px) translateX(-10px);
+            opacity: 0.4;
+          }
+          100% {
+            transform: translateY(0px) translateX(0px);
+            opacity: 0.6;
+          }
+        }
+
+        @keyframes dash {
+          0% {
+            stroke-dashoffset: 1000;
+          }
+          100% {
+            stroke-dashoffset: 0;
+          }
+        }
+
         .animate-blob {
           animation: blob 7s infinite;
         }
 
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+
+        .animate-dash {
+          stroke-dasharray: 1000;
+          animation: dash 20s linear infinite;
+        }
+
+        .animation-delay-1000 {
+          animation-delay: 1s;
+        }
+
+        .animation-delay-1500 {
+          animation-delay: 1.5s;
+        }
+
         .animation-delay-2000 {
           animation-delay: 2s;
+        }
+
+        .animation-delay-2500 {
+          animation-delay: 2.5s;
         }
 
         .animation-delay-3000 {
