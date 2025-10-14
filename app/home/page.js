@@ -143,21 +143,6 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Trust indicators - Minimal */}
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-gray-500 fade-in-section">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-500" />
-                <span>SOX compliant</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-500" />
-                <span>IFRS & US GAAP</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-500" />
-                <span>Enterprise-grade security</span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
