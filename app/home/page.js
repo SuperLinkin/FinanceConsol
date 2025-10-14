@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
+  // Dynamic animated background with tech/AI visual elements
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -78,42 +79,98 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 relative overflow-hidden">
-      {/* Dynamic Tech Background */}
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Sophisticated Static Background - AI/Tech/Finance/SaaS */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        {/* Animated gradient orbs */}
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-purple-200 via-indigo-200 to-blue-200 rounded-full blur-3xl opacity-30 animate-blob"></div>
-        <div className="absolute top-1/3 left-0 w-[600px] h-[600px] bg-gradient-to-br from-cyan-200 via-blue-200 to-indigo-200 rounded-full blur-3xl opacity-25 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-0 right-1/4 w-[700px] h-[700px] bg-gradient-to-br from-violet-200 via-purple-200 to-fuchsia-200 rounded-full blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50"></div>
 
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNDgsIDExNiwgMjU1LCAwLjA4KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40"></div>
-
-        {/* Floating data points - AI/Tech theme */}
-        <div className="absolute top-20 left-[10%] w-2 h-2 bg-purple-400 rounded-full animate-float opacity-60"></div>
-        <div className="absolute top-40 right-[15%] w-3 h-3 bg-blue-400 rounded-full animate-float animation-delay-1000 opacity-50"></div>
-        <div className="absolute top-[60%] left-[20%] w-2 h-2 bg-indigo-400 rounded-full animate-float animation-delay-2000 opacity-60"></div>
-        <div className="absolute bottom-40 right-[25%] w-3 h-3 bg-cyan-400 rounded-full animate-float animation-delay-3000 opacity-50"></div>
-        <div className="absolute top-[30%] right-[30%] w-2 h-2 bg-violet-400 rounded-full animate-float animation-delay-1500 opacity-60"></div>
-        <div className="absolute bottom-[30%] left-[15%] w-3 h-3 bg-fuchsia-400 rounded-full animate-float animation-delay-2500 opacity-50"></div>
-
-        {/* Connecting lines - Network effect */}
-        <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+        {/* Large circuit board pattern */}
+        <svg className="absolute inset-0 w-full h-full opacity-[0.15]" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#7B61FF" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity="0.1" />
-            </linearGradient>
+            <pattern id="circuit" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+              {/* Horizontal lines */}
+              <line x1="0" y1="50" x2="80" y2="50" stroke="#6366f1" strokeWidth="1.5" />
+              <line x1="120" y1="50" x2="200" y2="50" stroke="#6366f1" strokeWidth="1.5" />
+              <line x1="0" y1="150" x2="60" y2="150" stroke="#7B61FF" strokeWidth="1.5" />
+              <line x1="100" y1="150" x2="200" y2="150" stroke="#7B61FF" strokeWidth="1.5" />
+
+              {/* Vertical lines */}
+              <line x1="50" y1="0" x2="50" y2="80" stroke="#6366f1" strokeWidth="1.5" />
+              <line x1="50" y1="120" x2="50" y2="200" stroke="#6366f1" strokeWidth="1.5" />
+              <line x1="150" y1="0" x2="150" y2="60" stroke="#7B61FF" strokeWidth="1.5" />
+              <line x1="150" y1="100" x2="150" y2="200" stroke="#7B61FF" strokeWidth="1.5" />
+
+              {/* Connection nodes */}
+              <circle cx="50" cy="50" r="4" fill="#6366f1" />
+              <circle cx="150" cy="50" r="4" fill="#7B61FF" />
+              <circle cx="50" cy="150" r="4" fill="#7B61FF" />
+              <circle cx="150" cy="150" r="4" fill="#6366f1" />
+
+              {/* AI chip representations */}
+              <rect x="40" y="40" width="20" height="20" fill="none" stroke="#6366f1" strokeWidth="1.5" rx="2" />
+              <rect x="140" y="140" width="20" height="20" fill="none" stroke="#7B61FF" strokeWidth="1.5" rx="2" />
+            </pattern>
           </defs>
-          <line x1="10%" y1="10%" x2="90%" y2="30%" stroke="url(#line-gradient)" strokeWidth="1" className="animate-dash" />
-          <line x1="20%" y1="60%" x2="80%" y2="80%" stroke="url(#line-gradient)" strokeWidth="1" className="animate-dash animation-delay-1000" />
-          <line x1="30%" y1="20%" x2="70%" y2="70%" stroke="url(#line-gradient)" strokeWidth="1" className="animate-dash animation-delay-2000" />
+          <rect width="100%" height="100%" fill="url(#circuit)" />
         </svg>
 
-        {/* Subtle noise texture */}
-        <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-        }}></div>
+        {/* Financial data visualization elements */}
+        <svg className="absolute top-0 right-0 w-1/2 h-1/2 opacity-[0.08]" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+          {/* Bar chart representation */}
+          <rect x="50" y="150" width="40" height="200" fill="#6366f1" opacity="0.6" />
+          <rect x="110" y="100" width="40" height="250" fill="#7B61FF" opacity="0.6" />
+          <rect x="170" y="120" width="40" height="230" fill="#8b5cf6" opacity="0.6" />
+          <rect x="230" y="80" width="40" height="270" fill="#6366f1" opacity="0.6" />
+          <rect x="290" y="110" width="40" height="240" fill="#7B61FF" opacity="0.6" />
+
+          {/* Trend line overlay */}
+          <polyline
+            points="70,170 130,120 190,140 250,100 310,130"
+            fill="none"
+            stroke="#7B61FF"
+            strokeWidth="3"
+            opacity="0.7"
+          />
+        </svg>
+
+        {/* Neural network visualization */}
+        <svg className="absolute bottom-0 left-0 w-1/2 h-1/2 opacity-[0.08]" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+          {/* Network nodes */}
+          <circle cx="80" cy="100" r="12" fill="#6366f1" />
+          <circle cx="80" cy="200" r="12" fill="#6366f1" />
+          <circle cx="80" cy="300" r="12" fill="#6366f1" />
+
+          <circle cx="200" cy="80" r="12" fill="#7B61FF" />
+          <circle cx="200" cy="150" r="12" fill="#7B61FF" />
+          <circle cx="200" cy="220" r="12" fill="#7B61FF" />
+          <circle cx="200" cy="290" r="12" fill="#7B61FF" />
+
+          <circle cx="320" cy="120" r="12" fill="#8b5cf6" />
+          <circle cx="320" cy="200" r="12" fill="#8b5cf6" />
+          <circle cx="320" cy="280" r="12" fill="#8b5cf6" />
+
+          {/* Connections */}
+          <line x1="80" y1="100" x2="200" y2="80" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+          <line x1="80" y1="100" x2="200" y2="150" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+          <line x1="80" y1="200" x2="200" y2="150" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+          <line x1="80" y1="200" x2="200" y2="220" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+          <line x1="80" y1="300" x2="200" y2="220" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+          <line x1="80" y1="300" x2="200" y2="290" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+
+          <line x1="200" y1="80" x2="320" y2="120" stroke="#7B61FF" strokeWidth="1.5" opacity="0.5" />
+          <line x1="200" y1="150" x2="320" y2="120" stroke="#7B61FF" strokeWidth="1.5" opacity="0.5" />
+          <line x1="200" y1="150" x2="320" y2="200" stroke="#7B61FF" strokeWidth="1.5" opacity="0.5" />
+          <line x1="200" y1="220" x2="320" y2="200" stroke="#7B61FF" strokeWidth="1.5" opacity="0.5" />
+          <line x1="200" y1="220" x2="320" y2="280" stroke="#7B61FF" strokeWidth="1.5" opacity="0.5" />
+          <line x1="200" y1="290" x2="320" y2="280" stroke="#7B61FF" strokeWidth="1.5" opacity="0.5" />
+        </svg>
+
+        {/* Tech grid overlay */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxMjMsIDk3LCAyNTUsIDAuMDgpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
+
+        {/* Gradient overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white/60"></div>
       </div>
 
       <PreAuthNav />
