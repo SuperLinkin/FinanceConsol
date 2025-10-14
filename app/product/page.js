@@ -17,7 +17,8 @@ import {
   FileCheck,
   Zap,
   ArrowRight,
-  Play
+  Play,
+  Sparkles
 } from 'lucide-react';
 
 export default function ProductPage() {
@@ -109,87 +110,84 @@ export default function ProductPage() {
   const addOns = [
     {
       name: 'Revenue Analysis',
-      color: 'from-blue-500 to-cyan-500',
-      icon: '📊',
+      icon: BarChart3,
       description: 'Deep dive into revenue streams with AI-powered insights'
     },
     {
       name: 'Accounting Bot',
-      color: 'from-purple-500 to-pink-500',
-      icon: '🤖',
+      icon: Sparkles,
       description: 'AI assistant for accounting queries and automation'
     },
     {
       name: 'Cash Flow Intelligence',
-      color: 'from-green-500 to-emerald-500',
-      icon: '💰',
+      icon: TrendingUp,
       description: 'Predictive cash flow forecasting and optimization'
     },
     {
       name: 'Expense Analytics',
-      color: 'from-orange-500 to-red-500',
-      icon: '📈',
+      icon: FileCheck,
       description: 'Smart expense categorization and anomaly detection'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAFAFB]">
+    <div className="min-h-screen bg-[#f7f5f2]">
       <PreAuthNav />
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-6 lg:px-8 overflow-hidden">
-        {/* Subtle Background Pattern */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-purple-100 to-blue-100 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3"></div>
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-violet-100 to-purple-100 rounded-full blur-3xl transform -translate-x-1/3 translate-y-1/3"></div>
+        {/* Subtle Animated Background */}
+        <div className="absolute inset-0 opacity-[0.15]">
+          <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-gradient-to-br from-slate-300 via-gray-200 to-slate-300 rounded-full blur-3xl animate-blob"></div>
+          <div className="absolute bottom-0 left-0 w-[700px] h-[700px] bg-gradient-to-tr from-gray-200 via-slate-300 to-gray-300 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
         </div>
 
         <div className="relative max-w-[1280px] mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-[#0F172A] mb-6 tracking-tight">
-            Two Core Modules.
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 mb-8 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-[#101828]"></div>
+            <span className="text-sm font-medium text-[#475569] tracking-wide">Product Overview</span>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold text-[#101828] mb-6 tracking-tight leading-tight">
+            Two Core Solutions.
             <br />
-            <span className="bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] bg-clip-text text-transparent">
+            <span className="text-[#101828]">
               One Unified Platform.
             </span>
           </h1>
-          <p className="text-xl text-[#475569] max-w-3xl mx-auto font-medium">
-            CLOE simplifies finance operations by combining automation, intelligence, and compliance
-            — built for enterprises of any size.
+          <p className="text-xl md:text-2xl text-[#475569] max-w-4xl mx-auto leading-relaxed">
+            CLOE simplifies finance operations by combining automation, intelligence, and compliance — built for enterprises of any size.
           </p>
         </div>
       </section>
 
-      {/* Module 1: Financial Close */}
+      {/* Solution 1: Financial Close */}
       <section className="py-20 px-6 lg:px-8 fade-in-section bg-white">
         <div className="max-w-[1280px] mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-full text-sm font-semibold mb-6">
-                <span className="w-2 h-2 bg-[#7B61FF] rounded-full animate-pulse"></span>
-                <span className="text-purple-900">Module 1</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 mb-6">
+                <span className="text-xs font-medium text-[#475569] tracking-wide uppercase">Solution 1</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-6 tracking-tight">
+              <h2 className="text-4xl md:text-5xl font-bold text-[#101828] mb-6 tracking-tight">
                 Financial Close
               </h2>
-              <p className="text-xl text-[#475569] mb-8 font-medium">
-                Transform your month-end and year-end close with intelligent automation, real-time
-                collaboration, and comprehensive audit trails.
+              <p className="text-xl text-[#475569] mb-8 leading-relaxed">
+                Transform your month-end and year-end close with intelligent automation, real-time collaboration, and comprehensive audit trails.
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {closeFeatures.map((feature, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-4 p-4 rounded-2xl hover:bg-purple-50/50 transition-all duration-300 group"
+                    className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
                   >
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/25">
-                      <feature.icon className="text-white" size={24} />
+                    <div className="w-10 h-10 bg-[#101828] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <feature.icon className="text-white" size={20} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-[#0F172A] mb-1">{feature.title}</h3>
-                      <p className="text-[#475569]">{feature.description}</p>
+                      <h3 className="text-base font-semibold text-[#101828] mb-1">{feature.title}</h3>
+                      <p className="text-sm text-[#475569]">{feature.description}</p>
                     </div>
                   </div>
                 ))}
@@ -198,116 +196,106 @@ export default function ProductPage() {
 
             {/* Right: Visual */}
             <div className="relative">
-              <div className="relative bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-3xl p-8 shadow-2xl shadow-purple-500/20">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-white">
-                      <span className="text-lg font-semibold">Close Calendar</span>
-                      <Calendar size={24} />
+              <div className="bg-[#101828] rounded-2xl p-8 shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-white mb-6">
+                    <span className="text-lg font-semibold">Close Calendar</span>
+                    <Calendar size={24} />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-white/10 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium text-sm">Trial Balance Review</span>
+                        <span className="text-green-400 text-xs font-medium">Complete</span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-2">
+                        <div className="bg-green-400 h-2 rounded-full w-full"></div>
+                      </div>
                     </div>
-                    <div className="space-y-3">
-                      <div className="bg-white/20 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">Trial Balance Review</span>
-                          <span className="text-green-300 text-sm">✓ Complete</span>
-                        </div>
-                        <div className="w-full bg-white/20 rounded-full h-2">
-                          <div className="bg-green-400 h-2 rounded-full w-full"></div>
-                        </div>
+                    <div className="bg-white/10 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium text-sm">Reconciliations</span>
+                        <span className="text-yellow-400 text-xs font-medium">In Progress</span>
                       </div>
-                      <div className="bg-white/20 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">Reconciliations</span>
-                          <span className="text-yellow-300 text-sm">In Progress</span>
-                        </div>
-                        <div className="w-full bg-white/20 rounded-full h-2">
-                          <div className="bg-yellow-400 h-2 rounded-full w-3/4"></div>
-                        </div>
+                      <div className="w-full bg-white/20 rounded-full h-2">
+                        <div className="bg-yellow-400 h-2 rounded-full w-3/4"></div>
                       </div>
-                      <div className="bg-white/20 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">Journal Entries</span>
-                          <span className="text-blue-300 text-sm">Pending</span>
-                        </div>
-                        <div className="w-full bg-white/20 rounded-full h-2">
-                          <div className="bg-blue-400 h-2 rounded-full w-1/4"></div>
-                        </div>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium text-sm">Journal Entries</span>
+                        <span className="text-blue-400 text-xs font-medium">Pending</span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-2">
+                        <div className="bg-blue-400 h-2 rounded-full w-1/4"></div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-yellow-400 rounded-full blur-3xl opacity-50"></div>
-              <div className="absolute -top-6 -left-6 w-32 h-32 bg-pink-400 rounded-full blur-3xl opacity-50"></div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Module 2: Financial Reporting */}
-      <section className="py-20 px-6 lg:px-8 fade-in-section bg-gradient-to-br from-purple-50 to-blue-50">
+      {/* Solution 2: Financial Reporting */}
+      <section className="py-20 px-6 lg:px-8 fade-in-section bg-gray-50">
         <div className="max-w-[1280px] mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: Visual */}
             <div className="relative order-2 lg:order-1">
-              <div className="relative bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-3xl p-8 shadow-2xl shadow-purple-500/20">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-white">
-                      <span className="text-lg font-semibold">Consolidated Reports</span>
-                      <BarChart3 size={24} />
+              <div className="bg-[#101828] rounded-2xl p-8 shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-white mb-6">
+                    <span className="text-lg font-semibold">Consolidated Reports</span>
+                    <BarChart3 size={24} />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-white font-medium text-sm">Balance Sheet</span>
+                      <FileText className="text-white" size={18} />
                     </div>
-                    <div className="space-y-3">
-                      <div className="bg-white/20 rounded-xl p-3 flex items-center justify-between">
-                        <span className="text-white font-medium">Balance Sheet</span>
-                        <FileText className="text-white" size={20} />
-                      </div>
-                      <div className="bg-white/20 rounded-xl p-3 flex items-center justify-between">
-                        <span className="text-white font-medium">Income Statement</span>
-                        <FileText className="text-white" size={20} />
-                      </div>
-                      <div className="bg-white/20 rounded-xl p-3 flex items-center justify-between">
-                        <span className="text-white font-medium">Cash Flow Statement</span>
-                        <FileText className="text-white" size={20} />
-                      </div>
-                      <div className="bg-white/20 rounded-xl p-3 flex items-center justify-between">
-                        <span className="text-white font-medium">Notes & Disclosures</span>
-                        <FileCheck className="text-white" size={20} />
-                      </div>
+                    <div className="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-white font-medium text-sm">Income Statement</span>
+                      <FileText className="text-white" size={18} />
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-white font-medium text-sm">Cash Flow Statement</span>
+                      <FileText className="text-white" size={18} />
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-white font-medium text-sm">Notes & Disclosures</span>
+                      <FileCheck className="text-white" size={18} />
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-cyan-400 rounded-full blur-3xl opacity-50"></div>
-              <div className="absolute -top-6 -right-6 w-32 h-32 bg-emerald-400 rounded-full blur-3xl opacity-50"></div>
             </div>
 
             {/* Right: Content */}
             <div className="order-1 lg:order-2">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-full text-sm font-semibold mb-6">
-                <span className="w-2 h-2 bg-[#7B61FF] rounded-full animate-pulse"></span>
-                <span className="text-purple-900">Module 2</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 mb-6">
+                <span className="text-xs font-medium text-[#475569] tracking-wide uppercase">Solution 2</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-6 tracking-tight">
+              <h2 className="text-4xl md:text-5xl font-bold text-[#101828] mb-6 tracking-tight">
                 Financial Reporting
               </h2>
-              <p className="text-xl text-[#475569] mb-8 font-medium">
-                Generate comprehensive, audit-ready financial statements with real-time consolidation
-                and multi-dimensional reporting capabilities.
+              <p className="text-xl text-[#475569] mb-8 leading-relaxed">
+                Generate comprehensive, audit-ready financial statements with real-time consolidation and multi-dimensional reporting capabilities.
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {reportingFeatures.map((feature, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/70 transition-all duration-300 group"
+                    className="flex items-start gap-4 p-4 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
                   >
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/25">
-                      <feature.icon className="text-white" size={24} />
+                    <div className="w-10 h-10 bg-[#101828] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <feature.icon className="text-white" size={20} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-[#0F172A] mb-1">{feature.title}</h3>
-                      <p className="text-[#475569]">{feature.description}</p>
+                      <h3 className="text-base font-semibold text-[#101828] mb-1">{feature.title}</h3>
+                      <p className="text-sm text-[#475569]">{feature.description}</p>
                     </div>
                   </div>
                 ))}
@@ -320,29 +308,24 @@ export default function ProductPage() {
       {/* Tailored Add-Ons Section */}
       <section className="py-20 px-6 lg:px-8 bg-white fade-in-section">
         <div className="max-w-[1280px] mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-[#0F172A] mb-4 tracking-tight">
+          <h2 className="text-4xl md:text-5xl font-bold text-[#101828] mb-6 tracking-tight">
             Tailored Add-Ons
           </h2>
-          <p className="text-xl text-[#475569] mb-12 max-w-2xl mx-auto font-medium">
-            Extend CLOE with powerful AI-driven modules designed to solve every accounting and finance team need.
+          <p className="text-xl text-[#475569] mb-12 max-w-2xl mx-auto leading-relaxed">
+            Extend CLOE with powerful AI-driven solutions designed to solve every accounting and finance team need.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {addOns.map((addon, index) => (
               <div
                 key={index}
-                className="relative group"
-                style={{ animationDelay: `${index * 100}ms` }}
+                className="bg-gray-50 rounded-xl p-8 border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
               >
-                <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 border-2 border-gray-100 hover:border-purple-200 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 group-hover:-translate-y-2">
-                  <div
-                    className={`w-20 h-20 mx-auto bg-gradient-to-br ${addon.color} rounded-2xl flex items-center justify-center shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300`}
-                  >
-                    <span className="text-4xl">{addon.icon}</span>
-                  </div>
-                  <h3 className="text-2xl font-bold text-[#0F172A] mb-3">{addon.name}</h3>
-                  <p className="text-[#475569] font-medium">{addon.description}</p>
+                <div className="w-12 h-12 mx-auto bg-[#101828] rounded-lg flex items-center justify-center mb-4">
+                  <addon.icon className="text-white" size={24} />
                 </div>
+                <h3 className="text-xl font-bold text-[#101828] mb-2">{addon.name}</h3>
+                <p className="text-sm text-[#475569]">{addon.description}</p>
               </div>
             ))}
           </div>
@@ -350,9 +333,9 @@ export default function ProductPage() {
           <div className="mt-12">
             <Link
               href="/home"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:scale-105 transition-all duration-300"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1e293b] transition-all"
             >
-              <Play size={20} />
+              <Play size={18} />
               Explore All Add-Ons
             </Link>
           </div>
@@ -362,20 +345,13 @@ export default function ProductPage() {
       {/* CTA Section */}
       <section className="py-24 px-6 lg:px-8 fade-in-section">
         <div className="max-w-[1280px] mx-auto">
-          <div className="relative bg-gradient-to-r from-[#7B61FF] to-[#A78BFA] rounded-3xl p-16 overflow-hidden shadow-2xl shadow-purple-500/20">
-            {/* Subtle Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative text-center">
+          <div className="bg-[#101828] rounded-2xl p-16 shadow-lg">
+            <div className="text-center">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
                 Experience the Future of Finance Automation
               </h2>
-              <p className="text-xl text-purple-100 mb-10 max-w-2xl mx-auto font-medium">
-                See how CLOE can transform your financial close and reporting processes with
-                intelligent automation and real-time insights.
+              <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed">
+                See how CLOE can transform your financial close and reporting processes with intelligent automation and real-time insights.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
@@ -383,16 +359,16 @@ export default function ProductPage() {
                     const modal = document.getElementById('contact-modal');
                     if (modal) modal.classList.remove('hidden');
                   }}
-                  className="px-10 py-4 bg-white text-[#7B61FF] rounded-xl font-semibold hover:shadow-2xl hover:scale-105 transition-all duration-300"
+                  className="px-8 py-3 bg-white text-[#101828] rounded-lg font-semibold hover:bg-gray-100 transition-all flex items-center gap-2"
                 >
                   Request Demo
+                  <ArrowRight size={18} />
                 </button>
                 <Link
                   href="/about"
-                  className="px-10 py-4 bg-transparent text-white rounded-xl font-semibold border-2 border-white hover:bg-white hover:text-[#7B61FF] transition-all duration-300 hover:scale-105 flex items-center gap-2"
+                  className="px-8 py-3 bg-transparent text-white rounded-lg font-semibold border border-white/20 hover:bg-white/10 transition-all"
                 >
                   Learn About Us
-                  <ArrowRight size={20} />
                 </Link>
               </div>
             </div>
@@ -405,7 +381,7 @@ export default function ProductPage() {
         <div className="max-w-[1280px] mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#7B61FF] to-[#A78BFA] rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-[#101828] rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
               <span className="text-2xl font-bold">CLOE</span>
@@ -439,7 +415,7 @@ export default function ProductPage() {
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
           }
           to {
             opacity: 1;
@@ -453,26 +429,49 @@ export default function ProductPage() {
             transform: translate(0, 0) scale(1);
           }
           25% {
-            transform: translate(20px, -20px) scale(1.1);
+            transform: translate(30px, -30px) scale(1.15);
           }
           50% {
-            transform: translate(-20px, 20px) scale(0.9);
+            transform: translate(-30px, 30px) scale(0.85);
           }
           75% {
-            transform: translate(20px, 20px) scale(1.05);
+            transform: translate(30px, 30px) scale(1.1);
           }
         }
 
         .animate-fadeIn {
-          animation: fadeIn 0.8s ease-out forwards;
+          animation: fadeIn 1s ease-out forwards;
         }
 
         .animate-blob {
-          animation: blob 7s infinite;
+          animation: blob 10s infinite ease-in-out;
         }
 
         .animation-delay-2000 {
           animation-delay: 2s;
+        }
+
+        /* Smooth scroll */
+        html {
+          scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+          width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: #f7f5f2;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: linear-gradient(to bottom, #101828, #475569);
+          border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(to bottom, #1e293b, #64748b);
         }
       `}</style>
     </div>
