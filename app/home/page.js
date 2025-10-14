@@ -79,14 +79,13 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       {/* Sophisticated Static Background - AI/Tech/Finance/SaaS */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50"></div>
+        {/* Base gradient - already on main div */}
 
         {/* Large circuit board pattern */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.15]" xmlns="http://www.w3.org/2000/svg">
+        <svg className="absolute inset-0 w-full h-full opacity-[0.2]" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="circuit" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
               {/* Horizontal lines */}
@@ -116,7 +115,7 @@ export default function HomePage() {
         </svg>
 
         {/* Financial data visualization elements */}
-        <svg className="absolute top-0 right-0 w-1/2 h-1/2 opacity-[0.08]" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+        <svg className="absolute top-0 right-0 w-1/2 h-1/2 opacity-[0.15]" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
           {/* Bar chart representation */}
           <rect x="50" y="150" width="40" height="200" fill="#6366f1" opacity="0.6" />
           <rect x="110" y="100" width="40" height="250" fill="#7B61FF" opacity="0.6" />
@@ -135,7 +134,7 @@ export default function HomePage() {
         </svg>
 
         {/* Neural network visualization */}
-        <svg className="absolute bottom-0 left-0 w-1/2 h-1/2 opacity-[0.08]" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+        <svg className="absolute bottom-0 left-0 w-1/2 h-1/2 opacity-[0.15]" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
           {/* Network nodes */}
           <circle cx="80" cy="100" r="12" fill="#6366f1" />
           <circle cx="80" cy="200" r="12" fill="#6366f1" />
@@ -167,10 +166,7 @@ export default function HomePage() {
         </svg>
 
         {/* Tech grid overlay */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxMjMsIDk3LCAyNTUsIDAuMDgpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
-
-        {/* Gradient overlay for depth */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white/60"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxMjMsIDk3LCAyNTUsIDAuMTIpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-50"></div>
       </div>
 
       <PreAuthNav />
