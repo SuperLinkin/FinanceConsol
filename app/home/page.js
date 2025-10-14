@@ -12,8 +12,7 @@ import {
   Shield,
   Zap,
   Clock,
-  Globe,
-  Lock
+  Globe
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -231,23 +230,6 @@ export default function HomePage() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* Security Section */}
-      <section className="py-32 px-6 lg:px-8 fade-in-section">
-        <div className="max-w-[1100px] mx-auto">
-          <div className="bg-[#0F172A] rounded-3xl p-16 text-center text-white">
-            <div className="inline-flex p-4 bg-white/10 rounded-xl mb-6">
-              <Lock className="text-white" size={32} />
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
-              Enterprise-grade security
-            </h2>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              SOC 2 Type II certified with bank-level encryption, role-based access control, and complete audit trails
-            </p>
           </div>
         </div>
       </section>
