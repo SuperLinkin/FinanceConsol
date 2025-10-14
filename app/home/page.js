@@ -45,12 +45,12 @@ export default function HomePage() {
     {
       icon: AlertCircle,
       title: 'Bloated Software',
-      description: 'Enterprise tools with hundreds of features you'll never use. Too complex, too expensive, too slow.'
+      description: 'Enterprise tools with hundreds of features you will never use. Too complex, too expensive, too slow.'
     },
     {
       icon: XCircle,
-      title: 'AI That Doesn't Help',
-      description: 'Buzzword-driven "AI" that generates more work than it saves. Black boxes that finance teams can't trust.'
+      title: 'AI That Does Not Help',
+      description: 'Buzzword-driven AI that generates more work than it saves. Black boxes that finance teams cannot trust.'
     },
     {
       icon: Target,
@@ -63,7 +63,7 @@ export default function HomePage() {
     {
       icon: Users,
       title: 'Built by Finance Teams',
-      description: 'We've closed the books. We've built the consolidation models. We've felt the pain of month-end.'
+      description: 'We have closed the books. We have built the consolidation models. We have felt the pain of month-end.'
     },
     {
       icon: Lightbulb,
@@ -73,7 +73,7 @@ export default function HomePage() {
     {
       icon: TrendingUp,
       title: 'Actually Useful AI',
-      description: 'AI that learns your patterns, flags real exceptions, and speeds up work—without the black box.'
+      description: 'AI that learns your patterns, flags real exceptions, and speeds up work without the black box.'
     }
   ];
 
@@ -213,7 +213,7 @@ export default function HomePage() {
               <span className="text-[#7B61FF]">for finance teams</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              We've lived through the month-end chaos. Built the consolidation models at 3 AM.
+              We have lived through the month-end chaos. Built the consolidation models at 3 AM.
               Fought with software that promised everything and delivered nothing.
             </p>
           </div>
@@ -273,8 +273,8 @@ export default function HomePage() {
               <span className="text-[#7B61FF]">All your finance needs.</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              From close to consolidation to reporting—everything in one place,
-              working the way you'd build it yourself.
+              From close to consolidation to reporting - everything in one place,
+              working the way you would build it yourself.
             </p>
           </div>
 
@@ -340,7 +340,7 @@ export default function HomePage() {
                     Financial Close
                   </h3>
                   <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                    Automate your entire close cycle—from task assignment to variance analysis.
+                    Automate your entire close cycle - from task assignment to variance analysis.
                     Cut your close time in half without hiring more people.
                   </p>
                   <ul className="space-y-3 mb-8">
