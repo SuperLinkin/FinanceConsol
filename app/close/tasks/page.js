@@ -14,7 +14,16 @@ import {
   Eye,
   ChevronRight,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Save,
+  FolderOpen,
+  BarChart2,
+  TrendingUp,
+  Clock,
+  Zap,
+  Target,
+  Download,
+  Copy
 } from 'lucide-react';
 
 export default function TaskManagement() {
@@ -105,10 +114,35 @@ export default function TaskManagement() {
     totalWorkDays: 5,
     startDate: '2025-01-01',
     workdayPattern: 'sequential', // sequential, parallel, mixed
-    bufferDays: 0
+    bufferDays: 0,
+    teamSize: 3,
+    avgTasksPerDay: 2,
+    riskTolerance: 'medium' // low, medium, high
   });
 
   const [simulationResults, setSimulationResults] = useState(null);
+  const [savedSimulations, setSavedSimulations] = useState([
+    {
+      id: 'sim1',
+      name: 'Q4 2024 Standard Close',
+      params: { totalWorkDays: 5, startDate: '2024-12-31', bufferDays: 1, teamSize: 3, avgTasksPerDay: 2, riskTolerance: 'medium', workdayPattern: 'sequential' },
+      savedDate: '2024-12-15',
+      criticalPath: 6,
+      status: 'on-time'
+    },
+    {
+      id: 'sim2',
+      name: 'Accelerated Close - 3 Days',
+      params: { totalWorkDays: 3, startDate: '2025-01-31', bufferDays: 0, teamSize: 5, avgTasksPerDay: 3, riskTolerance: 'high', workdayPattern: 'parallel' },
+      savedDate: '2024-12-10',
+      criticalPath: 3,
+      status: 'at-risk'
+    }
+  ]);
+  const [showSaveSimulation, setShowSaveSimulation] = useState(false);
+  const [simulationName, setSimulationName] = useState('');
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedComparisons, setSelectedComparisons] = useState([]);
 
   const filteredTasks = tasks.filter(task =>
     task.taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -198,14 +232,62 @@ export default function TaskManagement() {
     const criticalPath = Math.max(...taskSchedule.map(t => t.calculatedEnd));
     const utilizationRate = (criticalPath / totalDays * 100).toFixed(1);
 
+    // Calculate resource utilization
+    const teamSize = parseInt(simulationParams.teamSize);
+    const totalTaskDays = taskSchedule.reduce((sum, t) => sum + t.duration, 0);
+    const resourceUtilization = ((totalTaskDays / (teamSize * criticalPath)) * 100).toFixed(1);
+
+    // Identify parallel tasks
+    const parallelTasks = taskSchedule.filter(t => !t.dependentTaskId);
+
+    // Calculate efficiency score
+    const efficiencyScore = ((criticalPath / totalDays) * (resourceUtilization / 100) * 100).toFixed(1);
+
     setSimulationResults({
       schedule: taskSchedule,
       totalDays,
       criticalPath,
       utilizationRate,
+      resourceUtilization,
+      efficiencyScore,
+      parallelTasks: parallelTasks.length,
+      totalTasks: tasks.length,
       bottlenecks: taskSchedule.filter(t => t.dependentTaskId && t.calculatedStart > parseInt(t.workDayStart.replace('Day ', ''))),
-      onTime: criticalPath <= totalDays
+      onTime: criticalPath <= totalDays,
+      params: {...simulationParams}
     });
+  };
+
+  const handleSaveSimulation = () => {
+    if (!simulationName.trim()) {
+      alert('Please enter a simulation name');
+      return;
+    }
+
+    const newSimulation = {
+      id: `sim${savedSimulations.length + 1}`,
+      name: simulationName,
+      params: {...simulationParams},
+      savedDate: new Date().toISOString().split('T')[0],
+      criticalPath: simulationResults.criticalPath,
+      status: simulationResults.onTime ? 'on-time' : 'at-risk'
+    };
+
+    setSavedSimulations([...savedSimulations, newSimulation]);
+    setSimulationName('');
+    setShowSaveSimulation(false);
+    alert('Simulation saved successfully!');
+  };
+
+  const handleLoadSimulation = (simulation) => {
+    setSimulationParams(simulation.params);
+    alert(`Loaded simulation: ${simulation.name}`);
+  };
+
+  const handleDeleteSimulation = (id) => {
+    if (confirm('Are you sure you want to delete this simulation?')) {
+      setSavedSimulations(savedSimulations.filter(s => s.id !== id));
+    }
   };
 
   return (
