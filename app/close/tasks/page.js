@@ -19,6 +19,8 @@ import {
 
 export default function TaskManagement() {
   const [showAddTaskPanel, setShowAddTaskPanel] = useState(false);
+  const [showTaskDetailsPanel, setShowTaskDetailsPanel] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState('tasks'); // 'tasks' or 'workday'
 
@@ -31,6 +33,7 @@ export default function TaskManagement() {
     workDayStart: '',
     workDayEnd: '',
     dependentTaskId: '',
+    description: '',
   });
 
   // Mock tasks data with new structure
@@ -44,7 +47,8 @@ export default function TaskManagement() {
       workDayStart: 'Day 1',
       workDayEnd: 'Day 2',
       dependentTaskId: null,
-      dependentTaskName: null
+      dependentTaskName: null,
+      description: 'Reconcile the main bank account by comparing the bank statement with the general ledger. Identify and resolve any discrepancies, outstanding checks, or deposits in transit.'
     },
     {
       taskId: 'T002',
@@ -55,7 +59,8 @@ export default function TaskManagement() {
       workDayStart: 'Day 2',
       workDayEnd: 'Day 3',
       dependentTaskId: 'T001',
-      dependentTaskName: 'Bank Reconciliation - Main Account'
+      dependentTaskName: 'Bank Reconciliation - Main Account',
+      description: 'Review all revenue transactions for the period to ensure proper recognition in accordance with ASC 606. Verify that revenue is recognized when performance obligations are satisfied.'
     },
     {
       taskId: 'T003',
@@ -66,7 +71,8 @@ export default function TaskManagement() {
       workDayStart: 'Day 1',
       workDayEnd: 'Day 3',
       dependentTaskId: null,
-      dependentTaskName: null
+      dependentTaskName: null,
+      description: 'Reconcile all intercompany transactions between subsidiaries. Ensure that intercompany balances match and eliminate any discrepancies before consolidation.'
     },
     {
       taskId: 'T004',
@@ -77,7 +83,8 @@ export default function TaskManagement() {
       workDayStart: 'Day 3',
       workDayEnd: 'Day 4',
       dependentTaskId: 'T002',
-      dependentTaskName: 'Revenue Recognition Review'
+      dependentTaskName: 'Revenue Recognition Review',
+      description: 'Calculate and record monthly depreciation for all fixed assets. Review asset additions and disposals during the period and update depreciation schedules accordingly.'
     },
     {
       taskId: 'T005',
@@ -88,7 +95,8 @@ export default function TaskManagement() {
       workDayStart: 'Day 4',
       workDayEnd: 'Day 5',
       dependentTaskId: 'T004',
-      dependentTaskName: 'Fixed Assets Depreciation'
+      dependentTaskName: 'Fixed Assets Depreciation',
+      description: 'Review and approve all journal entries posted during the close period. Ensure proper documentation, appropriate approvals, and compliance with accounting policies.'
     }
   ]);
 
@@ -126,7 +134,8 @@ export default function TaskManagement() {
       workDayStart: newTask.workDayStart,
       workDayEnd: newTask.workDayEnd,
       dependentTaskId: newTask.dependentTaskId || null,
-      dependentTaskName: dependentTask ? dependentTask.taskName : null
+      dependentTaskName: dependentTask ? dependentTask.taskName : null,
+      description: newTask.description
     };
 
     setTasks([...tasks, task]);
@@ -138,8 +147,14 @@ export default function TaskManagement() {
       workDayStart: '',
       workDayEnd: '',
       dependentTaskId: '',
+      description: '',
     });
     setShowAddTaskPanel(false);
+  };
+
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setShowTaskDetailsPanel(true);
   };
 
   const handleSimulate = () => {
@@ -289,7 +304,11 @@ export default function TaskManagement() {
                         </tr>
                       ) : (
                         filteredTasks.map(task => (
-                          <tr key={task.taskId} className="hover:bg-slate-50 transition-colors">
+                          <tr
+                            key={task.taskId}
+                            onClick={() => handleTaskClick(task)}
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
                             <td className="px-4 py-3">
                               <span className="text-sm font-semibold text-indigo-600">{task.taskId}</span>
                             </td>
@@ -382,7 +401,7 @@ export default function TaskManagement() {
                         type="number"
                         value={simulationParams.totalWorkDays}
                         onChange={(e) => setSimulationParams({...simulationParams, totalWorkDays: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                         min="1"
                         max="30"
                       />
@@ -396,7 +415,7 @@ export default function TaskManagement() {
                         type="date"
                         value={simulationParams.startDate}
                         onChange={(e) => setSimulationParams({...simulationParams, startDate: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                       />
                     </div>
 
@@ -408,7 +427,7 @@ export default function TaskManagement() {
                         type="number"
                         value={simulationParams.bufferDays}
                         onChange={(e) => setSimulationParams({...simulationParams, bufferDays: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                         min="0"
                         max="10"
                       />
@@ -422,7 +441,7 @@ export default function TaskManagement() {
                       <select
                         value={simulationParams.workdayPattern}
                         onChange={(e) => setSimulationParams({...simulationParams, workdayPattern: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                       >
                         <option value="sequential">Sequential (One after another)</option>
                         <option value="parallel">Parallel (Simultaneous)</option>
@@ -589,7 +608,7 @@ export default function TaskManagement() {
                   type="text"
                   value={newTask.taskName}
                   onChange={(e) => setNewTask({...newTask, taskName: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                   placeholder="Enter task name"
                 />
               </div>
@@ -602,7 +621,7 @@ export default function TaskManagement() {
                   type="text"
                   value={newTask.owner}
                   onChange={(e) => setNewTask({...newTask, owner: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                   placeholder="Enter owner name"
                 />
               </div>
@@ -615,7 +634,7 @@ export default function TaskManagement() {
                   type="text"
                   value={newTask.reviewer}
                   onChange={(e) => setNewTask({...newTask, reviewer: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                   placeholder="Enter reviewer name"
                 />
               </div>
@@ -628,7 +647,7 @@ export default function TaskManagement() {
                   type="text"
                   value={newTask.chartOfAccount}
                   onChange={(e) => setNewTask({...newTask, chartOfAccount: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                   placeholder="e.g., 1010 - Cash and Cash Equivalents"
                 />
               </div>
@@ -642,7 +661,7 @@ export default function TaskManagement() {
                     type="text"
                     value={newTask.workDayStart}
                     onChange={(e) => setNewTask({...newTask, workDayStart: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                     placeholder="e.g., Day 1"
                   />
                 </div>
@@ -654,7 +673,7 @@ export default function TaskManagement() {
                     type="text"
                     value={newTask.workDayEnd}
                     onChange={(e) => setNewTask({...newTask, workDayEnd: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                     placeholder="e.g., Day 3"
                   />
                 </div>
@@ -667,7 +686,7 @@ export default function TaskManagement() {
                 <select
                   value={newTask.dependentTaskId}
                   onChange={(e) => setNewTask({...newTask, dependentTaskId: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
                 >
                   <option value="">No dependency</option>
                   {tasks.map(task => (
@@ -679,6 +698,19 @@ export default function TaskManagement() {
                 <p className="text-xs text-slate-500 mt-1">
                   Select a task that must be completed before this task can start
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Task Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828] min-h-[100px]"
+                  placeholder="Describe what this task involves, including specific steps and requirements..."
+                  rows="4"
+                />
               </div>
 
               <div className="pt-4 border-t border-slate-200 flex gap-3">
@@ -693,6 +725,128 @@ export default function TaskManagement() {
                   className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Task Details Side Panel */}
+      {showTaskDetailsPanel && selectedTask && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowTaskDetailsPanel(false)}
+          ></div>
+          <div className="fixed right-0 top-0 bottom-0 w-[600px] bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-[#101828]">Task Details</h2>
+                <p className="text-sm text-slate-600 mt-1">{selectedTask.taskId}</p>
+              </div>
+              <button
+                onClick={() => setShowTaskDetailsPanel(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Task Name */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Task Name</label>
+                <p className="text-lg font-semibold text-[#101828]">{selectedTask.taskName}</p>
+              </div>
+
+              {/* Description */}
+              <div className="bg-slate-50 rounded-lg p-4">
+                <label className="block text-xs font-medium text-slate-500 mb-2">Task Description</label>
+                <p className="text-sm text-slate-700 leading-relaxed">{selectedTask.description}</p>
+              </div>
+
+              {/* Team Section */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-2">Owner</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-indigo-600 text-sm font-semibold">
+                        {selectedTask.owner.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[#101828]">{selectedTask.owner}</p>
+                      <p className="text-xs text-slate-500">Task Owner</p>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-2">Reviewer</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                      <Eye size={18} className="text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[#101828]">{selectedTask.reviewer}</p>
+                      <p className="text-xs text-slate-500">Reviewer</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Schedule Section */}
+              <div className="border-t border-slate-200 pt-6">
+                <h3 className="text-sm font-semibold text-[#101828] mb-4">Schedule Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Start Date</label>
+                    <p className="text-base font-semibold text-[#101828]">{selectedTask.workDayStart}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">End Date</label>
+                    <p className="text-base font-semibold text-[#101828]">{selectedTask.workDayEnd}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Section */}
+              <div className="border-t border-slate-200 pt-6">
+                <label className="block text-xs font-medium text-slate-500 mb-2">Chart of Account</label>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-indigo-900">{selectedTask.chartOfAccount}</p>
+                </div>
+              </div>
+
+              {/* Dependency Section */}
+              {selectedTask.dependentTaskId && (
+                <div className="border-t border-slate-200 pt-6">
+                  <label className="block text-xs font-medium text-slate-500 mb-2">Task Dependency</label>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
+                      <div>
+                        <p className="text-sm font-medium text-amber-900 mb-1">
+                          Depends on: {selectedTask.dependentTaskId}
+                        </p>
+                        <p className="text-xs text-amber-700">{selectedTask.dependentTaskName}</p>
+                        <p className="text-xs text-amber-600 mt-2">
+                          This task cannot start until the dependent task is completed
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="border-t border-slate-200 pt-6 flex gap-3">
+                <button className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                  Edit Task
+                </button>
+                <button className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium">
+                  Close
                 </button>
               </div>
             </div>
