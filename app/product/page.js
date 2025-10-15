@@ -229,10 +229,10 @@ export default function ProductPage() {
               <div className="mt-20">
                 <h3 className="text-3xl font-bold text-[#101828] mb-4 text-center">How Close Helps Your Team</h3>
                 <p className="text-lg text-slate-600 mb-12 text-center max-w-2xl mx-auto">
-                  See the app in action
+                  Real-world examples of CLOE streamlining your close process
                 </p>
 
-                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
                   {/* Window 1: Task Automation */}
                   <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200">
                     <div className="px-3 py-2 bg-[#101828] flex items-center gap-2">
@@ -342,6 +342,55 @@ export default function ProductPage() {
                       <button className="w-full mt-3 bg-gradient-to-r from-[#7B61FF] to-[#6366f1] text-white text-[10px] py-2 rounded-lg font-semibold">
                         Apply Suggestion
                       </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Benefits Explanation */}
+                <div className="max-w-5xl mx-auto">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {/* Task Automation Benefits */}
+                    <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl p-6 border border-slate-200">
+                      <h4 className="text-lg font-bold text-[#101828] mb-3">Eliminate Manual Coordination</h4>
+                      <p className="text-sm text-slate-600 mb-4">
+                        No more spreadsheet tracking or constant emails asking "Are you done yet?" CLOE automatically manages task dependencies across all entities, unlocking work as prerequisites complete.
+                      </p>
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Your team sees exactly what to work on next</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Tasks flow smoothly without bottlenecks</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Nothing falls through the cracks</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* AI Exception Detection Benefits */}
+                    <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl p-6 border border-slate-200">
+                      <h4 className="text-lg font-bold text-[#101828] mb-3">Catch Errors Before They Escalate</h4>
+                      <p className="text-sm text-slate-600 mb-4">
+                        AI analyzes every reconciliation in real-time, identifies variances, explains why they occurred, and suggests fixes. Turn hours of detective work into one-click resolutions.
+                      </p>
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Spot issues early, not during audit</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Get context and root cause instantly</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Apply AI-suggested fixes with confidence</span>
+                        </li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -493,10 +542,10 @@ export default function ProductPage() {
               <div className="mt-20">
                 <h3 className="text-3xl font-bold text-[#101828] mb-4 text-center">How Consolidation Helps Your Team</h3>
                 <p className="text-lg text-slate-600 mb-12 text-center max-w-2xl mx-auto">
-                  See the app in action
+                  Real-world examples of CLOE automating complex consolidation workflows
                 </p>
 
-                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
                   {/* Window 1: Currency Translation */}
                   <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200">
                     <div className="px-3 py-2 bg-[#101828] flex items-center gap-2">
@@ -628,6 +677,55 @@ export default function ProductPage() {
                           <div className="text-[9px] text-slate-700">AI matched 42 of 45 transactions automatically</div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Benefits Explanation */}
+                <div className="max-w-5xl mx-auto">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {/* Currency Translation Benefits */}
+                    <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl p-6 border border-slate-200">
+                      <h4 className="text-lg font-bold text-[#101828] mb-3">Eliminate Manual Currency Conversion</h4>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Stop copying exchange rates from websites and fighting with spreadsheet formulas. CLOE pulls real-time rates and translates every account automatically, updating instantly when rates change.
+                      </p>
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Zero manual conversion errors</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Always use current market rates</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Complete audit trail of all translations</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Intercompany Matching Benefits */}
+                    <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl p-6 border border-slate-200">
+                      <h4 className="text-lg font-bold text-[#101828] mb-3">Save Days on Intercompany Reconciliation</h4>
+                      <p className="text-sm text-slate-600 mb-4">
+                        AI automatically matches intercompany transactions across entities, flags mismatches instantly, and generates elimination entries. What used to take days now happens in minutes.
+                      </p>
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>94%+ automatic matching rate</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>Only review exceptions, not every transaction</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                          <span>One-click elimination journal generation</span>
+                        </li>
+                      </ul>
                     </div>
                   </div>
                 </div>
