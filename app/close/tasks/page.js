@@ -518,6 +518,37 @@ export default function TaskManagement() {
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Team Size
+                      </label>
+                      <input
+                        type="number"
+                        value={simulationParams.teamSize}
+                        onChange={(e) => setSimulationParams({...simulationParams, teamSize: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
+                        min="1"
+                        max="20"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Number of team members available</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Risk Tolerance
+                      </label>
+                      <select
+                        value={simulationParams.riskTolerance}
+                        onChange={(e) => setSimulationParams({...simulationParams, riskTolerance: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
+                      >
+                        <option value="low">Low (Conservative)</option>
+                        <option value="medium">Medium (Balanced)</option>
+                        <option value="high">High (Aggressive)</option>
+                      </select>
+                      <p className="text-xs text-slate-500 mt-1">Affects buffer recommendations</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
                         Workday Pattern
                       </label>
                       <select
@@ -547,6 +578,62 @@ export default function TaskManagement() {
                       <RotateCcw size={18} />
                       Reset
                     </button>
+                    {simulationResults && (
+                      <button
+                        onClick={() => setShowSaveSimulation(true)}
+                        className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                      >
+                        <Save size={18} />
+                        Save Simulation
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Saved Simulations */}
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-[#101828]">Saved Simulations</h3>
+                    <FolderOpen size={20} className="text-slate-400" />
+                  </div>
+                  <div className="space-y-2">
+                    {savedSimulations.length === 0 ? (
+                      <p className="text-sm text-slate-500 text-center py-4">No saved simulations</p>
+                    ) : (
+                      savedSimulations.map(sim => (
+                        <div key={sim.id} className="border border-slate-200 rounded-lg p-3 hover:border-indigo-300 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-[#101828]">{sim.name}</p>
+                              <p className="text-xs text-slate-500">Saved: {sim.savedDate}</p>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              sim.status === 'on-time' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {sim.status === 'on-time' ? 'On Time' : 'At Risk'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-600 mb-3">
+                            <Clock size={12} />
+                            <span>{sim.criticalPath} days</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleLoadSimulation(sim)}
+                              className="flex-1 text-xs bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded hover:bg-indigo-100 transition-colors"
+                            >
+                              Load
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSimulation(sim.id)}
+                              className="flex-1 text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded hover:bg-red-100 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -563,30 +650,107 @@ export default function TaskManagement() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-3 gap-4">
+                    {/* Action Bar */}
+                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <BarChart2 className="text-indigo-600" size={24} />
+                          <div>
+                            <h3 className="font-semibold text-[#101828]">Simulation Results</h3>
+                            <p className="text-xs text-slate-500">Based on {simulationResults.totalTasks} tasks</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm">
+                            <Download size={16} />
+                            Export
+                          </button>
+                          <button className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm">
+                            <Copy size={16} />
+                            Duplicate
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary Cards - 5 cards */}
+                    <div className="grid grid-cols-5 gap-4">
                       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-                        <p className="text-sm text-slate-600 mb-1">Critical Path</p>
-                        <p className="text-3xl font-bold text-[#101828]">{simulationResults.criticalPath} days</p>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-slate-600">Critical Path</p>
+                          <Clock className="text-slate-400" size={16} />
+                        </div>
+                        <p className="text-2xl font-bold text-[#101828]">{simulationResults.criticalPath}</p>
+                        <p className="text-xs text-slate-500 mt-1">days</p>
                       </div>
                       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-                        <p className="text-sm text-slate-600 mb-1">Utilization Rate</p>
-                        <p className="text-3xl font-bold text-indigo-600">{simulationResults.utilizationRate}%</p>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-slate-600">Utilization</p>
+                          <TrendingUp className="text-indigo-400" size={16} />
+                        </div>
+                        <p className="text-2xl font-bold text-indigo-600">{simulationResults.utilizationRate}%</p>
+                        <p className="text-xs text-slate-500 mt-1">timeline used</p>
                       </div>
                       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-                        <p className="text-sm text-slate-600 mb-1">Status</p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-slate-600">Resources</p>
+                          <Users className="text-purple-400" size={16} />
+                        </div>
+                        <p className="text-2xl font-bold text-purple-600">{simulationResults.resourceUtilization}%</p>
+                        <p className="text-xs text-slate-500 mt-1">team capacity</p>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-slate-600">Efficiency</p>
+                          <Zap className="text-amber-400" size={16} />
+                        </div>
+                        <p className="text-2xl font-bold text-amber-600">{simulationResults.efficiencyScore}%</p>
+                        <p className="text-xs text-slate-500 mt-1">score</p>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-slate-600">Status</p>
+                          <Target className="text-slate-400" size={16} />
+                        </div>
+                        <div className="flex items-center gap-1">
                           {simulationResults.onTime ? (
                             <>
-                              <CheckCircle2 className="text-green-600" size={24} />
-                              <span className="text-lg font-bold text-green-600">On Time</span>
+                              <CheckCircle2 className="text-green-600" size={20} />
+                              <span className="text-sm font-bold text-green-600">On Time</span>
                             </>
                           ) : (
                             <>
-                              <AlertCircle className="text-red-600" size={24} />
-                              <span className="text-lg font-bold text-red-600">At Risk</span>
+                              <AlertCircle className="text-red-600" size={20} />
+                              <span className="text-sm font-bold text-red-600">At Risk</span>
                             </>
                           )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Insights Panel */}
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 p-6">
+                      <h4 className="font-semibold text-indigo-900 mb-4">Key Insights</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white/80 rounded-lg p-3">
+                          <p className="text-xs text-indigo-600 font-medium mb-1">Parallel Tasks</p>
+                          <p className="text-lg font-bold text-indigo-900">{simulationResults.parallelTasks} tasks</p>
+                          <p className="text-xs text-slate-600 mt-1">Can run simultaneously</p>
+                        </div>
+                        <div className="bg-white/80 rounded-lg p-3">
+                          <p className="text-xs text-purple-600 font-medium mb-1">Bottlenecks</p>
+                          <p className="text-lg font-bold text-purple-900">{simulationResults.bottlenecks.length} found</p>
+                          <p className="text-xs text-slate-600 mt-1">Tasks delayed by dependencies</p>
+                        </div>
+                        <div className="bg-white/80 rounded-lg p-3">
+                          <p className="text-xs text-blue-600 font-medium mb-1">Team Load</p>
+                          <p className="text-lg font-bold text-blue-900">{simulationParams.teamSize} members</p>
+                          <p className="text-xs text-slate-600 mt-1">Working on {simulationResults.totalTasks} tasks</p>
+                        </div>
+                        <div className="bg-white/80 rounded-lg p-3">
+                          <p className="text-xs text-green-600 font-medium mb-1">Timeline</p>
+                          <p className="text-lg font-bold text-green-900">{simulationResults.totalDays} days</p>
+                          <p className="text-xs text-slate-600 mt-1">Including {simulationParams.bufferDays} buffer days</p>
                         </div>
                       </div>
                     </div>
@@ -939,6 +1103,90 @@ export default function TaskManagement() {
                   className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Save Simulation Modal */}
+      {showSaveSimulation && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowSaveSimulation(false)}
+          ></div>
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-2xl w-[500px] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-[#101828]">Save Simulation</h2>
+                <button
+                  onClick={() => setShowSaveSimulation(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-600 mb-4">
+                Save this simulation for future reference and what-if analysis.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Simulation Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={simulationName}
+                    onChange={(e) => setSimulationName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
+                    placeholder="e.g., Q1 2025 Accelerated Close"
+                  />
+                </div>
+
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-xs font-medium text-slate-700 mb-2">Simulation Summary</p>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-500">Critical Path:</span>
+                      <span className="font-semibold text-[#101828] ml-1">{simulationResults?.criticalPath} days</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Team Size:</span>
+                      <span className="font-semibold text-[#101828] ml-1">{simulationParams.teamSize} members</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Status:</span>
+                      <span className={`font-semibold ml-1 ${simulationResults?.onTime ? 'text-green-600' : 'text-red-600'}`}>
+                        {simulationResults?.onTime ? 'On Time' : 'At Risk'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Efficiency:</span>
+                      <span className="font-semibold text-[#101828] ml-1">{simulationResults?.efficiencyScore}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleSaveSimulation}
+                  className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                >
+                  Save Simulation
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSaveSimulation(false);
+                    setSimulationName('');
+                  }}
+                  className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
