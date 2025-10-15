@@ -82,6 +82,22 @@ CREATE TABLE public.chart_of_accounts (
   CONSTRAINT chart_of_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT chart_of_accounts_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.entities(id)
 );
+CREATE TABLE public.close_users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  username character varying NOT NULL UNIQUE,
+  password_hash character varying NOT NULL,
+  full_name character varying NOT NULL,
+  email character varying,
+  company_name character varying NOT NULL,
+  company_id uuid,
+  is_active boolean DEFAULT true,
+  last_login_at timestamp with time zone,
+  failed_login_attempts integer DEFAULT 0,
+  locked_until timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT close_users_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.coa_master_hierarchy (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   class_name text NOT NULL,
@@ -752,13 +768,3 @@ CREATE TABLE public.world_currencies (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT world_currencies_pkey PRIMARY KEY (id)
 );
-
--- =====================================================
--- NOTE: Finance Close Module Authentication
--- =====================================================
--- For Finance Close module setup (isolated from this schema),
--- run the separate SQL file:
---   sql/Finance_Close_Auth_Setup.sql
---
--- This keeps the Finance Close authentication completely
--- isolated from the Reporting module tables above.

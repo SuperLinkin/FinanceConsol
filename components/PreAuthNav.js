@@ -20,7 +20,7 @@ export default function PreAuthNav() {
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
           ? 'bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm'
-          : 'bg-transparent'
+          : 'bg-slate-100/80 backdrop-blur-xl border-b border-slate-200/50'
       }`}
     >
       <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
@@ -75,7 +75,7 @@ export default function PreAuthNav() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-[#475569] hover:text-[#0F172A]"
+            className="md:hidden p-2 text-[#475569] hover:text-[#0F172A] transition-colors duration-200"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
