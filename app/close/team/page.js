@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import CloseSidebar from '@/components/close/CloseSidebar';
 import ClosePageHeader from '@/components/close/ClosePageHeader';
-import { Users, Plus, Edit, Trash2, Target, Award, CheckCircle, X, Search, Eye } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Target, Award, CheckCircle, X, Search, Eye, MessageSquare, Send } from 'lucide-react';
 
 export default function TeamManagement() {
   const [selectedSection, setSelectedSection] = useState('listing'); // 'listing' or 'kpis'
@@ -11,6 +11,9 @@ export default function TeamManagement() {
   const [showAddKPI, setShowAddKPI] = useState(false);
   const [selectedKPIEmployee, setSelectedKPIEmployee] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showKPIDetails, setShowKPIDetails] = useState(false);
+  const [selectedEmployeeForKPIs, setSelectedEmployeeForKPIs] = useState(null);
+  const [newComment, setNewComment] = useState('');
 
   // Employee form state
   const [newEmployee, setNewEmployee] = useState({
@@ -82,12 +85,14 @@ export default function TeamManagement() {
     }
   ]);
 
-  // Mock KPI data
+  // Mock KPI data with comments
   const [employeeKPIs, setEmployeeKPIs] = useState([
     {
       id: 1,
       employeeId: 'EMP001',
       employeeName: 'Sarah Johnson',
+      managerName: 'Michael Chen',
+      team: 'Financial Operations',
       kpis: [
         {
           id: 'kpi1',
@@ -97,7 +102,23 @@ export default function TeamManagement() {
           unit: 'tasks',
           period: 'monthly',
           linkedTasks: ['Account Reconciliation', 'Variance Analysis'],
-          completion: 92
+          completion: 92,
+          comments: [
+            {
+              id: 'c1',
+              author: 'Michael Chen',
+              role: 'Manager',
+              date: '2025-01-10',
+              text: 'Great progress this month! Keep up the good work on reconciliations.'
+            },
+            {
+              id: 'c2',
+              author: 'David Martinez',
+              role: 'Peer',
+              date: '2025-01-12',
+              text: 'Thanks for helping me with the variance analysis last week.'
+            }
+          ]
         },
         {
           id: 'kpi2',
@@ -107,7 +128,8 @@ export default function TeamManagement() {
           unit: '%',
           period: 'monthly',
           linkedTasks: [],
-          completion: 103
+          completion: 103,
+          comments: []
         }
       ]
     },
@@ -115,6 +137,8 @@ export default function TeamManagement() {
       id: 2,
       employeeId: 'EMP002',
       employeeName: 'David Martinez',
+      managerName: 'Michael Chen',
+      team: 'Financial Operations',
       kpis: [
         {
           id: 'kpi3',
@@ -124,7 +148,16 @@ export default function TeamManagement() {
           unit: 'tasks',
           period: 'monthly',
           linkedTasks: ['Journal Entry Review'],
-          completion: 90
+          completion: 90,
+          comments: [
+            {
+              id: 'c3',
+              author: 'Michael Chen',
+              role: 'Manager',
+              date: '2025-01-11',
+              text: 'Good steady progress. Let me know if you need support on journal entries.'
+            }
+          ]
         }
       ]
     },
@@ -132,6 +165,8 @@ export default function TeamManagement() {
       id: 3,
       employeeId: 'EMP004',
       employeeName: 'James Wilson',
+      managerName: 'Michael Chen',
+      team: 'Accounting',
       kpis: [
         {
           id: 'kpi4',
@@ -141,7 +176,8 @@ export default function TeamManagement() {
           unit: 'reviews',
           period: 'monthly',
           linkedTasks: ['Reconciliation Review', 'Report Review'],
-          completion: 117
+          completion: 117,
+          comments: []
         },
         {
           id: 'kpi5',
@@ -151,7 +187,16 @@ export default function TeamManagement() {
           unit: 'hours',
           period: 'monthly',
           linkedTasks: [],
-          completion: 133
+          completion: 133,
+          comments: [
+            {
+              id: 'c4',
+              author: 'Sarah Johnson',
+              role: 'Peer',
+              date: '2025-01-13',
+              text: 'Impressive turnaround time! Really helps the team stay on track.'
+            }
+          ]
         }
       ]
     }
@@ -276,6 +321,47 @@ export default function TeamManagement() {
         linkedTasks: [...newKPI.linkedTasks, task]
       });
     }
+  };
+
+  const handleEmployeeKPIClick = (empKPI) => {
+    setSelectedEmployeeForKPIs(empKPI);
+    setShowKPIDetails(true);
+  };
+
+  const handleAddComment = (kpiId) => {
+    if (!newComment.trim()) {
+      alert('Please enter a comment');
+      return;
+    }
+
+    const comment = {
+      id: `c${Date.now()}`,
+      author: 'Current User', // In real app, this would be the logged-in user
+      role: 'Manager', // This would be determined by user's role
+      date: new Date().toISOString().split('T')[0],
+      text: newComment
+    };
+
+    const updatedKPIs = employeeKPIs.map(emp => {
+      if (emp.employeeId === selectedEmployeeForKPIs.employeeId) {
+        return {
+          ...emp,
+          kpis: emp.kpis.map(kpi =>
+            kpi.id === kpiId
+              ? { ...kpi, comments: [...kpi.comments, comment] }
+              : kpi
+          )
+        };
+      }
+      return emp;
+    });
+
+    setEmployeeKPIs(updatedKPIs);
+
+    // Update selected employee to reflect new comments
+    const updatedEmployee = updatedKPIs.find(e => e.employeeId === selectedEmployeeForKPIs.employeeId);
+    setSelectedEmployeeForKPIs(updatedEmployee);
+    setNewComment('');
   };
 
   const filteredEmployees = employees.filter(emp =>
@@ -464,7 +550,7 @@ export default function TeamManagement() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-[#101828]">Employee Performance KPIs</h3>
-                    <p className="text-sm text-slate-600">Track individual performance metrics</p>
+                    <p className="text-sm text-slate-600">Click on an employee to view their KPIs and add comments</p>
                   </div>
                   <button
                     onClick={() => setShowAddKPI(true)}
@@ -476,10 +562,10 @@ export default function TeamManagement() {
                 </div>
               </div>
 
-              {/* KPIs Display */}
-              <div className="space-y-6">
+              {/* Employee List for KPIs */}
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
                 {employeeKPIs.length === 0 ? (
-                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+                  <div className="p-12 text-center">
                     <Target className="mx-auto mb-4 text-slate-300" size={64} />
                     <h3 className="text-lg font-semibold text-slate-700 mb-2">No KPIs Defined Yet</h3>
                     <p className="text-slate-500">
@@ -487,76 +573,62 @@ export default function TeamManagement() {
                     </p>
                   </div>
                 ) : (
-                  employeeKPIs.map(empKPI => (
-                    <div key={empKPI.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                            <span className="text-indigo-600 text-sm font-semibold">
-                              {empKPI.employeeName.split(' ').map(n => n[0]).join('')}
-                            </span>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-[#101828]">{empKPI.employeeName}</h3>
-                            <p className="text-sm text-slate-600">{empKPI.employeeId}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-600">Total KPIs</p>
-                          <p className="text-lg font-bold text-[#101828]">{empKPI.kpis.length}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {empKPI.kpis.map(kpi => (
-                          <div key={kpi.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <Target size={16} className="text-slate-600" />
-                                <h4 className="font-semibold text-[#101828] text-sm">{kpi.name}</h4>
-                              </div>
-                              <span className={`text-xs font-medium ${getKPIStatusColor(kpi.completion)}`}>
-                                {kpi.completion}%
-                              </span>
-                            </div>
-
-                            <div className="mb-3">
-                              <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
-                                <span>Progress</span>
-                                <span>{kpi.current} / {kpi.target} {kpi.unit}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full transition-all ${
-                                    kpi.completion >= 100 ? 'bg-green-600' :
-                                    kpi.completion >= 80 ? 'bg-yellow-600' : 'bg-red-600'
-                                  }`}
-                                  style={{ width: `${Math.min(kpi.completion, 100)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-
-                            <div className="text-xs text-slate-600">
-                              <span className="font-medium">Period:</span> {kpi.period}
-                            </div>
-
-                            {kpi.linkedTasks.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-slate-300">
-                                <p className="text-xs font-medium text-slate-600 mb-1">Linked Tasks:</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {kpi.linkedTasks.map((task, idx) => (
-                                    <span key={idx} className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">
-                                      {task}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Employee ID</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Employee Name</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Manager</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Team</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Total KPIs</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Avg Completion</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {employeeKPIs.map(empKPI => {
+                          const avgCompletion = (empKPI.kpis.reduce((sum, kpi) => sum + kpi.completion, 0) / empKPI.kpis.length).toFixed(0);
+                          return (
+                            <tr
+                              key={empKPI.id}
+                              onClick={() => handleEmployeeKPIClick(empKPI)}
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                              <td className="px-4 py-3">
+                                <span className="text-sm font-semibold text-indigo-600">{empKPI.employeeId}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center">
+                                    <span className="text-indigo-600 text-xs font-semibold">
+                                      {empKPI.employeeName.split(' ').map(n => n[0]).join('')}
                                     </span>
-                                  ))}
+                                  </div>
+                                  <span className="text-sm font-medium text-[#101828]">{empKPI.employeeName}</span>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-sm text-slate-700">{empKPI.managerName}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-sm text-slate-600">{empKPI.team}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-sm font-semibold text-[#101828]">{empKPI.kpis.length}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-semibold ${getKPIStatusColor(avgCompletion)}`}>
+                                    {avgCompletion}%
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
@@ -808,6 +880,181 @@ export default function TeamManagement() {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* KPI Details Side Panel */}
+      {showKPIDetails && selectedEmployeeForKPIs && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowKPIDetails(false)}></div>
+          <div className="fixed right-0 top-0 bottom-0 w-[700px] bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-[#101828]">KPI Details</h2>
+                <p className="text-sm text-slate-600 mt-1">{selectedEmployeeForKPIs.employeeName} ({selectedEmployeeForKPIs.employeeId})</p>
+              </div>
+              <button
+                onClick={() => setShowKPIDetails(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Employee Info */}
+              <div className="bg-indigo-50 rounded-lg border border-indigo-200 p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-base font-semibold">
+                      {selectedEmployeeForKPIs.employeeName.split(' ').map(n => n[0]).join('')}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-indigo-900">{selectedEmployeeForKPIs.employeeName}</h3>
+                    <p className="text-sm text-indigo-700">{selectedEmployeeForKPIs.team}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-indigo-600 font-medium">Manager:</span>
+                    <span className="text-indigo-900 ml-1">{selectedEmployeeForKPIs.managerName}</span>
+                  </div>
+                  <div>
+                    <span className="text-indigo-600 font-medium">Total KPIs:</span>
+                    <span className="text-indigo-900 ml-1">{selectedEmployeeForKPIs.kpis.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* KPIs List */}
+              {selectedEmployeeForKPIs.kpis.map((kpi, index) => (
+                <div key={kpi.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  {/* KPI Header */}
+                  <div className="bg-slate-50 p-4 border-b border-slate-200">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Target size={18} className="text-indigo-600" />
+                        <h4 className="font-semibold text-[#101828]">{kpi.name}</h4>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        kpi.completion >= 100 ? 'bg-green-100 text-green-700' :
+                        kpi.completion >= 80 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {kpi.completion}% Complete
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
+                        <span>Progress</span>
+                        <span className="font-semibold">{kpi.current} / {kpi.target} {kpi.unit}</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-3">
+                        <div
+                          className={`h-3 rounded-full transition-all ${
+                            kpi.completion >= 100 ? 'bg-green-600' :
+                            kpi.completion >= 80 ? 'bg-yellow-600' : 'bg-red-600'
+                          }`}
+                          style={{ width: `${Math.min(kpi.completion, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* KPI Details */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-500">Period:</span>
+                        <span className="text-slate-700 font-medium ml-1 capitalize">{kpi.period}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Target:</span>
+                        <span className="text-slate-700 font-medium ml-1">{kpi.target} {kpi.unit}</span>
+                      </div>
+                    </div>
+
+                    {/* Linked Tasks */}
+                    {kpi.linkedTasks.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-300">
+                        <p className="text-xs font-medium text-slate-600 mb-2">Linked Tasks:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {kpi.linkedTasks.map((task, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">
+                              {task}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Comments Section */}
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageSquare size={16} className="text-slate-600" />
+                      <h5 className="text-sm font-semibold text-[#101828]">
+                        Comments ({kpi.comments.length})
+                      </h5>
+                    </div>
+
+                    {/* Existing Comments */}
+                    <div className="space-y-3 mb-4">
+                      {kpi.comments.length === 0 ? (
+                        <p className="text-sm text-slate-500 italic">No comments yet. Be the first to add one!</p>
+                      ) : (
+                        kpi.comments.map(comment => (
+                          <div key={comment.id} className="bg-slate-50 rounded-lg p-3">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                                  <span className="text-indigo-600 text-xs font-semibold">
+                                    {comment.author.split(' ').map(n => n[0]).join('')}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-[#101828]">{comment.author}</p>
+                                  <p className="text-xs text-slate-500">
+                                    {comment.role} • {comment.date}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-sm text-slate-700 ml-8">{comment.text}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Add Comment Form */}
+                    <div className="border-t border-slate-200 pt-4">
+                      <label className="block text-xs font-medium text-slate-700 mb-2">
+                        Add Comment
+                      </label>
+                      <div className="flex gap-2">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828] text-sm min-h-[80px] resize-none"
+                          placeholder="Add your feedback or comment..."
+                        />
+                        <button
+                          onClick={() => handleAddComment(kpi.id)}
+                          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors self-end"
+                          title="Send Comment"
+                        >
+                          <Send size={16} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Your comment will be visible to the employee, their manager, and peers.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </>
