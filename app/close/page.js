@@ -56,11 +56,11 @@ export default function CloseDashboard() {
             {/* Current Period */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Calendar className="text-blue-600" size={20} />
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="text-indigo-600" size={20} />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Current Period</p>
+                  <p className="text-sm text-slate-600">Current Period</p>
                   <p className="text-xl font-bold text-[#101828]">{closeStatus.currentPeriod}</p>
                 </div>
               </div>
@@ -69,11 +69,11 @@ export default function CloseDashboard() {
             {/* Days Remaining */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Clock className="text-orange-600" size={20} />
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-indigo-600" size={20} />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Days Remaining</p>
+                  <p className="text-sm text-slate-600">Days Remaining</p>
                   <p className="text-xl font-bold text-[#101828]">{closeStatus.daysRemaining}</p>
                 </div>
               </div>
@@ -82,20 +82,20 @@ export default function CloseDashboard() {
             {/* Task Progress */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckSquare className="text-green-600" size={20} />
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <CheckSquare className="text-indigo-600" size={20} />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Tasks Completed</p>
+                  <p className="text-sm text-slate-600">Tasks Completed</p>
                   <p className="text-xl font-bold text-[#101828]">
                     {closeStatus.tasksCompleted}/{closeStatus.tasksTotal}
                   </p>
                 </div>
               </div>
               <div className="mt-2">
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-slate-200 rounded-full h-2">
                   <div
-                    className="bg-green-600 h-2 rounded-full transition-all"
+                    className="bg-indigo-600 h-2 rounded-full transition-all"
                     style={{ width: `${(closeStatus.tasksCompleted / closeStatus.tasksTotal) * 100}%` }}
                   ></div>
                 </div>
@@ -105,20 +105,20 @@ export default function CloseDashboard() {
             {/* Reconciliation Progress */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="text-purple-600" size={20} />
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="text-indigo-600" size={20} />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Reconciliations</p>
+                  <p className="text-sm text-slate-600">Reconciliations</p>
                   <p className="text-xl font-bold text-[#101828]">
                     {closeStatus.recsCompleted}/{closeStatus.recsTotal}
                   </p>
                 </div>
               </div>
               <div className="mt-2">
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-slate-200 rounded-full h-2">
                   <div
-                    className="bg-purple-600 h-2 rounded-full transition-all"
+                    className="bg-indigo-600 h-2 rounded-full transition-all"
                     style={{ width: `${(closeStatus.recsCompleted / closeStatus.recsTotal) * 100}%` }}
                   ></div>
                 </div>
@@ -136,18 +136,18 @@ export default function CloseDashboard() {
               </div>
               <div className="space-y-3">
                 {criticalTasks.map(task => (
-                  <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div key={task.id} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-semibold text-[#101828] text-sm">{task.name}</h3>
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         task.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        task.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
+                        task.status === 'In Progress' ? 'bg-indigo-100 text-indigo-700' :
+                        'bg-slate-100 text-slate-700'
                       }`}>
                         {task.status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-4 text-sm text-slate-600">
                       <div className="flex items-center gap-1">
                         <Users size={14} />
                         <span>{task.assignee}</span>
@@ -170,7 +170,7 @@ export default function CloseDashboard() {
               </div>
               <div className="space-y-4">
                 {upcomingMilestones.map(milestone => (
-                  <div key={milestone.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                  <div key={milestone.id} className="border-l-4 border-indigo-500 pl-4 py-2">
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-semibold text-[#101828] text-sm">{milestone.name}</h3>
                       {milestone.status === 'At Risk' ? (
@@ -180,7 +180,7 @@ export default function CloseDashboard() {
                       )}
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{milestone.date}</span>
+                      <span className="text-slate-600">{milestone.date}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs ${
                         milestone.status === 'At Risk' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                       }`}>
@@ -192,37 +192,37 @@ export default function CloseDashboard() {
               </div>
 
               {/* Close Progress Timeline */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-6 pt-6 border-t border-slate-200">
                 <h3 className="font-semibold text-[#101828] text-sm mb-3">Close Progress</h3>
                 <div className="relative">
-                  <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                  <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-slate-300"></div>
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-4 h-4 bg-green-500 rounded-full z-10 ring-4 ring-white"></div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[#101828]">Data Collection</p>
-                        <p className="text-xs text-gray-500">Completed</p>
+                        <p className="text-xs text-slate-500">Completed</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full z-10 ring-4 ring-white"></div>
+                      <div className="w-4 h-4 bg-indigo-500 rounded-full z-10 ring-4 ring-white"></div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[#101828]">Reconciliation</p>
-                        <p className="text-xs text-gray-500">In Progress</p>
+                        <p className="text-xs text-slate-500">In Progress</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 bg-gray-300 rounded-full z-10 ring-4 ring-white"></div>
+                      <div className="w-4 h-4 bg-slate-300 rounded-full z-10 ring-4 ring-white"></div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-400">Management Review</p>
-                        <p className="text-xs text-gray-400">Pending</p>
+                        <p className="text-sm font-medium text-slate-400">Management Review</p>
+                        <p className="text-xs text-slate-400">Pending</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 bg-gray-300 rounded-full z-10 ring-4 ring-white"></div>
+                      <div className="w-4 h-4 bg-slate-300 rounded-full z-10 ring-4 ring-white"></div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-400">Final Sign-off</p>
-                        <p className="text-xs text-gray-400">Pending</p>
+                        <p className="text-sm font-medium text-slate-400">Final Sign-off</p>
+                        <p className="text-xs text-slate-400">Pending</p>
                       </div>
                     </div>
                   </div>
@@ -235,20 +235,20 @@ export default function CloseDashboard() {
           <div className="mt-6 bg-white rounded-lg shadow-sm border border-slate-200 p-6">
             <h2 className="text-lg font-bold text-[#101828] mb-4">Quick Actions</h2>
             <div className="grid grid-cols-4 gap-4">
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all">
-                <CheckSquare className="text-blue-600" size={24} />
+              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                <CheckSquare className="text-indigo-600" size={24} />
                 <span className="text-sm font-medium text-[#101828]">View All Tasks</span>
               </button>
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all">
-                <TrendingUp className="text-purple-600" size={24} />
+              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                <TrendingUp className="text-indigo-600" size={24} />
                 <span className="text-sm font-medium text-[#101828]">Reconciliations</span>
               </button>
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all">
-                <FileText className="text-green-600" size={24} />
+              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                <FileText className="text-indigo-600" size={24} />
                 <span className="text-sm font-medium text-[#101828]">Generate Report</span>
               </button>
-              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all">
-                <Calendar className="text-orange-600" size={24} />
+              <button className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                <Calendar className="text-indigo-600" size={24} />
                 <span className="text-sm font-medium text-[#101828]">Close Calendar</span>
               </button>
             </div>
