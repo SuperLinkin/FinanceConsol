@@ -639,7 +639,10 @@ export default function TeamManagement() {
       {/* Add Employee Side Panel */}
       {showAddEmployee && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAddEmployee(false)}></div>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowAddEmployee(false)}
+          ></div>
           <div className="fixed right-0 top-0 bottom-0 w-[500px] bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-[#101828]">Add Employee</h2>
@@ -742,7 +745,10 @@ export default function TeamManagement() {
       {/* Add KPI Side Panel */}
       {showAddKPI && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAddKPI(false)}></div>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowAddKPI(false)}
+          ></div>
           <div className="fixed right-0 top-0 bottom-0 w-[600px] bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-[#101828]">Add KPI</h2>
@@ -888,7 +894,10 @@ export default function TeamManagement() {
       {/* KPI Details Side Panel */}
       {showKPIDetails && selectedEmployeeForKPIs && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowKPIDetails(false)}></div>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowKPIDetails(false)}
+          ></div>
           <div className="fixed right-0 top-0 bottom-0 w-[700px] bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
               <div>
