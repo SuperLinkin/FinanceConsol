@@ -112,7 +112,7 @@ export default function TaskAllocation() {
         />
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="px-8 py-6">
           {/* Team Workload Overview */}
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">

@@ -94,7 +94,7 @@ export default function ManagementAnalysis() {
         </div>
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="px-8 py-6">
           {/* Financial Summary Cards */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-6">

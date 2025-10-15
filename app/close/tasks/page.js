@@ -139,7 +139,7 @@ export default function TaskManagement() {
         />
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="px-8 py-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
@@ -226,14 +226,14 @@ export default function TaskManagement() {
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-[#101828] text-white">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Task Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Assignee</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Category</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Due Date</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Priority</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Task Name</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Assignee</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Category</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Due Date</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Priority</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">

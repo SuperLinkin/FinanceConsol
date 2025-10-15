@@ -50,7 +50,7 @@ export default function CloseDashboard() {
         />
 
         {/* Dashboard Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="px-8 py-6">
           {/* Status Overview Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {/* Current Period */}

@@ -50,7 +50,7 @@ export default function CloseSettings() {
         </div>
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="px-8 py-6">
           <div className="flex gap-6">
             {/* Tabs Sidebar */}
             <div className="w-64 flex-shrink-0">
