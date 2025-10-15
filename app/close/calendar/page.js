@@ -31,7 +31,6 @@ export default function CloseCalendar() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewType, setViewType] = useState('month'); // 'day', 'week', 'month'
   const [selectedSection, setSelectedSection] = useState('calendar'); // 'calendar' or 'meetings'
-  const [showEventPanel, setShowEventPanel] = useState(false);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -49,19 +48,6 @@ export default function CloseCalendar() {
     { id: 'EMP005', name: 'David Martinez', role: 'Owner', email: 'david.m@company.com' },
     { id: 'EMP006', name: 'Emily Brown', role: 'Reviewer', email: 'emily.b@company.com' }
   ];
-
-  // New event form state
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    type: 'meeting', // meeting, milestone, review, deadline
-    date: '',
-    time: '',
-    duration: '60',
-    location: '',
-    attendees: '',
-    description: '',
-    reminder: '15'
-  });
 
   // New meeting form state
   const [newMeeting, setNewMeeting] = useState({
@@ -393,33 +379,6 @@ export default function CloseCalendar() {
       case 'custom': return 'Custom';
       default: return 'One-time';
     }
-  };
-
-  const handleScheduleEvent = () => {
-    if (!newEvent.title || !newEvent.date || !newEvent.time) {
-      alert('Please fill in required fields: Title, Date, and Time');
-      return;
-    }
-
-    const event = {
-      id: `evt${events.length + 1}`,
-      ...newEvent
-    };
-
-    setEvents([...events, event]);
-    setNewEvent({
-      title: '',
-      type: 'meeting',
-      date: '',
-      time: '',
-      duration: '60',
-      location: '',
-      attendees: '',
-      description: '',
-      reminder: '15'
-    });
-    setShowEventPanel(false);
-    alert('Event scheduled successfully!');
   };
 
   const handleCreateMeeting = () => {
@@ -807,15 +766,6 @@ export default function CloseCalendar() {
 
               {/* Right Section: Events & Scheduling */}
               <div className="col-span-1 space-y-6">
-                {/* Schedule Event Button */}
-                <button
-                  onClick={() => setShowEventPanel(true)}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-lg"
-                >
-                  <Plus size={20} />
-                  Schedule Event
-                </button>
-
                 {/* Upcoming Events */}
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
                   <div className="flex items-center justify-between mb-4">
@@ -1081,181 +1031,6 @@ export default function CloseCalendar() {
           )}
         </div>
       </div>
-
-      {/* Schedule Event Side Panel */}
-      {showEventPanel && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowEventPanel(false)}
-          ></div>
-          <div className="fixed right-0 top-0 bottom-0 w-[500px] bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[#101828]">Schedule Event</h2>
-              <button
-                onClick={() => setShowEventPanel(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Event Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                  placeholder="Enter event title"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Event Type
-                </label>
-                <select
-                  value={newEvent.type}
-                  onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                >
-                  <option value="meeting">Meeting</option>
-                  <option value="review">Review</option>
-                  <option value="deadline">Deadline</option>
-                  <option value="milestone">Milestone</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={newEvent.date}
-                    onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Time <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={newEvent.time}
-                    onChange={(e) => setNewEvent({...newEvent, time: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={newEvent.duration}
-                  onChange={(e) => setNewEvent({...newEvent, duration: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                  placeholder="60"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  <MapPin size={14} className="inline mr-1" />
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={newEvent.location}
-                  onChange={(e) => setNewEvent({...newEvent, location: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                  placeholder="Conference Room A or Zoom link"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  <Users size={14} className="inline mr-1" />
-                  Attendees
-                </label>
-                <input
-                  type="text"
-                  value={newEvent.attendees}
-                  onChange={(e) => setNewEvent({...newEvent, attendees: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                  placeholder="Comma-separated names or emails"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  <Bell size={14} className="inline mr-1" />
-                  Reminder (minutes before)
-                </label>
-                <select
-                  value={newEvent.reminder}
-                  onChange={(e) => setNewEvent({...newEvent, reminder: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
-                >
-                  <option value="0">No reminder</option>
-                  <option value="15">15 minutes before</option>
-                  <option value="30">30 minutes before</option>
-                  <option value="60">1 hour before</option>
-                  <option value="1440">1 day before</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  <FileText size={14} className="inline mr-1" />
-                  Description
-                </label>
-                <textarea
-                  value={newEvent.description}
-                  onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828] min-h-[100px]"
-                  placeholder="Add event details, agenda, or notes..."
-                  rows="4"
-                />
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-start gap-2">
-                  <Video size={16} className="text-blue-600 mt-0.5" />
-                  <div className="text-xs text-blue-800">
-                    <p className="font-medium mb-1">Calendar Sync (Coming Soon)</p>
-                    <p>Events will be synced with Google Calendar, Outlook, and other calendar services.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-200 flex gap-3">
-                <button
-                  onClick={handleScheduleEvent}
-                  className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-                >
-                  Schedule Event
-                </button>
-                <button
-                  onClick={() => setShowEventPanel(false)}
-                  className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Create Meeting Side Panel */}
       {showMeetingPanel && (
