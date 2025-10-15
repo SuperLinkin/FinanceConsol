@@ -842,10 +842,20 @@ export default function TaskManagement() {
 
               {/* Action Buttons */}
               <div className="border-t border-slate-200 pt-6 flex gap-3">
-                <button className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                <button
+                  onClick={() => {
+                    setShowTaskDetailsPanel(false);
+                    // TODO: Implement edit task functionality
+                    alert('Edit task functionality coming soon');
+                  }}
+                  className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                >
                   Edit Task
                 </button>
-                <button className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium">
+                <button
+                  onClick={() => setShowTaskDetailsPanel(false)}
+                  className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
+                >
                   Close
                 </button>
               </div>
