@@ -23,8 +23,9 @@ import {
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/close' },
-  { icon: Calendar, label: 'Close Calendar', href: '/close/calendar' },
+  { icon: Users, label: 'Team Management', href: '/close/team' },
   { icon: CheckSquare, label: 'Task Management', href: '/close/tasks' },
+  { icon: Calendar, label: 'Close Calendar', href: '/close/calendar' },
   { icon: Users, label: 'Task Allocation', href: '/close/allocation' },
   { icon: GitMerge, label: 'Reconciliation', href: '/close/reconciliation' },
   { icon: TrendingUp, label: 'Variance Analysis', href: '/close/variance' },
