@@ -3,128 +3,194 @@
 import { useState } from 'react';
 import CloseSidebar from '@/components/close/CloseSidebar';
 import ClosePageHeader from '@/components/close/ClosePageHeader';
-import { Plus, Search, Filter, CheckSquare, Clock, AlertCircle, CheckCircle, Users, Calendar } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Search,
+  Play,
+  RotateCcw,
+  Calendar,
+  Users,
+  Eye,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
 
 export default function TaskManagement() {
+  const [showAddTaskPanel, setShowAddTaskPanel] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [selectedSection, setSelectedSection] = useState('tasks'); // 'tasks' or 'workday'
 
-  // Mock tasks data
+  // New task form state
+  const [newTask, setNewTask] = useState({
+    taskName: '',
+    owner: '',
+    reviewer: '',
+    chartOfAccount: '',
+    workDayStart: '',
+    workDayEnd: '',
+    dependentTaskId: '',
+  });
+
+  // Mock tasks data with new structure
   const [tasks, setTasks] = useState([
     {
-      id: 1,
-      name: 'Bank Reconciliation - Main Account',
-      description: 'Reconcile main operating account for December 2024',
-      assignee: 'John Doe',
-      dueDate: '2024-12-28',
-      status: 'in_progress',
-      priority: 'high',
-      category: 'Reconciliation'
+      taskId: 'T001',
+      taskName: 'Bank Reconciliation - Main Account',
+      owner: 'John Doe',
+      reviewer: 'Sarah Williams',
+      chartOfAccount: '1010 - Cash and Cash Equivalents',
+      workDayStart: 'Day 1',
+      workDayEnd: 'Day 2',
+      dependentTaskId: null,
+      dependentTaskName: null
     },
     {
-      id: 2,
-      name: 'Intercompany Reconciliation',
-      description: 'Reconcile all intercompany transactions',
-      assignee: 'Jane Smith',
-      dueDate: '2024-12-28',
-      status: 'pending',
-      priority: 'high',
-      category: 'Reconciliation'
+      taskId: 'T002',
+      taskName: 'Revenue Recognition Review',
+      owner: 'Jane Smith',
+      reviewer: 'Mike Johnson',
+      chartOfAccount: '4000 - Revenue',
+      workDayStart: 'Day 2',
+      workDayEnd: 'Day 3',
+      dependentTaskId: 'T001',
+      dependentTaskName: 'Bank Reconciliation - Main Account'
     },
     {
-      id: 3,
-      name: 'Revenue Recognition Review',
-      description: 'Review and validate revenue recognition for the period',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-12-29',
-      status: 'in_progress',
-      priority: 'medium',
-      category: 'Review'
+      taskId: 'T003',
+      taskName: 'Intercompany Reconciliation',
+      owner: 'Mike Johnson',
+      reviewer: 'John Doe',
+      chartOfAccount: '2100 - Intercompany Payables',
+      workDayStart: 'Day 1',
+      workDayEnd: 'Day 3',
+      dependentTaskId: null,
+      dependentTaskName: null
     },
     {
-      id: 4,
-      name: 'Fixed Assets Depreciation',
-      description: 'Calculate and record depreciation expense',
-      assignee: 'Sarah Williams',
-      dueDate: '2024-12-29',
-      status: 'completed',
-      priority: 'medium',
-      category: 'Journal Entry'
+      taskId: 'T004',
+      taskName: 'Fixed Assets Depreciation',
+      owner: 'Sarah Williams',
+      reviewer: 'Jane Smith',
+      chartOfAccount: '1200 - Fixed Assets',
+      workDayStart: 'Day 3',
+      workDayEnd: 'Day 4',
+      dependentTaskId: 'T002',
+      dependentTaskName: 'Revenue Recognition Review'
     },
     {
-      id: 5,
-      name: 'Accruals Review',
-      description: 'Review and book all necessary accruals',
-      assignee: 'John Doe',
-      dueDate: '2024-12-30',
-      status: 'pending',
-      priority: 'medium',
-      category: 'Journal Entry'
-    },
-    {
-      id: 6,
-      name: 'Expense Report Validation',
-      description: 'Validate and approve all pending expense reports',
-      assignee: 'Emily Davis',
-      dueDate: '2024-12-27',
-      status: 'overdue',
-      priority: 'high',
-      category: 'Review'
-    },
-    {
-      id: 7,
-      name: 'Inventory Count Reconciliation',
-      description: 'Reconcile physical inventory count with system',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-12-30',
-      status: 'pending',
-      priority: 'low',
-      category: 'Reconciliation'
-    },
-    {
-      id: 8,
-      name: 'Management Reporting Package',
-      description: 'Prepare monthly management reporting package',
-      assignee: 'Jane Smith',
-      dueDate: '2025-01-02',
-      status: 'pending',
-      priority: 'high',
-      category: 'Reporting'
+      taskId: 'T005',
+      taskName: 'Final Journal Entry Review',
+      owner: 'John Doe',
+      reviewer: 'Sarah Williams',
+      chartOfAccount: '9999 - Various',
+      workDayStart: 'Day 4',
+      workDayEnd: 'Day 5',
+      dependentTaskId: 'T004',
+      dependentTaskName: 'Fixed Assets Depreciation'
     }
   ]);
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.assignee.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || task.status === filterStatus;
-    return matchesSearch && matchesFilter;
+  // Workday simulation parameters
+  const [simulationParams, setSimulationParams] = useState({
+    totalWorkDays: 5,
+    startDate: '2025-01-01',
+    workdayPattern: 'sequential', // sequential, parallel, mixed
+    bufferDays: 0
   });
 
-  const taskStats = {
-    total: tasks.length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    in_progress: tasks.filter(t => t.status === 'in_progress').length,
-    overdue: tasks.filter(t => t.status === 'overdue').length
+  const [simulationResults, setSimulationResults] = useState(null);
+
+  const filteredTasks = tasks.filter(task =>
+    task.taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    task.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    task.taskId.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleAddTask = () => {
+    if (!newTask.taskName || !newTask.owner) {
+      alert('Please fill in required fields: Task Name and Owner');
+      return;
+    }
+
+    const newTaskId = `T${String(tasks.length + 1).padStart(3, '0')}`;
+    const dependentTask = tasks.find(t => t.taskId === newTask.dependentTaskId);
+
+    const task = {
+      taskId: newTaskId,
+      taskName: newTask.taskName,
+      owner: newTask.owner,
+      reviewer: newTask.reviewer,
+      chartOfAccount: newTask.chartOfAccount,
+      workDayStart: newTask.workDayStart,
+      workDayEnd: newTask.workDayEnd,
+      dependentTaskId: newTask.dependentTaskId || null,
+      dependentTaskName: dependentTask ? dependentTask.taskName : null
+    };
+
+    setTasks([...tasks, task]);
+    setNewTask({
+      taskName: '',
+      owner: '',
+      reviewer: '',
+      chartOfAccount: '',
+      workDayStart: '',
+      workDayEnd: '',
+      dependentTaskId: '',
+    });
+    setShowAddTaskPanel(false);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-700';
-      case 'in_progress': return 'bg-blue-100 text-blue-700';
-      case 'pending': return 'bg-gray-100 text-gray-700';
-      case 'overdue': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
+  const handleSimulate = () => {
+    // Calculate simulation results
+    const totalDays = parseInt(simulationParams.totalWorkDays) + parseInt(simulationParams.bufferDays);
+    const startDate = new Date(simulationParams.startDate);
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'text-red-600';
-      case 'medium': return 'text-orange-600';
-      case 'low': return 'text-blue-600';
-      default: return 'text-gray-600';
-    }
+    // Build dependency tree
+    const taskSchedule = tasks.map((task, index) => {
+      let calculatedStart = 1;
+      let calculatedEnd = parseInt(task.workDayEnd.replace('Day ', ''));
+
+      if (task.dependentTaskId) {
+        const dependentTask = tasks.find(t => t.taskId === task.dependentTaskId);
+        if (dependentTask) {
+          const dependentEnd = parseInt(dependentTask.workDayEnd.replace('Day ', ''));
+          calculatedStart = dependentEnd + 1;
+          const duration = parseInt(task.workDayEnd.replace('Day ', '')) - parseInt(task.workDayStart.replace('Day ', ''));
+          calculatedEnd = calculatedStart + duration;
+        }
+      } else {
+        calculatedStart = parseInt(task.workDayStart.replace('Day ', ''));
+      }
+
+      const taskStartDate = new Date(startDate);
+      taskStartDate.setDate(taskStartDate.getDate() + calculatedStart - 1);
+
+      const taskEndDate = new Date(startDate);
+      taskEndDate.setDate(taskEndDate.getDate() + calculatedEnd - 1);
+
+      return {
+        ...task,
+        calculatedStart,
+        calculatedEnd,
+        startDate: taskStartDate.toISOString().split('T')[0],
+        endDate: taskEndDate.toISOString().split('T')[0],
+        duration: calculatedEnd - calculatedStart + 1
+      };
+    });
+
+    const criticalPath = Math.max(...taskSchedule.map(t => t.calculatedEnd));
+    const utilizationRate = (criticalPath / totalDays * 100).toFixed(1);
+
+    setSimulationResults({
+      schedule: taskSchedule,
+      totalDays,
+      criticalPath,
+      utilizationRate,
+      bottlenecks: taskSchedule.filter(t => t.dependentTaskId && t.calculatedStart > parseInt(t.workDayStart.replace('Day ', ''))),
+      onTime: criticalPath <= totalDays
+    });
   };
 
   return (
@@ -135,194 +201,504 @@ export default function TaskManagement() {
       <div className="flex-1 overflow-auto">
         <ClosePageHeader
           title="Task Management"
-          subtitle="Track and manage all close-related tasks"
+          subtitle="Create and manage close tasks with dependency management"
         />
 
         {/* Content */}
         <div className="px-8 py-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Tasks</p>
-                  <p className="text-2xl font-bold text-[#101828]">{taskStats.total}</p>
-                </div>
-                <CheckSquare className="text-gray-400" size={32} />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{taskStats.completed}</p>
-                </div>
-                <CheckCircle className="text-green-400" size={32} />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">In Progress</p>
-                  <p className="text-2xl font-bold text-blue-600">{taskStats.in_progress}</p>
-                </div>
-                <Clock className="text-blue-400" size={32} />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Overdue</p>
-                  <p className="text-2xl font-bold text-red-600">{taskStats.overdue}</p>
-                </div>
-                <AlertCircle className="text-red-400" size={32} />
-              </div>
-            </div>
+          {/* Section Tabs */}
+          <div className="flex gap-4 mb-6 border-b border-slate-200">
+            <button
+              onClick={() => setSelectedSection('tasks')}
+              className={`pb-3 px-4 font-semibold transition-colors relative ${
+                selectedSection === 'tasks'
+                  ? 'text-indigo-600'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Task List
+              {selectedSection === 'tasks' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+              )}
+            </button>
+            <button
+              onClick={() => setSelectedSection('workday')}
+              className={`pb-3 px-4 font-semibold transition-colors relative ${
+                selectedSection === 'workday'
+                  ? 'text-indigo-600'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Workday Management
+              {selectedSection === 'workday' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+              )}
+            </button>
           </div>
 
-          {/* Filters and Actions */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
-            <div className="flex items-center justify-between gap-4">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          {/* SECTION 1: Task List */}
+          {selectedSection === 'tasks' && (
+            <div>
+              {/* Search and Add Task */}
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                    <input
+                      type="text"
+                      placeholder="Search tasks by name, ID, or owner..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setShowAddTaskPanel(true)}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Plus size={20} />
+                    Add Task
+                  </button>
+                </div>
+              </div>
+
+              {/* Tasks Table */}
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Task ID</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Task Name</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Owner</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Reviewer</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Chart of Account</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Work Day Start</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Work Day End</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Dependent Task ID</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Dependent Task Name</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {filteredTasks.length === 0 ? (
+                        <tr>
+                          <td colSpan="9" className="px-6 py-12 text-center text-slate-500">
+                            <AlertCircle className="mx-auto mb-2 text-slate-300" size={48} />
+                            <p>No tasks found</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredTasks.map(task => (
+                          <tr key={task.taskId} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-semibold text-indigo-600">{task.taskId}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-medium text-[#101828]">{task.taskName}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center">
+                                  <span className="text-indigo-600 text-xs font-semibold">
+                                    {task.owner.split(' ').map(n => n[0]).join('')}
+                                  </span>
+                                </div>
+                                <span className="text-sm text-slate-700">{task.owner}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <Eye size={14} className="text-slate-400" />
+                                <span className="text-sm text-slate-700">{task.reviewer}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-slate-600">{task.chartOfAccount}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-slate-700">{task.workDayStart}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-slate-700">{task.workDayEnd}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {task.dependentTaskId ? (
+                                <span className="text-sm font-semibold text-indigo-600">{task.dependentTaskId}</span>
+                              ) : (
+                                <span className="text-sm text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {task.dependentTaskName ? (
+                                <span className="text-sm text-slate-600">{task.dependentTaskName}</span>
+                              ) : (
+                                <span className="text-sm text-slate-400">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Task Summary */}
+              <div className="mt-6 grid grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                  <p className="text-sm text-slate-600 mb-1">Total Tasks</p>
+                  <p className="text-3xl font-bold text-[#101828]">{tasks.length}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                  <p className="text-sm text-slate-600 mb-1">Tasks with Dependencies</p>
+                  <p className="text-3xl font-bold text-indigo-600">
+                    {tasks.filter(t => t.dependentTaskId).length}
+                  </p>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                  <p className="text-sm text-slate-600 mb-1">Independent Tasks</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {tasks.filter(t => !t.dependentTaskId).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 2: Workday Management */}
+          {selectedSection === 'workday' && (
+            <div className="grid grid-cols-3 gap-6">
+              {/* Simulation Parameters */}
+              <div className="col-span-1 space-y-6">
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                  <h3 className="text-lg font-bold text-[#101828] mb-4">Simulation Parameters</h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Total Work Days
+                      </label>
+                      <input
+                        type="number"
+                        value={simulationParams.totalWorkDays}
+                        onChange={(e) => setSimulationParams({...simulationParams, totalWorkDays: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        min="1"
+                        max="30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Close Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={simulationParams.startDate}
+                        onChange={(e) => setSimulationParams({...simulationParams, startDate: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Buffer Days
+                      </label>
+                      <input
+                        type="number"
+                        value={simulationParams.bufferDays}
+                        onChange={(e) => setSimulationParams({...simulationParams, bufferDays: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        min="0"
+                        max="10"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Additional days added as safety margin</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Workday Pattern
+                      </label>
+                      <select
+                        value={simulationParams.workdayPattern}
+                        onChange={(e) => setSimulationParams({...simulationParams, workdayPattern: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="sequential">Sequential (One after another)</option>
+                        <option value="parallel">Parallel (Simultaneous)</option>
+                        <option value="mixed">Mixed (Smart allocation)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-2">
+                    <button
+                      onClick={handleSimulate}
+                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                    >
+                      <Play size={18} />
+                      Run Simulation
+                    </button>
+                    <button
+                      onClick={() => setSimulationResults(null)}
+                      className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
+                    >
+                      <RotateCcw size={18} />
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Simulation Results */}
+              <div className="col-span-2">
+                {!simulationResults ? (
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+                    <Calendar className="mx-auto mb-4 text-slate-300" size={64} />
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">No Simulation Run Yet</h3>
+                    <p className="text-slate-500">
+                      Configure parameters and click "Run Simulation" to see the close timeline
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                        <p className="text-sm text-slate-600 mb-1">Critical Path</p>
+                        <p className="text-3xl font-bold text-[#101828]">{simulationResults.criticalPath} days</p>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                        <p className="text-sm text-slate-600 mb-1">Utilization Rate</p>
+                        <p className="text-3xl font-bold text-indigo-600">{simulationResults.utilizationRate}%</p>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                        <p className="text-sm text-slate-600 mb-1">Status</p>
+                        <div className="flex items-center gap-2">
+                          {simulationResults.onTime ? (
+                            <>
+                              <CheckCircle2 className="text-green-600" size={24} />
+                              <span className="text-lg font-bold text-green-600">On Time</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="text-red-600" size={24} />
+                              <span className="text-lg font-bold text-red-600">At Risk</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timeline */}
+                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                      <h3 className="text-lg font-bold text-[#101828] mb-4">Simulated Task Schedule</h3>
+                      <div className="space-y-3">
+                        {simulationResults.schedule.map((task, index) => (
+                          <div key={task.taskId} className="relative">
+                            <div className="flex items-center gap-3">
+                              <div className="w-16 flex-shrink-0">
+                                <span className="text-sm font-semibold text-indigo-600">{task.taskId}</span>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-medium text-[#101828]">{task.taskName}</span>
+                                  <span className="text-xs text-slate-500">
+                                    {task.startDate} → {task.endDate} ({task.duration} days)
+                                  </span>
+                                </div>
+                                <div className="relative h-8 bg-slate-100 rounded">
+                                  <div
+                                    className="absolute h-full bg-indigo-500 rounded flex items-center justify-center"
+                                    style={{
+                                      left: `${((task.calculatedStart - 1) / simulationResults.totalDays) * 100}%`,
+                                      width: `${(task.duration / simulationResults.totalDays) * 100}%`
+                                    }}
+                                  >
+                                    <span className="text-xs text-white font-medium">
+                                      Day {task.calculatedStart}-{task.calculatedEnd}
+                                    </span>
+                                  </div>
+                                </div>
+                                {task.dependentTaskId && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <ChevronRight size={12} className="text-slate-400" />
+                                    <span className="text-xs text-slate-500">
+                                      Depends on: {task.dependentTaskId}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bottlenecks */}
+                    {simulationResults.bottlenecks.length > 0 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                          <div>
+                            <h4 className="font-semibold text-amber-900 mb-2">Potential Bottlenecks Detected</h4>
+                            <p className="text-sm text-amber-800 mb-2">
+                              {simulationResults.bottlenecks.length} task(s) are delayed due to dependencies:
+                            </p>
+                            <ul className="text-sm text-amber-800 space-y-1">
+                              {simulationResults.bottlenecks.map(task => (
+                                <li key={task.taskId}>• {task.taskName} (delayed to Day {task.calculatedStart})</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add Task Side Panel */}
+      {showAddTaskPanel && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowAddTaskPanel(false)}
+          ></div>
+          <div className="fixed right-0 top-0 bottom-0 w-[500px] bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[#101828]">Add New Task</h2>
+              <button
+                onClick={() => setShowAddTaskPanel(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Task Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="Search tasks or assignees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={newTask.taskName}
+                  onChange={(e) => setNewTask({...newTask, taskName: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter task name"
                 />
               </div>
 
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <Filter size={20} className="text-gray-600" />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="overdue">Overdue</option>
-                </select>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Owner <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newTask.owner}
+                  onChange={(e) => setNewTask({...newTask, owner: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter owner name"
+                />
               </div>
 
-              {/* Add Task Button */}
-              <button
-                onClick={() => setShowAddTask(true)}
-                className="flex items-center gap-2 bg-[#101828] text-white px-4 py-2 rounded-lg hover:bg-[#1e293b] transition-colors"
-              >
-                <Plus size={20} />
-                Add Task
-              </button>
-            </div>
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Reviewer
+                </label>
+                <input
+                  type="text"
+                  value={newTask.reviewer}
+                  onChange={(e) => setNewTask({...newTask, reviewer: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter reviewer name"
+                />
+              </div>
 
-          {/* Task List */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Task Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Assignee</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Category</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Due Date</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Priority</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredTasks.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                        <CheckSquare className="mx-auto mb-2 text-gray-300" size={48} />
-                        <p>No tasks found</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTasks.map(task => (
-                      <tr key={task.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-semibold text-[#101828]">{task.name}</p>
-                            <p className="text-sm text-gray-600">{task.description}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 text-sm font-semibold">
-                                {task.assignee.split(' ').map(n => n[0]).join('')}
-                              </span>
-                            </div>
-                            <span className="text-sm text-gray-700">{task.assignee}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-700">{task.category}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <Calendar size={14} />
-                            {task.dueDate}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-sm font-medium ${getPriorityColor(task.priority)}`}>
-                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                            {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.replace('_', ' ').slice(1)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Chart of Account
+                </label>
+                <input
+                  type="text"
+                  value={newTask.chartOfAccount}
+                  onChange={(e) => setNewTask({...newTask, chartOfAccount: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g., 1010 - Cash and Cash Equivalents"
+                />
+              </div>
 
-          {/* Task Categories Summary */}
-          <div className="mt-6 grid grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <h3 className="font-semibold text-[#101828] mb-2">Reconciliation</h3>
-              <p className="text-2xl font-bold text-blue-600">
-                {tasks.filter(t => t.category === 'Reconciliation').length}
-              </p>
-              <p className="text-sm text-gray-600">tasks</p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <h3 className="font-semibold text-[#101828] mb-2">Journal Entry</h3>
-              <p className="text-2xl font-bold text-purple-600">
-                {tasks.filter(t => t.category === 'Journal Entry').length}
-              </p>
-              <p className="text-sm text-gray-600">tasks</p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <h3 className="font-semibold text-[#101828] mb-2">Review</h3>
-              <p className="text-2xl font-bold text-orange-600">
-                {tasks.filter(t => t.category === 'Review').length}
-              </p>
-              <p className="text-sm text-gray-600">tasks</p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <h3 className="font-semibold text-[#101828] mb-2">Reporting</h3>
-              <p className="text-2xl font-bold text-green-600">
-                {tasks.filter(t => t.category === 'Reporting').length}
-              </p>
-              <p className="text-sm text-gray-600">tasks</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Work Day Start
+                  </label>
+                  <input
+                    type="text"
+                    value={newTask.workDayStart}
+                    onChange={(e) => setNewTask({...newTask, workDayStart: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g., Day 1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Work Day End
+                  </label>
+                  <input
+                    type="text"
+                    value={newTask.workDayEnd}
+                    onChange={(e) => setNewTask({...newTask, workDayEnd: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g., Day 3"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Dependent Task ID
+                </label>
+                <select
+                  value={newTask.dependentTaskId}
+                  onChange={(e) => setNewTask({...newTask, dependentTaskId: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No dependency</option>
+                  {tasks.map(task => (
+                    <option key={task.taskId} value={task.taskId}>
+                      {task.taskId} - {task.taskName}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  Select a task that must be completed before this task can start
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 flex gap-3">
+                <button
+                  onClick={handleAddTask}
+                  className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                >
+                  Add Task
+                </button>
+                <button
+                  onClick={() => setShowAddTaskPanel(false)}
+                  className="flex-1 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
