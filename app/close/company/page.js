@@ -31,21 +31,43 @@ export default function CompanyConfig() {
 
   const fetchAllData = async () => {
     try {
-      const [curr, worldCurr] = await Promise.all([
-        fetch('/api/company-currencies').then(res => res.json()),
-        fetch('/api/world-currencies').then(res => res.json())
+      const [currResponse, worldCurrResponse] = await Promise.all([
+        fetch('/api/company-currencies'),
+        fetch('/api/world-currencies')
       ]);
 
-      console.log('[fetchAllData] Company currencies:', curr.data);
+      // Handle company currencies response
+      let currData = [];
+      if (currResponse.ok) {
+        const currJson = await currResponse.json();
+        currData = Array.isArray(currJson.data) ? currJson.data : [];
+      } else {
+        console.error('[fetchAllData] Company currencies error:', currResponse.status);
+      }
 
-      setCurrencies(curr.data || []);
-      setWorldCurrencies(worldCurr.data || []);
+      // Handle world currencies response
+      let worldCurrData = [];
+      if (worldCurrResponse.ok) {
+        const worldCurrJson = await worldCurrResponse.json();
+        worldCurrData = Array.isArray(worldCurrJson.data) ? worldCurrJson.data : [];
+      } else {
+        console.error('[fetchAllData] World currencies error:', worldCurrResponse.status);
+      }
+
+      console.log('[fetchAllData] Company currencies:', currData);
+      console.log('[fetchAllData] World currencies count:', worldCurrData.length);
+
+      setCurrencies(currData);
+      setWorldCurrencies(worldCurrData);
 
       // Find base currency from company_currencies
-      const baseCurr = (curr.data || []).find(c => c.is_base_currency);
+      const baseCurr = currData.find(c => c.is_base_currency);
       setBaseCurrency(baseCurr?.currency_code || 'USD');
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[fetchAllData] Error:', error);
+      // Set empty arrays on error to prevent crashes
+      setCurrencies([]);
+      setWorldCurrencies([]);
     } finally {
       setLoading(false);
     }
