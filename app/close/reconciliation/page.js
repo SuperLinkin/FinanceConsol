@@ -122,13 +122,10 @@ export default function Reconciliation() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-[#101828] text-white p-6 shadow-lg">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-2">Reconciliation Management</h1>
-            <p className="text-gray-300">Track and manage all account reconciliations</p>
-          </div>
-        </div>
+        <ClosePageHeader
+          title="Reconciliation Management"
+          subtitle="Track and manage all account reconciliations"
+        />
 
         {/* Content */}
         <div className="px-8 py-6">

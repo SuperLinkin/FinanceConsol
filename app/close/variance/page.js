@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CloseSidebar from '@/components/close/CloseSidebar';
+import ClosePageHeader from '@/components/close/ClosePageHeader';
 import { TrendingUp, TrendingDown, AlertCircle, FileText, Download } from 'lucide-react';
 
 export default function VarianceAnalysis() {
@@ -142,13 +143,10 @@ export default function VarianceAnalysis() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-[#101828] text-white p-6 shadow-lg">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-2">Variance Analysis</h1>
-            <p className="text-gray-300">Analyze month-over-month and budget variances</p>
-          </div>
-        </div>
+        <ClosePageHeader
+          title="Variance Analysis"
+          subtitle="Analyze month-over-month and budget variances"
+        />
 
         {/* Content */}
         <div className="px-8 py-6">
@@ -231,16 +229,16 @@ export default function VarianceAnalysis() {
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-[#101828] text-white">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Account</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Category</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Current Month</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Prior Month</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">MoM Variance</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Budget</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Budget Variance</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Account</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Category</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Current Month</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Prior Month</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">MoM Variance</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Budget</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Budget Variance</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">

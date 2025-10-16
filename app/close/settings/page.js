@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CloseSidebar from '@/components/close/CloseSidebar';
+import ClosePageHeader from '@/components/close/ClosePageHeader';
 import { Settings as SettingsIcon, Calendar, Users, Bell, Database, Shield } from 'lucide-react';
 
 export default function CloseSettings() {
@@ -41,13 +42,10 @@ export default function CloseSettings() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-[#101828] text-white p-6 shadow-lg">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-2">Close Settings</h1>
-            <p className="text-gray-300">Configure your close process settings and preferences</p>
-          </div>
-        </div>
+        <ClosePageHeader
+          title="Close Settings"
+          subtitle="Configure your close process settings and preferences"
+        />
 
         {/* Content */}
         <div className="px-8 py-6">

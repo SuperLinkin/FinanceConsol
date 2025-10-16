@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CloseSidebar from '@/components/close/CloseSidebar';
+import ClosePageHeader from '@/components/close/ClosePageHeader';
 import { BarChart3, TrendingUp, DollarSign, PieChart, Download, Calendar } from 'lucide-react';
 
 export default function ManagementAnalysis() {
@@ -63,38 +64,35 @@ export default function ManagementAnalysis() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-[#101828] text-white p-6 shadow-lg">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">Management Analysis</h1>
-                <p className="text-gray-300">Executive financial performance and KPIs</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
-                  <Calendar size={18} />
-                  <select
-                    value={selectedPeriod}
-                    onChange={(e) => setSelectedPeriod(e.target.value)}
-                    className="bg-transparent border-none text-white focus:outline-none"
-                  >
-                    <option value="2024-12" className="text-gray-900">December 2024</option>
-                    <option value="2024-11" className="text-gray-900">November 2024</option>
-                    <option value="2024-10" className="text-gray-900">October 2024</option>
-                  </select>
-                </div>
-                <button className="flex items-center gap-2 bg-white text-[#101828] px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                  <Download size={18} />
-                  Export Report
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ClosePageHeader
+          title="Management Analysis"
+          subtitle="Executive financial performance and KPIs"
+        />
 
         {/* Content */}
         <div className="px-8 py-6">
+          {/* Filters and Actions */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar size={18} className="text-slate-600" />
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-[#101828]"
+                >
+                  <option value="2024-12">December 2024</option>
+                  <option value="2024-11">November 2024</option>
+                  <option value="2024-10">October 2024</option>
+                </select>
+              </div>
+              <button className="flex items-center gap-2 bg-[#101828] text-white px-4 py-2 rounded-lg hover:bg-[#1e293b] transition-colors">
+                <Download size={18} />
+                Export Report
+              </button>
+            </div>
+          </div>
+
           {/* Financial Summary Cards */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-6">

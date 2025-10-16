@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CloseSidebar from '@/components/close/CloseSidebar';
+import ClosePageHeader from '@/components/close/ClosePageHeader';
 import { FileText, Download, Calendar, Filter, Eye, TrendingUp } from 'lucide-react';
 
 export default function Reports() {
@@ -156,13 +157,10 @@ export default function Reports() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-[#101828] text-white p-6 shadow-lg">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-2">Reports</h1>
-            <p className="text-gray-300">Generate and download close reports</p>
-          </div>
-        </div>
+        <ClosePageHeader
+          title="Reports"
+          subtitle="Generate and download close reports"
+        />
 
         {/* Content */}
         <div className="px-8 py-6">
@@ -274,15 +272,15 @@ export default function Reports() {
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-[#101828] text-white">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Report Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Type</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Period</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Generated Date</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Size</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Actions</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Report Name</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Type</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Period</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Generated Date</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Status</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Size</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
