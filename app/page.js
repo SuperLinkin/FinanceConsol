@@ -13,8 +13,8 @@ export default function Home() {
         const response = await fetch('/api/auth/me');
 
         if (response.ok) {
-          // User is authenticated - redirect to reporting dashboard
-          router.push('/reporting');
+          // User is authenticated - redirect to dashboard
+          router.push('/dashboard');
         } else {
           // Not authenticated - redirect to homepage
           router.push('/home');
