@@ -55,8 +55,18 @@ export default function GroupStructureTab() {
       setLoading(true);
 
       // Fetch entities from API (uses admin client with company_id from JWT)
-      const entitiesResponse = await fetch('/api/entities');
-      const entitiesData = await entitiesResponse.json();
+      let entitiesData = [];
+      try {
+        const entitiesResponse = await fetch('/api/entities');
+        if (entitiesResponse.ok) {
+          const entitiesJson = await entitiesResponse.json();
+          entitiesData = Array.isArray(entitiesJson) ? entitiesJson : (entitiesJson.data || []);
+        } else {
+          console.error('[GroupStructureTab] Entities API error:', entitiesResponse.status);
+        }
+      } catch (error) {
+        console.error('[GroupStructureTab] Error fetching entities:', error);
+      }
 
       // Fetch currencies and regions directly (these are global data)
       const [currenciesData, regionsData] = await Promise.all([
@@ -64,11 +74,15 @@ export default function GroupStructureTab() {
         supabase.from('regions').select('*').eq('is_active', true).order('region_name')
       ]);
 
-      setEntities(entitiesData || []);
+      setEntities(entitiesData);
       setCurrencies(currenciesData.data || []);
       setRegions(regionsData.data || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('[GroupStructureTab] Error fetching data:', error);
+      // Ensure we always set arrays even on error
+      setEntities([]);
+      setCurrencies([]);
+      setRegions([]);
     } finally {
       setLoading(false);
     }
