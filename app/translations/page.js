@@ -559,8 +559,8 @@ export default function TranslationsPage() {
 
                     return (
                       <tr key={`${ep.entity_id}-${ep.period}`} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-6 py-4 font-semibold text-sm">{entity.entity_name}</td>
-                        <td className="px-6 py-4 text-sm font-mono">{ep.period}</td>
+                        <td className="px-6 py-4 font-semibold text-sm text-slate-900">{entity.entity_name}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-slate-900">{ep.period}</td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
                             {entity.functional_currency || '-'}
@@ -568,14 +568,14 @@ export default function TranslationsPage() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           {rateData?.closing_rate ? (
-                            <span className="font-mono text-sm font-semibold">{parseFloat(rateData.closing_rate).toFixed(4)}</span>
+                            <span className="font-mono text-sm font-semibold text-slate-900">{parseFloat(rateData.closing_rate).toFixed(4)}</span>
                           ) : (
                             <span className="text-gray-400 text-sm">Not set</span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
                           {rateData?.average_rate ? (
-                            <span className="font-mono text-sm font-semibold">{parseFloat(rateData.average_rate).toFixed(4)}</span>
+                            <span className="font-mono text-sm font-semibold text-slate-900">{parseFloat(rateData.average_rate).toFixed(4)}</span>
                           ) : (
                             <span className="text-gray-400 text-sm">Not set</span>
                           )}
@@ -761,12 +761,12 @@ export default function TranslationsPage() {
                   <tbody>
                     {translatedBalances.map((tb, idx) => (
                       <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-6 py-4 font-mono text-sm">{tb.account_code}</td>
-                        <td className="px-6 py-4 text-sm">{tb.coa_name || tb.account_name || '-'}</td>
-                        <td className="px-6 py-4 text-right font-mono text-sm">
+                        <td className="px-6 py-4 font-mono text-sm text-slate-900">{tb.account_code}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{tb.coa_name || tb.account_name || '-'}</td>
+                        <td className="px-6 py-4 text-right font-mono text-sm text-slate-900">
                           {parseFloat(tb.debit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-6 py-4 text-right font-mono text-sm">
+                        <td className="px-6 py-4 text-right font-mono text-sm text-slate-900">
                           {parseFloat(tb.credit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -782,7 +782,7 @@ export default function TranslationsPage() {
                         <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-blue-600">
                           {parseFloat(tb.translated_credit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold">{tb.target_currency}</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">{tb.target_currency}</td>
                       </tr>
                     ))}
                   </tbody>
