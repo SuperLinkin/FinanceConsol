@@ -30,7 +30,10 @@
       "Bash(timeout:*)",
       "Bash(git log:*)",
       "WebFetch(domain:mercury.com)",
-      "Bash(do echo \"File: $file\")"
+      "Bash(do echo \"File: $file\")",
+      "Bash(do echo \"Processing $file\")",
+      "Bash(do sed -i 's/max-w-7xl mx-auto p-6/px-8 py-6/g' \"$file\")",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

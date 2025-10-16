@@ -24,6 +24,7 @@ import {
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/close' },
   { icon: Users, label: 'Team Management', href: '/close/team' },
+  { icon: Building, label: 'Company', href: '/close/company' },
   { icon: CheckSquare, label: 'Task Management', href: '/close/tasks' },
   { icon: Calendar, label: 'Close Calendar', href: '/close/calendar' },
   { icon: Users, label: 'Task Allocation', href: '/close/allocation' },
