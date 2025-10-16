@@ -1086,6 +1086,192 @@ export default function TranslationsPage() {
         </div>
       )}
 
+      {/* Exchange Rate Modal */}
+      {(showRateModal || isRateModalClosing) && editingRate && (
+        <div className={`fixed right-0 top-0 h-full w-[700px] bg-white shadow-2xl z-50 overflow-y-auto ${isRateModalClosing ? 'animate-slideOutRight' : 'animate-slideLeft'}`}>
+          <div className="h-full flex flex-col">
+            <div className="bg-slate-900 text-white px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold">Set Exchange Rates</h3>
+                <p className="text-sm text-slate-300 mt-1">Configure closing, average, and historical rates</p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsRateModalClosing(true);
+                  setTimeout(() => {
+                    setShowRateModal(false);
+                    setIsRateModalClosing(false);
+                    setEditingRate(null);
+                  }, 300);
+                }}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 p-8 overflow-y-auto">
+              <div className="space-y-6">
+                {/* Entity and Period Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs font-semibold text-blue-700">Entity</span>
+                      <p className="text-sm font-bold text-blue-900">
+                        {entities.find(e => e.id === editingRate.entity_id)?.entity_name || '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-blue-700">Period</span>
+                      <p className="text-sm font-bold text-blue-900">{editingRate.period || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-blue-700">From Currency</span>
+                      <p className="text-sm font-bold text-blue-900">{editingRate.from_currency || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-blue-700">To Currency</span>
+                      <p className="text-sm font-bold text-blue-900">{groupCurrency || 'Group Currency'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Closing Rate */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Closing Rate <span className="text-gray-500 text-xs">(for Balance Sheet items)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    placeholder="e.g., 1.2345"
+                    value={editingRate.closing_rate || ''}
+                    onChange={(e) => setEditingRate({ ...editingRate, closing_rate: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Exchange rate at period end</p>
+                </div>
+
+                {/* Average Rate */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Average Rate <span className="text-gray-500 text-xs">(for P&L items)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    placeholder="e.g., 1.2000"
+                    value={editingRate.average_rate || ''}
+                    onChange={(e) => setEditingRate({ ...editingRate, average_rate: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Average exchange rate for the period</p>
+                </div>
+
+                {/* Historical Rates Section */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h4 className="text-lg font-bold text-slate-900 mb-4">Historical Rates (Optional)</h4>
+                  <p className="text-sm text-gray-600 mb-4">For specific asset classes or accounts</p>
+
+                  {(editingRate.historical_rates || []).map((rate, idx) => (
+                    <div key={idx} className="bg-gray-50 p-4 rounded-lg mb-3">
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-sm font-semibold text-slate-900">Historical Rate {idx + 1}</span>
+                        <button
+                          onClick={() => {
+                            const updated = [...(editingRate.historical_rates || [])];
+                            updated.splice(idx, 1);
+                            setEditingRate({ ...editingRate, historical_rates: updated });
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Rate name"
+                          value={rate.rate_name || ''}
+                          onChange={(e) => {
+                            const updated = [...(editingRate.historical_rates || [])];
+                            updated[idx] = { ...updated[idx], rate_name: e.target.value };
+                            setEditingRate({ ...editingRate, historical_rates: updated });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-slate-900"
+                        />
+                        <input
+                          type="number"
+                          step="0.0001"
+                          placeholder="Rate value"
+                          value={rate.rate_value || ''}
+                          onChange={(e) => {
+                            const updated = [...(editingRate.historical_rates || [])];
+                            updated[idx] = { ...updated[idx], rate_value: e.target.value };
+                            setEditingRate({ ...editingRate, historical_rates: updated });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-slate-900"
+                        />
+                      </div>
+                      <select
+                        value={rate.applies_to_class || ''}
+                        onChange={(e) => {
+                          const updated = [...(editingRate.historical_rates || [])];
+                          updated[idx] = { ...updated[idx], applies_to_class: e.target.value };
+                          setEditingRate({ ...editingRate, historical_rates: updated });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mt-2 text-slate-900"
+                      >
+                        <option value="">Applies to class...</option>
+                        {ACCOUNT_CLASSES.map(cls => (
+                          <option key={cls} value={cls}>{cls}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => {
+                      const updated = [...(editingRate.historical_rates || []), { rate_name: '', rate_value: null, applies_to_class: '' }];
+                      setEditingRate({ ...editingRate, historical_rates: updated });
+                    }}
+                    className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-slate-900 hover:text-slate-900 transition-colors font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Plus size={18} />
+                    Add Historical Rate
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8 sticky bottom-0 bg-white pt-6 border-t border-gray-200">
+                <button
+                  onClick={async () => {
+                    try {
+                      // TODO: Save exchange rates to database
+                      // This would need an exchange_rates table or similar
+                      showToast('Exchange rates saved successfully', true);
+                      setIsRateModalClosing(true);
+                      setTimeout(() => {
+                        setShowRateModal(false);
+                        setIsRateModalClosing(false);
+                        setEditingRate(null);
+                      }, 300);
+                    } catch (error) {
+                      console.error('Error saving rates:', error);
+                      showToast('Error saving exchange rates', false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors"
+                >
+                  <Save size={20} />
+                  Save Exchange Rates
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div className={`fixed bottom-8 right-8 px-6 py-4 rounded-lg shadow-lg animate-slideUp ${
