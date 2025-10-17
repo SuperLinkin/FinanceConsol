@@ -1,6 +1,6 @@
 'use client';
 
-import { Sparkles, CheckCircle, Clock, TrendingUp, Users, FileText, Zap, Bell } from 'lucide-react';
+import { Sparkles, Clock, Users, FileText, Zap, Bell, TrendingUp } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 
 export default function Dashboard() {
@@ -74,13 +74,6 @@ export default function Dashboard() {
     }
   ];
 
-  const stats = [
-    { label: 'Total Entities', value: '12', change: '+2 this month', icon: Users, color: 'blue' },
-    { label: 'Active Currencies', value: '5', change: 'No change', icon: TrendingUp, color: 'green' },
-    { label: 'TB Records', value: '1,247', change: '+328 this week', icon: FileText, color: 'purple' },
-    { label: 'System Uptime', value: '99.9%', change: 'Last 30 days', icon: Zap, color: 'orange' }
-  ];
-
   const getColorClasses = (color) => {
     const colors = {
       blue: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -96,29 +89,18 @@ export default function Dashboard() {
     <div className="h-screen flex flex-col bg-[#f7f5f2]">
       <PageHeader
         title="Dashboard"
-        subtitle="Welcome back! Here's what's new in CLOE"
+        subtitle="Welcome to CLOE - Reporting"
       />
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-8 py-6 space-y-8">
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-4 gap-6">
-            {stats.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <div key={index} className="bg-white rounded-[14px] p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-lg ${getColorClasses(stat.color)}`}>
-                      <Icon size={24} />
-                    </div>
-                  </div>
-                  <div className="text-3xl font-bold text-slate-900 mb-1">{stat.value}</div>
-                  <div className="text-sm font-semibold text-gray-700 mb-2">{stat.label}</div>
-                  <div className="text-xs text-gray-500">{stat.change}</div>
-                </div>
-              );
-            })}
+          {/* Welcome Message */}
+          <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[14px] p-8 shadow-lg text-white">
+            <h2 className="text-3xl font-bold mb-3">Welcome to CLOE - Reporting</h2>
+            <p className="text-lg text-gray-300">
+              Your comprehensive solution for financial consolidation and reporting. Stay updated with the latest features and improvements below.
+            </p>
           </div>
 
           {/* Recent Updates Section */}
@@ -192,23 +174,6 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[14px] p-8 shadow-lg text-white">
-            <h2 className="text-2xl font-bold mb-2">Need Help Getting Started?</h2>
-            <p className="text-gray-300 mb-6">Explore our guides and documentation to make the most of CLOE</p>
-            <div className="flex gap-4">
-              <button className="px-6 py-3 bg-white text-slate-900 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                View Documentation
-              </button>
-              <button className="px-6 py-3 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors">
-                Watch Tutorial
-              </button>
-              <button className="px-6 py-3 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors">
-                Contact Support
-              </button>
             </div>
           </div>
 
