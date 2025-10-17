@@ -35,9 +35,13 @@ export default function NoteBuilderPage() {
   // Side panel states
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
-  const [editMode, setEditMode] = useState('text');
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingNote, setViewingNote] = useState(null);
+
+  // Toolbar states
+  const [showTableBuilder, setShowTableBuilder] = useState(false);
+  const [showGLBuilder, setShowGLBuilder] = useState(false);
+  const [showFormulaBuilder, setShowFormulaBuilder] = useState(false);
 
   // Table builder states
   const [tableRows, setTableRows] = useState(3);
@@ -300,16 +304,13 @@ export default function NoteBuilderPage() {
 
   const openEditPanel = (note) => {
     setEditingNote(note);
-    setEditMode('text');
 
-    // If note content is empty or doesn't exist, populate with default markdown table
-    if (!noteContents[note.noteRef] || noteContents[note.noteRef].trim() === '') {
-      const markdownTable = generateNoteMarkdown(note);
-      setNoteContents(prev => ({
-        ...prev,
-        [note.noteRef]: markdownTable
-      }));
-    }
+    // Always regenerate content based on current TB/COA/Master data
+    const markdownTable = generateNoteMarkdown(note);
+    setNoteContents(prev => ({
+      ...prev,
+      [note.noteRef]: markdownTable
+    }));
 
     setShowEditPanel(true);
   };
@@ -362,7 +363,7 @@ export default function NoteBuilderPage() {
       };
     });
 
-    // If only one sub-note, show simple format
+    // If only one sub-note, show just one line - no total needed
     if (noteGLs.length === 1) {
       let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
       content += `${subNoteData[0].name}\n`;
@@ -373,7 +374,7 @@ export default function NoteBuilderPage() {
       return content;
     }
 
-    // Multiple sub-notes - show table format
+    // Multiple sub-notes - show table format with total
     let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
 
     // Header
@@ -400,7 +401,7 @@ export default function NoteBuilderPage() {
       content += `\n`;
     });
 
-    // Total row
+    // Total row - only for multiple sub-notes
     content += `${'='.repeat(40)}`;
     content += `${'='.repeat(25)}`;
     if (previousPeriod) {
@@ -736,90 +737,97 @@ export default function NoteBuilderPage() {
       {showEditPanel && editingNote && (
         <div className="fixed right-0 top-0 h-full w-[700px] bg-white shadow-2xl z-50 flex flex-col animate-slideLeft">
           {/* Header */}
-          <div className="bg-purple-600 text-white px-6 py-4 flex items-center justify-between">
+          <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
             <div>
               <h3 className="text-xl font-bold">Edit Note {editingNote.noteRef}</h3>
-              <p className="text-sm text-purple-100 mt-1">{editingNote.noteName}</p>
+              <p className="text-sm text-gray-300 mt-1">{editingNote.noteName}</p>
             </div>
             <button
-              onClick={() => setShowEditPanel(false)}
-              className="p-2 hover:bg-purple-700 rounded-lg transition-colors"
+              onClick={() => {
+                setShowEditPanel(false);
+                setShowTableBuilder(false);
+                setShowGLBuilder(false);
+                setShowFormulaBuilder(false);
+              }}
+              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
-          {/* Mode Selector */}
+          {/* Toolbar */}
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
             <div className="flex gap-2">
               <button
-                onClick={() => setEditMode('text')}
+                onClick={() => {
+                  setShowTableBuilder(!showTableBuilder);
+                  setShowGLBuilder(false);
+                  setShowFormulaBuilder(false);
+                }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  editMode === 'text' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                }`}
-              >
-                <Type size={16} />
-                Text
-              </button>
-              <button
-                onClick={() => setEditMode('table')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  editMode === 'table' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                  showTableBuilder ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
                 }`}
               >
                 <TableIcon size={16} />
-                Table
+                Insert Table
               </button>
               <button
-                onClick={() => setEditMode('gl')}
+                onClick={() => {
+                  setShowGLBuilder(!showGLBuilder);
+                  setShowTableBuilder(false);
+                  setShowFormulaBuilder(false);
+                }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  editMode === 'gl' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                  showGLBuilder ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
                 }`}
               >
                 <Hash size={16} />
-                GL Tag
+                Insert GL Tag
               </button>
               <button
-                onClick={() => setEditMode('formula')}
+                onClick={() => {
+                  setShowFormulaBuilder(!showFormulaBuilder);
+                  setShowTableBuilder(false);
+                  setShowGLBuilder(false);
+                }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  editMode === 'formula' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                  showFormulaBuilder ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
                 }`}
               >
                 <Calculator size={16} />
-                Formula
+                Insert Formula
               </button>
             </div>
           </div>
 
           {/* Editor Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            {/* TEXT MODE */}
-            {editMode === 'text' && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Note Content
-                </label>
-                <textarea
-                  rows={20}
-                  placeholder="Enter note description, accounting policies, or additional details here..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-mono text-sm"
-                  value={noteContents[editingNote.noteRef] || ''}
-                  onChange={(e) => {
-                    setNoteContents(prev => ({
-                      ...prev,
-                      [editingNote.noteRef]: e.target.value
-                    }));
-                  }}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Use {"{{GL:code}}"} for GL tags and {"{{FORMULA:expression}}"} for formulas
-                </p>
-              </div>
-            )}
+            {/* Main Text Editor - Always Visible */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Note Content
+              </label>
+              <textarea
+                rows={15}
+                placeholder="Enter note description, accounting policies, or additional details here..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-[#101828] focus:border-transparent resize-none font-mono text-sm"
+                value={noteContents[editingNote.noteRef] || ''}
+                onChange={(e) => {
+                  setNoteContents(prev => ({
+                    ...prev,
+                    [editingNote.noteRef]: e.target.value
+                  }));
+                }}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Use the toolbar above to insert tables, GL tags, or formulas
+              </p>
+            </div>
 
-            {/* TABLE MODE */}
-            {editMode === 'table' && (
-              <div className="space-y-4">
+            {/* TABLE BUILDER */}
+            {showTableBuilder && (
+              <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-bold text-blue-900 mb-2">Table Builder</h4>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Table Dimensions
@@ -849,7 +857,7 @@ export default function NoteBuilderPage() {
                     </div>
                     <button
                       onClick={initializeTable}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+                      className="px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-semibold hover:bg-gray-700"
                     >
                       Create Table
                     </button>
@@ -883,8 +891,11 @@ export default function NoteBuilderPage() {
                       </table>
                     </div>
                     <button
-                      onClick={insertTable}
-                      className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                      onClick={() => {
+                        insertTable();
+                        setShowTableBuilder(false);
+                      }}
+                      className="mt-4 px-6 py-2 bg-[#101828] text-white rounded-lg font-semibold hover:bg-gray-700"
                     >
                       <Plus size={16} className="inline mr-2" />
                       Insert Table into Note
@@ -894,9 +905,10 @@ export default function NoteBuilderPage() {
               </div>
             )}
 
-            {/* GL TAG MODE */}
-            {editMode === 'gl' && (
-              <div className="space-y-4">
+            {/* GL TAG BUILDER */}
+            {showGLBuilder && (
+              <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-bold text-green-900 mb-2">GL Tag Builder</h4>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Select GL Account
@@ -904,7 +916,7 @@ export default function NoteBuilderPage() {
                   <select
                     value={selectedGL}
                     onChange={(e) => setSelectedGL(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#101828]"
                   >
                     <option value="">Choose GL Account</option>
                     {glAccounts.map(gl => (
@@ -922,7 +934,7 @@ export default function NoteBuilderPage() {
                   <select
                     value={selectedEntity}
                     onChange={(e) => setSelectedEntity(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#101828]"
                   >
                     <option value="">All Entities</option>
                     {entities.map(entity => (
@@ -940,7 +952,7 @@ export default function NoteBuilderPage() {
                   <select
                     value={selectedPeriodForGL}
                     onChange={(e) => setSelectedPeriodForGL(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#101828]"
                   >
                     <option value="">Current Period</option>
                     {periods.map(period => (
@@ -951,7 +963,7 @@ export default function NoteBuilderPage() {
                   </select>
                 </div>
 
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="bg-white border border-green-300 rounded-lg p-4">
                   <h4 className="font-bold text-green-900 mb-2">Preview:</h4>
                   <p className="text-sm text-green-800 font-mono break-all">
                     {selectedGL ? `{{GL:${selectedGL}${selectedEntity ? ':' + selectedEntity : ''}${selectedPeriodForGL ? ':' + selectedPeriodForGL : ''}}}` : 'Select a GL account to see preview'}
@@ -959,9 +971,12 @@ export default function NoteBuilderPage() {
                 </div>
 
                 <button
-                  onClick={insertGLTag}
+                  onClick={() => {
+                    insertGLTag();
+                    setShowGLBuilder(false);
+                  }}
                   disabled={!selectedGL}
-                  className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={16} className="inline mr-2" />
                   Insert GL Tag
@@ -969,9 +984,10 @@ export default function NoteBuilderPage() {
               </div>
             )}
 
-            {/* FORMULA MODE */}
-            {editMode === 'formula' && (
-              <div className="space-y-4">
+            {/* FORMULA BUILDER */}
+            {showFormulaBuilder && (
+              <div className="space-y-4 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <h4 className="font-bold text-purple-900 mb-2">Formula Builder</h4>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Formula Expression
@@ -981,7 +997,7 @@ export default function NoteBuilderPage() {
                     placeholder="e.g., GL(1000) + GL(2000) or (GL(5000) / GL(4000)) * 100"
                     value={formulaText}
                     onChange={(e) => setFormulaText(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-[#101828]"
                   />
                 </div>
 
@@ -996,7 +1012,7 @@ export default function NoteBuilderPage() {
                         e.target.value = '';
                       }
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#101828]"
                   >
                     <option value="">Click to add GL code</option>
                     {glAccounts.map(gl => (
@@ -1007,7 +1023,7 @@ export default function NoteBuilderPage() {
                   </select>
                 </div>
 
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="bg-white border border-purple-300 rounded-lg p-4">
                   <h4 className="font-bold text-purple-900 mb-2">Formula Examples:</h4>
                   <ul className="text-sm text-purple-800 space-y-1 font-mono">
                     <li>• GL(1000) + GL(2000)</li>
@@ -1017,9 +1033,12 @@ export default function NoteBuilderPage() {
                 </div>
 
                 <button
-                  onClick={insertFormula}
+                  onClick={() => {
+                    insertFormula();
+                    setShowFormulaBuilder(false);
+                  }}
                   disabled={!formulaText}
-                  className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={16} className="inline mr-2" />
                   Insert Formula
@@ -1033,7 +1052,7 @@ export default function NoteBuilderPage() {
             <button
               onClick={saveNoteDescription}
               disabled={savingNotes[editingNote.noteRef]}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {savingNotes[editingNote.noteRef] ? (
                 <>
@@ -1048,7 +1067,12 @@ export default function NoteBuilderPage() {
               )}
             </button>
             <button
-              onClick={() => setShowEditPanel(false)}
+              onClick={() => {
+                setShowEditPanel(false);
+                setShowTableBuilder(false);
+                setShowGLBuilder(false);
+                setShowFormulaBuilder(false);
+              }}
               className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               Cancel
@@ -1059,7 +1083,7 @@ export default function NoteBuilderPage() {
 
       {/* View Modal - PDF Preview */}
       {showViewModal && viewingNote && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 z-50 flex items-center justify-center p-8">
+        <div className="fixed inset-0 bg-gray-200 bg-opacity-70 z-50 flex items-center justify-center p-8">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="bg-blue-600 text-white px-6 py-4 flex items-center justify-between rounded-t-xl">
