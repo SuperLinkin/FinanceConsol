@@ -31,6 +31,8 @@ export default function NoteBuilderPage() {
   const [currentPeriod, setCurrentPeriod] = useState('');
   const [previousPeriod, setPreviousPeriod] = useState('');
   const [trialBalances, setTrialBalances] = useState([]);
+  const [eliminations, setEliminations] = useState([]);
+  const [adjustments, setAdjustments] = useState([]);
 
   // Side panel states
   const [showEditPanel, setShowEditPanel] = useState(false);
@@ -78,10 +80,24 @@ export default function NoteBuilderPage() {
 
   const loadTrialBalances = async () => {
     try {
-      const response = await fetch('/api/trial-balance');
-      if (!response.ok) throw new Error('Failed to fetch trial balance');
-      const allTB = await response.json();
+      const [tbResponse, elimResponse, adjResponse] = await Promise.all([
+        fetch('/api/trial-balance'),
+        fetch('/api/elimination-entries'),
+        supabase.from('adjustment_entries').select('*')
+      ]);
+
+      if (!tbResponse.ok) throw new Error('Failed to fetch trial balance');
+      const allTB = await tbResponse.json();
       setTrialBalances(allTB || []);
+
+      if (elimResponse.ok) {
+        const elimData = await elimResponse.json();
+        setEliminations(elimData || []);
+      }
+
+      if (adjResponse.data) {
+        setAdjustments(adjResponse.data || []);
+      }
     } catch (error) {
       console.error('Error loading trial balances:', error);
     }
@@ -336,23 +352,27 @@ export default function NoteBuilderPage() {
     // Calculate totals
     let totalCurrent = 0;
     let totalPrevious = 0;
+    const className = note.className;
 
-    // Build sub-note data
+    // Build sub-note data using consolidated values
     const subNoteData = noteGLs.map(gl => {
-      const currentTB = trialBalances.find(tb =>
-        tb.account_code === gl.account_code &&
-        tb.period === currentPeriod
-      );
-      const currentValue = currentTB ? (currentTB.debit || 0) - (currentTB.credit || 0) : 0;
+      // Calculate consolidated current year value
+      let currentValue = 0;
+      entities.forEach(entity => {
+        currentValue += getEntityValue([gl], entity.id, className, currentPeriod);
+      });
+      currentValue += getEliminationValue([gl], className);
+      currentValue += getAdjustmentValue([gl], className);
       totalCurrent += currentValue;
 
+      // Calculate consolidated previous year value
       let previousValue = 0;
       if (previousPeriod) {
-        const previousTB = trialBalances.find(tb =>
-          tb.account_code === gl.account_code &&
-          tb.period === previousPeriod
-        );
-        previousValue = previousTB ? (previousTB.debit || 0) - (previousTB.credit || 0) : 0;
+        entities.forEach(entity => {
+          previousValue += getEntityValue([gl], entity.id, className, previousPeriod);
+        });
+        previousValue += getEliminationValue([gl], className);
+        previousValue += getAdjustmentValue([gl], className);
         totalPrevious += previousValue;
       }
 
@@ -418,6 +438,104 @@ export default function NoteBuilderPage() {
     return content;
   };
 
+  // Helper function: Get entity value (same logic as Consolidation Workings)
+  const getEntityValue = (accounts, entityId, className, period) => {
+    if (!accounts || accounts.length === 0 || !period) return 0;
+
+    const tbData = trialBalances.filter(tb => tb.period === period);
+    let total = 0;
+
+    accounts.forEach(account => {
+      const tbEntries = tbData.filter(
+        tb => tb.account_code === account.account_code && tb.entity_id === entityId
+      );
+
+      tbEntries.forEach(tb => {
+        const debit = parseFloat(tb.debit || 0);
+        const credit = parseFloat(tb.credit || 0);
+
+        // Use natural balance direction (same as Consolidation Workings)
+        let netAmount;
+        if (['Assets', 'Expenses'].includes(className)) {
+          netAmount = debit - credit;
+        } else {
+          netAmount = credit - debit;
+        }
+        total += netAmount;
+      });
+    });
+
+    return total;
+  };
+
+  // Helper function: Get elimination value (same logic as Consolidation Workings)
+  const getEliminationValue = (accounts, className) => {
+    if (!accounts || accounts.length === 0) return 0;
+
+    let total = 0;
+    accounts.forEach(account => {
+      // Check elimination journal entries
+      const entriesWithMatchingLines = eliminations.filter(e =>
+        e.lines && Array.isArray(e.lines) &&
+        e.lines.some(line => line.gl_code === account.account_code)
+      );
+
+      entriesWithMatchingLines.forEach(entry => {
+        const matchingLines = entry.lines.filter(line => line.gl_code === account.account_code);
+
+        matchingLines.forEach(line => {
+          const debitAmount = parseFloat(line.debit || 0);
+          const creditAmount = parseFloat(line.credit || 0);
+
+          let netElim;
+          if (['Assets', 'Expenses'].includes(className)) {
+            netElim = debitAmount - creditAmount;
+          } else {
+            netElim = creditAmount - debitAmount;
+          }
+          total += netElim;
+        });
+      });
+    });
+
+    return total;
+  };
+
+  // Helper function: Get adjustment value (same logic as Consolidation Workings)
+  const getAdjustmentValue = (accounts, className) => {
+    if (!accounts || accounts.length === 0) return 0;
+
+    let total = 0;
+    accounts.forEach(account => {
+      const adjEntries = adjustments.filter(a =>
+        a.debit_account === account.account_code || a.credit_account === account.account_code
+      );
+
+      adjEntries.forEach(adj => {
+        let debitAmount = 0;
+        let creditAmount = 0;
+
+        if (adj.debit_account === account.account_code) {
+          debitAmount = parseFloat(adj.amount || 0);
+        }
+        if (adj.credit_account === account.account_code) {
+          creditAmount = parseFloat(adj.amount || 0);
+        }
+
+        let netAdj;
+        if (['Assets', 'Expenses'].includes(className)) {
+          netAdj = debitAmount - creditAmount;
+        } else {
+          netAdj = creditAmount - debitAmount;
+        }
+        total += netAdj;
+      });
+    });
+
+    return total;
+  };
+
+  // Get consolidated note value (replaces old getNoteValue)
   const getNoteValue = (note, period) => {
     if (!period || !trialBalances.length) return 0;
 
@@ -427,16 +545,17 @@ export default function NoteBuilderPage() {
       gl.note_name === note.noteName
     );
 
+    const className = note.className;
     let total = 0;
-    noteGLs.forEach(gl => {
-      const tbEntry = trialBalances.find(tb =>
-        tb.account_code === gl.account_code &&
-        tb.period === period
-      );
-      if (tbEntry) {
-        total += (tbEntry.debit || 0) - (tbEntry.credit || 0);
-      }
+
+    // Sum all entity values
+    entities.forEach(entity => {
+      total += getEntityValue(noteGLs, entity.id, className, period);
     });
+
+    // Add eliminations and adjustments
+    total += getEliminationValue(noteGLs, className);
+    total += getAdjustmentValue(noteGLs, className);
 
     return total;
   };
