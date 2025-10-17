@@ -15,7 +15,8 @@ import {
   Calculator,
   Type,
   Plus,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 
 export default function NoteBuilderPage() {
@@ -57,6 +58,10 @@ export default function NoteBuilderPage() {
 
   // Formula builder states
   const [formulaText, setFormulaText] = useState('');
+
+  // Grid editor states
+  const [noteGridData, setNoteGridData] = useState({});
+  const [showGridEditor, setShowGridEditor] = useState(true);
 
   const statementTabs = [
     { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
@@ -285,6 +290,18 @@ export default function NoteBuilderPage() {
       const companyId = entities[0].company_id;
       setSavingNotes(prev => ({ ...prev, [editingNote.noteRef]: true }));
 
+      // Convert grid data to text content before saving
+      const gridData = noteGridData[editingNote.noteRef];
+      let contentToSave = noteContents[editingNote.noteRef] || '';
+      if (gridData) {
+        contentToSave = convertGridToText(editingNote, gridData);
+        // Update noteContents state as well
+        setNoteContents(prev => ({
+          ...prev,
+          [editingNote.noteRef]: contentToSave
+        }));
+      }
+
       const response = await fetch('/api/note-descriptions', {
         method: 'POST',
         headers: {
@@ -294,7 +311,7 @@ export default function NoteBuilderPage() {
           company_id: companyId,
           note_ref: editingNote.noteRef,
           note_title: editingNote.noteName,
-          note_content: noteContents[editingNote.noteRef] || '',
+          note_content: contentToSave,
           statement_type: editingNote.statementType,
           class_name: editingNote.className,
           subclass_name: editingNote.subclassName,
@@ -326,6 +343,13 @@ export default function NoteBuilderPage() {
     setNoteContents(prev => ({
       ...prev,
       [note.noteRef]: markdownTable
+    }));
+
+    // Parse content to grid data
+    const gridData = parseContentToGrid(markdownTable);
+    setNoteGridData(prev => ({
+      ...prev,
+      [note.noteRef]: gridData
     }));
 
     setShowEditPanel(true);
@@ -449,6 +473,191 @@ export default function NoteBuilderPage() {
     content += `\n`;
 
     return content;
+  };
+
+  // Parse text content to grid data
+  const parseContentToGrid = (content) => {
+    const lines = content.split('\n');
+    const hasTableFormat = content.includes('===');
+
+    if (!hasTableFormat) {
+      // Simple format with one sub-note
+      const headerLine = lines.find(line => line.startsWith('Note '));
+      const descriptionLine = lines[2]?.trim() || '';
+      const currentLine = lines.find(line => line.includes('Current Year'));
+      const previousLine = lines.find(line => line.includes('Previous Year'));
+
+      const currentMatch = currentLine?.match(/Current Year \(([^)]+)\): ([\d,.-]+)/);
+      const previousMatch = previousLine?.match(/Previous Year \(([^)]+)\): ([\d,.-]+)/);
+
+      return {
+        hasMultipleSubNotes: false,
+        singleSubNote: {
+          description: descriptionLine,
+          currentValue: currentMatch ? currentMatch[2] : '',
+          previousValue: previousMatch ? previousMatch[2] : ''
+        }
+      };
+    } else {
+      // Table format with multiple sub-notes
+      const rows = [];
+      let inTable = false;
+
+      lines.forEach(line => {
+        if (line.includes('===')) {
+          inTable = !inTable;
+        } else if (inTable && line.trim() && !line.includes('Total')) {
+          // Parse table row - split by multiple spaces
+          const cells = line.split(/\s{2,}/).filter(c => c.trim());
+          if (cells.length >= 2) {
+            rows.push({
+              description: cells[0]?.trim() || '',
+              currentValue: cells[1]?.trim() || '',
+              previousValue: cells[2]?.trim() || ''
+            });
+          }
+        }
+      });
+
+      return {
+        hasMultipleSubNotes: true,
+        rows: rows
+      };
+    }
+  };
+
+  // Convert grid data back to text content
+  const convertGridToText = (note, gridData) => {
+    if (!gridData.hasMultipleSubNotes) {
+      // Single sub-note format
+      const sub = gridData.singleSubNote;
+      let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
+      content += `${sub.description}\n`;
+      content += `Current Year (${currentPeriod}): ${sub.currentValue}`;
+      if (previousPeriod && sub.previousValue) {
+        content += `\nPrevious Year (${previousPeriod}): ${sub.previousValue}`;
+      }
+      return content;
+    } else {
+      // Multiple sub-notes table format
+      let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
+
+      // Header
+      content += `Description`.padEnd(40);
+      content += `Current Year (${currentPeriod})`.padEnd(25);
+      if (previousPeriod) {
+        content += `Previous Year (${previousPeriod})`;
+      }
+      content += `\n`;
+      content += `${'='.repeat(40)}`;
+      content += `${'='.repeat(25)}`;
+      if (previousPeriod) {
+        content += `${'='.repeat(30)}`;
+      }
+      content += `\n`;
+
+      // Data rows
+      let totalCurrent = 0;
+      let totalPrevious = 0;
+      gridData.rows.forEach(row => {
+        content += `${row.description.padEnd(40)}`;
+        content += `${row.currentValue.padEnd(25)}`;
+        if (previousPeriod) {
+          content += `${row.previousValue.padEnd(30)}`;
+        }
+        content += `\n`;
+
+        // Sum totals (parse numbers)
+        const currentNum = parseFloat(row.currentValue.replace(/,/g, '')) || 0;
+        const previousNum = parseFloat(row.previousValue.replace(/,/g, '')) || 0;
+        totalCurrent += currentNum;
+        totalPrevious += previousNum;
+      });
+
+      // Total row
+      content += `${'='.repeat(40)}`;
+      content += `${'='.repeat(25)}`;
+      if (previousPeriod) {
+        content += `${'='.repeat(30)}`;
+      }
+      content += `\n`;
+      content += `${'Total'.padEnd(40)}`;
+      content += `${formatCurrency(totalCurrent).padEnd(25)}`;
+      if (previousPeriod) {
+        content += `${formatCurrency(totalPrevious).padEnd(30)}`;
+      }
+      content += `\n`;
+
+      return content;
+    }
+  };
+
+  // Add a new row to grid
+  const addGridRow = (noteRef) => {
+    setNoteGridData(prev => {
+      const current = prev[noteRef] || { hasMultipleSubNotes: true, rows: [] };
+      return {
+        ...prev,
+        [noteRef]: {
+          ...current,
+          hasMultipleSubNotes: true,
+          rows: [...(current.rows || []), { description: '', currentValue: '', previousValue: '' }]
+        }
+      };
+    });
+  };
+
+  // Remove a row from grid
+  const removeGridRow = (noteRef, rowIndex) => {
+    setNoteGridData(prev => {
+      const current = prev[noteRef];
+      if (!current || !current.rows) return prev;
+
+      const newRows = current.rows.filter((_, idx) => idx !== rowIndex);
+      return {
+        ...prev,
+        [noteRef]: {
+          ...current,
+          rows: newRows
+        }
+      };
+    });
+  };
+
+  // Update a grid cell
+  const updateGridCell = (noteRef, rowIndex, field, value) => {
+    setNoteGridData(prev => {
+      const current = prev[noteRef];
+      if (!current) return prev;
+
+      if (!current.hasMultipleSubNotes) {
+        // Single sub-note
+        return {
+          ...prev,
+          [noteRef]: {
+            ...current,
+            singleSubNote: {
+              ...current.singleSubNote,
+              [field]: value
+            }
+          }
+        };
+      } else {
+        // Multiple sub-notes
+        const newRows = [...current.rows];
+        newRows[rowIndex] = {
+          ...newRows[rowIndex],
+          [field]: value
+        };
+        return {
+          ...prev,
+          [noteRef]: {
+            ...current,
+            rows: newRows
+          }
+        };
+      }
+    });
   };
 
   // Helper function: Get entity value (same logic as Consolidation Workings)
@@ -934,25 +1143,137 @@ export default function NoteBuilderPage() {
 
           {/* Editor Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            {/* Main Text Editor - Always Visible */}
+            {/* Editable Grid - Always Visible */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Note Content
-              </label>
-              <textarea
-                rows={15}
-                placeholder="Enter note description, accounting policies, or additional details here..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-[#101828] focus:border-transparent resize-none font-mono text-sm"
-                value={noteContents[editingNote.noteRef] || ''}
-                onChange={(e) => {
-                  setNoteContents(prev => ({
-                    ...prev,
-                    [editingNote.noteRef]: e.target.value
-                  }));
-                }}
-              />
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Note Financial Data
+                </label>
+                <button
+                  onClick={() => addGridRow(editingNote.noteRef)}
+                  className="flex items-center gap-1 px-3 py-1 bg-[#101828] text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  <Plus size={14} />
+                  Add Row
+                </button>
+              </div>
+
+              {noteGridData[editingNote.noteRef] && (
+                <div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+                  {!noteGridData[editingNote.noteRef].hasMultipleSubNotes ? (
+                    /* Single Sub-note Format */
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                        <input
+                          type="text"
+                          value={noteGridData[editingNote.noteRef].singleSubNote.description}
+                          onChange={(e) => updateGridCell(editingNote.noteRef, 0, 'description', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-[#101828]"
+                          placeholder="Sub-note description"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            Current Year ({currentPeriod})
+                          </label>
+                          <input
+                            type="text"
+                            value={noteGridData[editingNote.noteRef].singleSubNote.currentValue}
+                            onChange={(e) => updateGridCell(editingNote.noteRef, 0, 'currentValue', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] font-mono focus:outline-none focus:ring-2 focus:ring-[#101828]"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        {previousPeriod && (
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">
+                              Previous Year ({previousPeriod})
+                            </label>
+                            <input
+                              type="text"
+                              value={noteGridData[editingNote.noteRef].singleSubNote.previousValue}
+                              onChange={(e) => updateGridCell(editingNote.noteRef, 0, 'previousValue', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] font-mono focus:outline-none focus:ring-2 focus:ring-[#101828]"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Multiple Sub-notes Table Format */
+                    <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                            Description
+                          </th>
+                          <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700 w-32">
+                            Current ({currentPeriod})
+                          </th>
+                          {previousPeriod && (
+                            <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700 w-32">
+                              Previous ({previousPeriod})
+                            </th>
+                          )}
+                          <th className="border border-gray-300 px-3 py-2 text-center text-xs font-semibold text-gray-700 w-16">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {noteGridData[editingNote.noteRef].rows.map((row, rowIndex) => (
+                          <tr key={rowIndex} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 p-0">
+                              <input
+                                type="text"
+                                value={row.description}
+                                onChange={(e) => updateGridCell(editingNote.noteRef, rowIndex, 'description', e.target.value)}
+                                className="w-full px-3 py-2 text-sm text-[#101828] border-0 focus:outline-none focus:ring-2 focus:ring-[#101828] focus:ring-inset"
+                                placeholder="Sub-note description"
+                              />
+                            </td>
+                            <td className="border border-gray-300 p-0">
+                              <input
+                                type="text"
+                                value={row.currentValue}
+                                onChange={(e) => updateGridCell(editingNote.noteRef, rowIndex, 'currentValue', e.target.value)}
+                                className="w-full px-3 py-2 text-sm text-[#101828] font-mono text-right border-0 focus:outline-none focus:ring-2 focus:ring-[#101828] focus:ring-inset"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            {previousPeriod && (
+                              <td className="border border-gray-300 p-0">
+                                <input
+                                  type="text"
+                                  value={row.previousValue}
+                                  onChange={(e) => updateGridCell(editingNote.noteRef, rowIndex, 'previousValue', e.target.value)}
+                                  className="w-full px-3 py-2 text-sm text-[#101828] font-mono text-right border-0 focus:outline-none focus:ring-2 focus:ring-[#101828] focus:ring-inset"
+                                  placeholder="0.00"
+                                />
+                              </td>
+                            )}
+                            <td className="border border-gray-300 px-2 py-1 text-center">
+                              <button
+                                onClick={() => removeGridRow(editingNote.noteRef, rowIndex)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Remove row"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
               <p className="text-xs text-gray-500 mt-2">
-                Use the toolbar above to insert tables, GL tags, or formulas
+                Edit the financial data above. Click "Add Row" to add more line items. Use the toolbar below to add additional content.
               </p>
             </div>
 
