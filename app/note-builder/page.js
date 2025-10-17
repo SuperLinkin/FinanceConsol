@@ -14,7 +14,8 @@ import {
   Hash,
   Calculator,
   Type,
-  Plus
+  Plus,
+  Eye
 } from 'lucide-react';
 
 export default function NoteBuilderPage() {
@@ -35,6 +36,8 @@ export default function NoteBuilderPage() {
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [editMode, setEditMode] = useState('text');
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingNote, setViewingNote] = useState(null);
 
   // Table builder states
   const [tableRows, setTableRows] = useState(3);
@@ -311,6 +314,16 @@ export default function NoteBuilderPage() {
     setShowEditPanel(true);
   };
 
+  const openViewModal = (note) => {
+    // Generate or get existing content for preview
+    let content = noteContents[note.noteRef];
+    if (!content || content.trim() === '') {
+      content = generateNoteMarkdown(note);
+    }
+    setViewingNote({ ...note, content });
+    setShowViewModal(true);
+  };
+
   const generateNoteMarkdown = (note) => {
     // Get all GL accounts (sub-notes) for this note
     const noteGLs = glAccounts.filter(gl =>
@@ -504,6 +517,96 @@ export default function NoteBuilderPage() {
     setFormulaText(prev => prev + `GL(${glCode})`);
   };
 
+  const renderNoteContent = (note) => {
+    const content = note.content;
+
+    // Split content into lines
+    const lines = content.split('\n');
+
+    // Check if it's a table format (has === separators)
+    const hasTableFormat = content.includes('===');
+
+    if (hasTableFormat) {
+      // Parse table format
+      const tableLines = [];
+      let inTable = false;
+      let headerRow = null;
+      let dataRows = [];
+      let totalRow = null;
+
+      lines.forEach(line => {
+        if (line.includes('===')) {
+          inTable = !inTable;
+        } else if (inTable && line.trim()) {
+          if (!headerRow) {
+            headerRow = line;
+          } else if (line.includes('Total')) {
+            totalRow = line;
+          } else {
+            dataRows.push(line);
+          }
+        }
+      });
+
+      // Render as HTML table
+      return (
+        <div className="mt-6">
+          <table className="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Description</th>
+                <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Current Year ({currentPeriod})</th>
+                {previousPeriod && (
+                  <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Previous Year ({previousPeriod})</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {dataRows.map((row, idx) => {
+                const cells = row.split(/\s{2,}/).filter(c => c.trim());
+                return (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-2">{cells[0]?.trim()}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right font-mono">{cells[1]?.trim()}</td>
+                    {previousPeriod && cells[2] && (
+                      <td className="border border-gray-300 px-4 py-2 text-right font-mono">{cells[2]?.trim()}</td>
+                    )}
+                  </tr>
+                );
+              })}
+              {totalRow && (
+                <tr className="bg-gray-100 font-bold">
+                  {totalRow.split(/\s{2,}/).filter(c => c.trim()).map((cell, idx) => (
+                    <td key={idx} className="border border-gray-300 px-4 py-2 text-right font-mono">
+                      {cell.trim()}
+                    </td>
+                  ))}
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    } else {
+      // Simple format - just render as paragraphs
+      return (
+        <div className="mt-6 space-y-4">
+          {lines.map((line, idx) => {
+            if (line.trim() === '') return null;
+            if (line.startsWith('Note ')) {
+              return null; // Skip note header as it's already shown
+            }
+            return (
+              <p key={idx} className="text-gray-800 leading-relaxed">
+                {line}
+              </p>
+            );
+          })}
+        </div>
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#f7f5f2]">
@@ -569,7 +672,7 @@ export default function NoteBuilderPage() {
                         {previousPeriod}
                       </th>
                     )}
-                    <th className="py-3 px-4 text-center font-semibold text-xs uppercase w-32">Actions</th>
+                    <th className="py-3 px-4 text-center font-semibold text-xs uppercase w-56">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -597,13 +700,22 @@ export default function NoteBuilderPage() {
                         </td>
                       )}
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => openEditPanel(note)}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors"
-                        >
-                          <Edit2 size={14} />
-                          Edit
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openViewModal(note)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                          >
+                            <Eye size={14} />
+                            View
+                          </button>
+                          <button
+                            onClick={() => openEditPanel(note)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors"
+                          >
+                            <Edit2 size={14} />
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -941,6 +1053,61 @@ export default function NoteBuilderPage() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal - PDF Preview */}
+      {showViewModal && viewingNote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-8">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-blue-600 text-white px-6 py-4 flex items-center justify-between rounded-t-xl">
+              <div>
+                <h3 className="text-xl font-bold">Note Preview</h3>
+                <p className="text-sm text-blue-100 mt-1">PDF Print Preview</p>
+              </div>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* PDF-like Content Area */}
+            <div className="flex-1 overflow-auto p-8 bg-gray-100">
+              <div className="bg-white shadow-lg rounded-lg p-12 max-w-3xl mx-auto" style={{ fontFamily: 'Georgia, serif' }}>
+                <div className="border-b-2 border-gray-800 pb-4 mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Note {viewingNote.noteRef} — {viewingNote.noteName}
+                  </h1>
+                  <p className="text-sm text-gray-600 mt-2">
+                    {viewingNote.className} / {viewingNote.subclassName}
+                  </p>
+                </div>
+
+                <div className="prose max-w-none">
+                  {renderNoteContent(viewingNote)}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3 rounded-b-xl">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Print to PDF
+              </button>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
