@@ -72,6 +72,11 @@ export default function ReportingPage() {
   const [documentFooter, setDocumentFooter] = useState('');
   const [watermark, setWatermark] = useState('');
 
+  // Table states
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
+  const [tableBorderStyle, setTableBorderStyle] = useState('all');
+
   // Sync states
   const [syncStatus, setSyncStatus] = useState({
     balanceSheet: { synced: false, lastSync: null, hasChanges: true },
@@ -126,6 +131,10 @@ export default function ReportingPage() {
   // Toast
   const [toast, setToast] = useState(null);
 
+  // Refs for contentEditable
+  const contentEditableRefs = useRef({});
+  const savedSelection = useRef(null);
+
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -133,6 +142,38 @@ export default function ReportingPage() {
 
   const togglePanel = (panelName) => {
     setActivePanel(activePanel === panelName ? null : panelName);
+  };
+
+  const saveSelection = () => {
+    if (window.getSelection) {
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        savedSelection.current = sel.getRangeAt(0);
+      }
+    }
+  };
+
+  const restoreSelection = () => {
+    if (savedSelection.current) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedSelection.current);
+    } else {
+      // If no saved selection, focus on the current page's contentEditable
+      const currentPageElement = contentEditableRefs.current[selectedPageId];
+      if (currentPageElement) {
+        currentPageElement.focus();
+        // Place cursor at the end
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (currentPageElement.childNodes.length > 0) {
+          range.selectNodeContents(currentPageElement);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+    }
   };
 
   const addNewPage = () => {
@@ -206,22 +247,31 @@ export default function ReportingPage() {
   };
 
   const applyFormatting = (command, value = null) => {
+    restoreSelection();
     document.execCommand(command, false, value);
+    saveSelection();
   };
 
   const handleUndo = () => {
+    restoreSelection();
     document.execCommand('undo', false, null);
     showToast('Undo applied');
+    saveSelection();
   };
 
   const handleRedo = () => {
+    restoreSelection();
     document.execCommand('redo', false, null);
     showToast('Redo applied');
+    saveSelection();
   };
 
   const applyFontFamily = (family) => {
     setFontFamily(family);
-    applyFormatting('fontName', family);
+    restoreSelection();
+    document.execCommand('fontName', false, family);
+    saveSelection();
+    showToast(`Font changed to ${family}`);
   };
 
   const insertHeaderFooter = () => {
@@ -253,12 +303,43 @@ export default function ReportingPage() {
     }
   };
 
-  const insertTable = (rows, cols) => {
-    let tableHTML = '<table border="1" style="border-collapse: collapse; width: 100%; margin: 20px 0; color: #101828;">';
+  const insertTable = (rows, cols, borderStyle) => {
+    let cellBorderStyle = '';
+
+    switch (borderStyle) {
+      case 'top':
+        cellBorderStyle = 'border-top: 1px solid #101828;';
+        break;
+      case 'bottom':
+        cellBorderStyle = 'border-bottom: 1px solid #101828;';
+        break;
+      case 'double-top':
+        cellBorderStyle = 'border-top: 3px double #101828;';
+        break;
+      case 'double-bottom':
+        cellBorderStyle = 'border-bottom: 3px double #101828;';
+        break;
+      case 'right':
+        cellBorderStyle = 'border-right: 1px solid #101828;';
+        break;
+      case 'left':
+        cellBorderStyle = 'border-left: 1px solid #101828;';
+        break;
+      case 'all':
+        cellBorderStyle = 'border: 1px solid #101828;';
+        break;
+      case 'none':
+        cellBorderStyle = 'border: none;';
+        break;
+      default:
+        cellBorderStyle = 'border: 1px solid #101828;';
+    }
+
+    let tableHTML = '<table style="border-collapse: collapse; width: 100%; margin: 20px 0; color: #101828;">';
     for (let i = 0; i < rows; i++) {
       tableHTML += '<tr>';
       for (let j = 0; j < cols; j++) {
-        tableHTML += '<td style="border: 1px solid #101828; padding: 8px; color: #101828;">Cell</td>';
+        tableHTML += `<td style="${cellBorderStyle} padding: 8px; color: #101828;">Cell</td>`;
       }
       tableHTML += '</tr>';
     }
@@ -267,7 +348,7 @@ export default function ReportingPage() {
     const selectedPage = pages.find(p => p.id === selectedPageId);
     if (selectedPage) {
       updatePageContent(selectedPageId, selectedPage.content + tableHTML);
-      showToast('Table inserted');
+      showToast(`Table inserted with ${borderStyle} border`);
     }
   };
 
@@ -622,10 +703,14 @@ export default function ReportingPage() {
 
                 {/* Editable Content */}
                 <div
+                  ref={(el) => { contentEditableRefs.current[page.id] = el; }}
                   contentEditable
                   suppressContentEditableWarning
                   dangerouslySetInnerHTML={{ __html: page.content }}
                   onBlur={(e) => updatePageContent(page.id, e.target.innerHTML)}
+                  onMouseUp={saveSelection}
+                  onKeyUp={saveSelection}
+                  onFocus={saveSelection}
                   className="outline-none"
                   style={{
                     minHeight: '800px',
@@ -751,15 +836,21 @@ export default function ReportingPage() {
                     type="number"
                     value={fontSize}
                     onChange={(e) => {
-                      setFontSize(e.target.value);
-                      const size = parseInt(e.target.value);
-                      document.execCommand('fontSize', false, '7');
-                      const fontElements = document.getElementsByTagName("font");
-                      for (let i = 0; i < fontElements.length; i++) {
-                        if (fontElements[i].size == "7") {
-                          fontElements[i].removeAttribute("size");
-                          fontElements[i].style.fontSize = size + "px";
+                      const newSize = e.target.value;
+                      setFontSize(newSize);
+                      const size = parseInt(newSize);
+                      if (size >= 8 && size <= 72) {
+                        restoreSelection();
+                        document.execCommand('fontSize', false, '7');
+                        const fontElements = document.getElementsByTagName("font");
+                        for (let i = 0; i < fontElements.length; i++) {
+                          if (fontElements[i].size == "7") {
+                            fontElements[i].removeAttribute("size");
+                            fontElements[i].style.fontSize = size + "px";
+                          }
                         }
+                        saveSelection();
+                        showToast(`Font size changed to ${size}px`);
                       }
                     }}
                     min="8"
@@ -882,36 +973,56 @@ export default function ReportingPage() {
                 {/* Insert Table */}
                 <div>
                   <h4 className="text-sm font-bold text-[#101828] mb-3">Insert Table</h4>
-                  <button
-                    onClick={() => insertTable(3, 3)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <TableIcon size={16} />
-                    Insert 3x3 Table
-                  </button>
-                </div>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs text-gray-600 mb-1 block">Rows</label>
+                        <input
+                          type="number"
+                          value={tableRows}
+                          onChange={(e) => setTableRows(parseInt(e.target.value) || 1)}
+                          min="1"
+                          max="20"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-gray-600 mb-1 block">Columns</label>
+                        <input
+                          type="number"
+                          value={tableCols}
+                          onChange={(e) => setTableCols(parseInt(e.target.value) || 1)}
+                          min="1"
+                          max="10"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
 
-                {/* Table Borders */}
-                <div>
-                  <h4 className="text-sm font-bold text-[#101828] mb-3">Table Borders</h4>
-                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Border Style</label>
+                      <select
+                        value={tableBorderStyle}
+                        onChange={(e) => setTableBorderStyle(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">All Borders</option>
+                        <option value="top">Top Border Only</option>
+                        <option value="bottom">Bottom Border Only</option>
+                        <option value="double-top">Double Top Border</option>
+                        <option value="double-bottom">Double Bottom Border</option>
+                        <option value="right">Right Border Only</option>
+                        <option value="left">Left Border Only</option>
+                        <option value="none">No Borders</option>
+                      </select>
+                    </div>
+
                     <button
-                      onClick={() => {
-                        document.execCommand('insertHTML', false, '<style>table, th, td { border: 1px solid #101828; border-collapse: collapse; }</style>');
-                        showToast('Table borders added');
-                      }}
-                      className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm font-semibold hover:bg-gray-800"
+                      onClick={() => insertTable(tableRows, tableCols, tableBorderStyle)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                      Add Borders
-                    </button>
-                    <button
-                      onClick={() => {
-                        document.execCommand('insertHTML', false, '<style>table, th, td { border: none; }</style>');
-                        showToast('Table borders removed');
-                      }}
-                      className="w-full px-3 py-2 bg-gray-400 text-white rounded text-sm font-semibold hover:bg-gray-500"
-                    >
-                      Remove Borders
+                      <TableIcon size={16} />
+                      Insert Table ({tableRows}x{tableCols})
                     </button>
                   </div>
                 </div>
