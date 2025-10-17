@@ -342,49 +342,62 @@ export default function NoteBuilderPage() {
   };
 
   const generateNoteMarkdown = (note) => {
-    // Get all GL accounts (sub-notes) for this note
+    // Get all GL accounts for this note
     const noteGLs = glAccounts.filter(gl =>
       gl.class_name === note.className &&
       gl.subclass_name === note.subclassName &&
       gl.note_name === note.noteName
     );
 
+    const className = note.className;
+
+    // Group GL accounts by sub-note name
+    const subNoteGroups = {};
+    noteGLs.forEach(gl => {
+      const subNoteName = gl.subnote_name || gl.account_name;
+      if (!subNoteGroups[subNoteName]) {
+        subNoteGroups[subNoteName] = [];
+      }
+      subNoteGroups[subNoteName].push(gl);
+    });
+
     // Calculate totals
     let totalCurrent = 0;
     let totalPrevious = 0;
-    const className = note.className;
 
-    // Build sub-note data using consolidated values
-    const subNoteData = noteGLs.map(gl => {
-      // Calculate consolidated current year value
+    // Build sub-note data (one entry per unique sub-note name)
+    const subNoteData = Object.keys(subNoteGroups).map(subNoteName => {
+      const glGroup = subNoteGroups[subNoteName];
+
+      // Calculate consolidated current year value for this sub-note
       let currentValue = 0;
       entities.forEach(entity => {
-        currentValue += getEntityValue([gl], entity.id, className, currentPeriod);
+        currentValue += getEntityValue(glGroup, entity.id, className, currentPeriod);
       });
-      currentValue += getEliminationValue([gl], className);
-      currentValue += getAdjustmentValue([gl], className);
+      currentValue += getEliminationValue(glGroup, className);
+      currentValue += getAdjustmentValue(glGroup, className);
       totalCurrent += currentValue;
 
       // Calculate consolidated previous year value
       let previousValue = 0;
       if (previousPeriod) {
         entities.forEach(entity => {
-          previousValue += getEntityValue([gl], entity.id, className, previousPeriod);
+          previousValue += getEntityValue(glGroup, entity.id, className, previousPeriod);
         });
-        previousValue += getEliminationValue([gl], className);
-        previousValue += getAdjustmentValue([gl], className);
+        previousValue += getEliminationValue(glGroup, className);
+        previousValue += getAdjustmentValue(glGroup, className);
         totalPrevious += previousValue;
       }
 
       return {
-        name: gl.subnote_name || gl.account_name,
+        name: subNoteName,
         current: formatCurrency(currentValue),
         previous: previousValue !== 0 ? formatCurrency(previousValue) : ''
       };
     });
 
-    // If only one sub-note, show just one line - no total needed
-    if (noteGLs.length === 1) {
+    // If only one unique sub-note, show just one line - no total needed
+    if (subNoteData.length === 1) {
       let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
       content += `${subNoteData[0].name}\n`;
       content += `Current Year (${currentPeriod}): ${subNoteData[0].current}`;
