@@ -298,7 +298,80 @@ export default function NoteBuilderPage() {
   const openEditPanel = (note) => {
     setEditingNote(note);
     setEditMode('text');
+
+    // If note content is empty or doesn't exist, populate with default markdown table
+    if (!noteContents[note.noteRef] || noteContents[note.noteRef].trim() === '') {
+      const markdownTable = generateNoteMarkdown(note);
+      setNoteContents(prev => ({
+        ...prev,
+        [note.noteRef]: markdownTable
+      }));
+    }
+
     setShowEditPanel(true);
+  };
+
+  const generateNoteMarkdown = (note) => {
+    // Get all GL accounts (sub-notes) for this note
+    const noteGLs = glAccounts.filter(gl =>
+      gl.class_name === note.className &&
+      gl.subclass_name === note.subclassName &&
+      gl.note_name === note.noteName
+    );
+
+    // Build markdown table
+    let markdown = `### Note ${note.noteRef} — ${note.noteName}\n\n`;
+
+    // Table header
+    markdown += `| Description | Current Year (${currentPeriod}) |`;
+    if (previousPeriod) {
+      markdown += ` Previous Year (${previousPeriod}) |`;
+    }
+    markdown += `\n`;
+
+    // Table separator
+    markdown += `|--------------|----------------------------------|`;
+    if (previousPeriod) {
+      markdown += `------------------------------------|`;
+    }
+    markdown += `\n`;
+
+    // Calculate totals
+    let totalCurrent = 0;
+    let totalPrevious = 0;
+
+    // Table rows for each sub-note (GL account)
+    noteGLs.forEach(gl => {
+      const currentTB = trialBalances.find(tb =>
+        tb.account_code === gl.account_code &&
+        tb.period === currentPeriod
+      );
+      const currentValue = currentTB ? (currentTB.debit || 0) - (currentTB.credit || 0) : 0;
+      totalCurrent += currentValue;
+
+      markdown += `| ${gl.subnote_name || gl.account_name} | ${formatCurrency(currentValue)} |`;
+
+      if (previousPeriod) {
+        const previousTB = trialBalances.find(tb =>
+          tb.account_code === gl.account_code &&
+          tb.period === previousPeriod
+        );
+        const previousValue = previousTB ? (previousTB.debit || 0) - (previousTB.credit || 0) : 0;
+        totalPrevious += previousValue;
+        markdown += ` ${formatCurrency(previousValue)} |`;
+      }
+
+      markdown += `\n`;
+    });
+
+    // Total row
+    markdown += `| **Total** | **${formatCurrency(totalCurrent)}** |`;
+    if (previousPeriod) {
+      markdown += ` **${formatCurrency(totalPrevious)}** |`;
+    }
+    markdown += `\n`;
+
+    return markdown;
   };
 
   const getNoteValue = (note, period) => {
