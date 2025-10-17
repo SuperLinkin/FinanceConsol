@@ -319,29 +319,12 @@ export default function NoteBuilderPage() {
       gl.note_name === note.noteName
     );
 
-    // Build markdown table
-    let markdown = `### Note ${note.noteRef} — ${note.noteName}\n\n`;
-
-    // Table header
-    markdown += `| Description | Current Year (${currentPeriod}) |`;
-    if (previousPeriod) {
-      markdown += ` Previous Year (${previousPeriod}) |`;
-    }
-    markdown += `\n`;
-
-    // Table separator
-    markdown += `|--------------|----------------------------------|`;
-    if (previousPeriod) {
-      markdown += `------------------------------------|`;
-    }
-    markdown += `\n`;
-
     // Calculate totals
     let totalCurrent = 0;
     let totalPrevious = 0;
 
-    // Table rows for each sub-note (GL account)
-    noteGLs.forEach(gl => {
+    // Build sub-note data
+    const subNoteData = noteGLs.map(gl => {
       const currentTB = trialBalances.find(tb =>
         tb.account_code === gl.account_code &&
         tb.period === currentPeriod
@@ -349,29 +332,76 @@ export default function NoteBuilderPage() {
       const currentValue = currentTB ? (currentTB.debit || 0) - (currentTB.credit || 0) : 0;
       totalCurrent += currentValue;
 
-      markdown += `| ${gl.subnote_name || gl.account_name} | ${formatCurrency(currentValue)} |`;
-
+      let previousValue = 0;
       if (previousPeriod) {
         const previousTB = trialBalances.find(tb =>
           tb.account_code === gl.account_code &&
           tb.period === previousPeriod
         );
-        const previousValue = previousTB ? (previousTB.debit || 0) - (previousTB.credit || 0) : 0;
+        previousValue = previousTB ? (previousTB.debit || 0) - (previousTB.credit || 0) : 0;
         totalPrevious += previousValue;
-        markdown += ` ${formatCurrency(previousValue)} |`;
       }
 
-      markdown += `\n`;
+      return {
+        name: gl.subnote_name || gl.account_name,
+        current: formatCurrency(currentValue),
+        previous: previousValue !== 0 ? formatCurrency(previousValue) : ''
+      };
+    });
+
+    // If only one sub-note, show simple format
+    if (noteGLs.length === 1) {
+      let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
+      content += `${subNoteData[0].name}\n`;
+      content += `Current Year (${currentPeriod}): ${subNoteData[0].current}`;
+      if (previousPeriod && subNoteData[0].previous) {
+        content += `\nPrevious Year (${previousPeriod}): ${subNoteData[0].previous}`;
+      }
+      return content;
+    }
+
+    // Multiple sub-notes - show table format
+    let content = `Note ${note.noteRef} — ${note.noteName}\n\n`;
+
+    // Header
+    content += `Description`.padEnd(40);
+    content += `Current Year (${currentPeriod})`.padEnd(25);
+    if (previousPeriod) {
+      content += `Previous Year (${previousPeriod})`;
+    }
+    content += `\n`;
+    content += `${'='.repeat(40)}`;
+    content += `${'='.repeat(25)}`;
+    if (previousPeriod) {
+      content += `${'='.repeat(30)}`;
+    }
+    content += `\n`;
+
+    // Sub-note rows
+    subNoteData.forEach(sub => {
+      content += `${sub.name.padEnd(40)}`;
+      content += `${sub.current.padEnd(25)}`;
+      if (previousPeriod) {
+        content += `${sub.previous.padEnd(30)}`;
+      }
+      content += `\n`;
     });
 
     // Total row
-    markdown += `| **Total** | **${formatCurrency(totalCurrent)}** |`;
+    content += `${'='.repeat(40)}`;
+    content += `${'='.repeat(25)}`;
     if (previousPeriod) {
-      markdown += ` **${formatCurrency(totalPrevious)}** |`;
+      content += `${'='.repeat(30)}`;
     }
-    markdown += `\n`;
+    content += `\n`;
+    content += `${'Total'.padEnd(40)}`;
+    content += `${formatCurrency(totalCurrent).padEnd(25)}`;
+    if (previousPeriod) {
+      content += `${formatCurrency(totalPrevious).padEnd(30)}`;
+    }
+    content += `\n`;
 
-    return markdown;
+    return content;
   };
 
   const getNoteValue = (note, period) => {
