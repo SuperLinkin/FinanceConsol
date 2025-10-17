@@ -50,7 +50,8 @@ export default function ReportingPage() {
   });
 
   // Sidepanel states
-  const [activePanel, setActivePanel] = useState(null); // 'editor' | 'sync' | 'validation' | 'pages'
+  const [activePanel, setActivePanel] = useState(null); // 'editor' | 'sync' | 'validation' | 'pages' | 'version'
+  const [versionTab, setVersionTab] = useState('history'); // 'history' | 'activity'
 
   // Editor states
   const [selectedText, setSelectedText] = useState(null);
@@ -76,6 +77,12 @@ export default function ReportingPage() {
   // Version control states
   const [versions, setVersions] = useState([
     { id: 1, timestamp: new Date().toISOString(), user: 'Demo User', action: 'Document created' }
+  ]);
+
+  // Activity log states
+  const [activityLog, setActivityLog] = useState([
+    { id: 1, timestamp: new Date().toISOString(), user: 'Demo User', action: 'Document created', type: 'create' },
+    { id: 2, timestamp: new Date(Date.now() - 3600000).toISOString(), user: 'Demo User', action: 'Opened document', type: 'view' }
   ]);
 
   // Toast
@@ -139,13 +146,24 @@ export default function ReportingPage() {
   };
 
   const saveDocument = () => {
+    const timestamp = new Date().toISOString();
     const newVersion = {
       id: versions.length + 1,
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp,
       user: 'Demo User',
       action: 'Document saved'
     };
     setVersions([newVersion, ...versions]);
+
+    const newActivity = {
+      id: activityLog.length + 1,
+      timestamp: timestamp,
+      user: 'Demo User',
+      action: 'Saved document',
+      type: 'edit'
+    };
+    setActivityLog([newActivity, ...activityLog]);
+
     showToast('Document saved successfully');
   };
 
@@ -427,6 +445,15 @@ export default function ReportingPage() {
               <Layers size={16} />
               Pages
             </button>
+            <button
+              onClick={() => togglePanel('version')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activePanel === 'version' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+              }`}
+            >
+              <Clock size={16} />
+              Version
+            </button>
 
             <div className="ml-auto flex items-center gap-2">
               <button
@@ -481,33 +508,9 @@ export default function ReportingPage() {
           </div>
         </div>
 
-        {/* Version Control Section */}
-        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
-            <h3 className="text-lg font-bold text-[#101828]">Version History</h3>
-          </div>
-          <div className="p-4 space-y-3">
-            {versions.map((version) => (
-              <div key={version.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock size={14} className="text-gray-600" />
-                  <span className="text-xs text-gray-600">
-                    {new Date(version.timestamp).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mb-1">
-                  <User size={14} className="text-gray-600" />
-                  <span className="text-sm font-medium text-[#101828]">{version.user}</span>
-                </div>
-                <p className="text-sm text-gray-700">{version.action}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Editor Sidepanel */}
         {activePanel === 'editor' && (
-          <div className="fixed right-80 top-0 h-full w-80 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+          <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
             <div className="h-full flex flex-col">
               <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
                 <h3 className="text-xl font-bold">Editor</h3>
@@ -698,7 +701,7 @@ export default function ReportingPage() {
 
         {/* Sync Sidepanel */}
         {activePanel === 'sync' && (
-          <div className="fixed right-80 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
             <div className="h-full flex flex-col">
               <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
                 <h3 className="text-xl font-bold">Sync Data</h3>
@@ -766,7 +769,7 @@ export default function ReportingPage() {
 
         {/* Validation Sidepanel */}
         {activePanel === 'validation' && (
-          <div className="fixed right-80 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
             <div className="h-full flex flex-col">
               <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
                 <h3 className="text-xl font-bold">Validation</h3>
@@ -825,7 +828,7 @@ export default function ReportingPage() {
 
         {/* Pages Sidepanel */}
         {activePanel === 'pages' && (
-          <div className="fixed right-80 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
             <div className="h-full flex flex-col">
               <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
                 <h3 className="text-xl font-bold">Pages</h3>
@@ -894,6 +897,110 @@ export default function ReportingPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Version Sidepanel */}
+        {activePanel === 'version' && (
+          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+            <div className="h-full flex flex-col">
+              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
+                <h3 className="text-xl font-bold">Version Control</h3>
+                <button
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Sub-tabs */}
+              <div className="flex border-b border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => setVersionTab('history')}
+                  className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+                    versionTab === 'history'
+                      ? 'bg-white text-[#101828] border-b-2 border-[#101828]'
+                      : 'text-gray-600 hover:text-[#101828]'
+                  }`}
+                >
+                  Version History
+                </button>
+                <button
+                  onClick={() => setVersionTab('activity')}
+                  className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+                    versionTab === 'activity'
+                      ? 'bg-white text-[#101828] border-b-2 border-[#101828]'
+                      : 'text-gray-600 hover:text-[#101828]'
+                  }`}
+                >
+                  Activity Log
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto">
+                {versionTab === 'history' && (
+                  <div className="p-6 space-y-3">
+                    <p className="text-sm text-gray-600 mb-4">Track all document saves and versions</p>
+                    {versions.map((version) => (
+                      <div key={version.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock size={14} className="text-gray-600" />
+                          <span className="text-xs text-gray-600">
+                            {new Date(version.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <User size={14} className="text-gray-600" />
+                          <span className="text-sm font-medium text-[#101828]">{version.user}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-3">{version.action}</p>
+                        <div className="flex gap-2">
+                          <button className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700">
+                            Restore
+                          </button>
+                          <button className="flex-1 px-3 py-1 bg-gray-200 text-[#101828] rounded text-xs font-semibold hover:bg-gray-300">
+                            View
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {versionTab === 'activity' && (
+                  <div className="p-6 space-y-3">
+                    <p className="text-sm text-gray-600 mb-4">All document activities and changes</p>
+                    {activityLog.map((activity) => (
+                      <div key={activity.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-gray-600" />
+                            <span className="text-xs text-gray-600">
+                              {new Date(activity.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded font-semibold ${
+                            activity.type === 'create' ? 'bg-green-100 text-green-800' :
+                            activity.type === 'edit' ? 'bg-blue-100 text-blue-800' :
+                            activity.type === 'delete' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {activity.type}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <User size={14} className="text-gray-600" />
+                          <span className="text-sm font-medium text-[#101828]">{activity.user}</span>
+                        </div>
+                        <p className="text-sm text-gray-700">{activity.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
