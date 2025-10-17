@@ -35,7 +35,7 @@ import {
   Hash,
   Sparkles,
   FileSearch,
-  Header,
+  Heading,
   Droplet
 } from 'lucide-react';
 
@@ -829,7 +829,7 @@ export default function ReportingPage() {
                 {/* Header & Footer */}
                 <div>
                   <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
-                    <Header size={16} />
+                    <Heading size={16} />
                     Header & Footer
                   </h4>
                   <div className="space-y-2">
