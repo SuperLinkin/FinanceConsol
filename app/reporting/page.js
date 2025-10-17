@@ -29,7 +29,14 @@ import {
   AlertCircle,
   Clock,
   User,
-  FileDown
+  FileDown,
+  Undo,
+  Redo,
+  Hash,
+  Sparkles,
+  FileSearch,
+  Header,
+  Droplet
 } from 'lucide-react';
 
 export default function ReportingPage() {
@@ -50,7 +57,7 @@ export default function ReportingPage() {
   });
 
   // Sidepanel states
-  const [activePanel, setActivePanel] = useState(null); // 'editor' | 'sync' | 'validation' | 'pages' | 'version'
+  const [activePanel, setActivePanel] = useState(null); // 'editor' | 'sync' | 'validation' | 'pages' | 'version' | 'numbers' | 'ai' | 'templates'
   const [versionTab, setVersionTab] = useState('history'); // 'history' | 'activity'
 
   // Editor states
@@ -58,6 +65,12 @@ export default function ReportingPage() {
   const [textColor, setTextColor] = useState('#101828');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [fontSize, setFontSize] = useState('16');
+  const [fontFamily, setFontFamily] = useState('Arial');
+  const [lineSpacing, setLineSpacing] = useState('1.6');
+  const [paragraphSpacing, setParagraphSpacing] = useState('10');
+  const [documentHeader, setDocumentHeader] = useState('');
+  const [documentFooter, setDocumentFooter] = useState('');
+  const [watermark, setWatermark] = useState('');
 
   // Sync states
   const [syncStatus, setSyncStatus] = useState({
@@ -84,6 +97,31 @@ export default function ReportingPage() {
     { id: 1, timestamp: new Date().toISOString(), user: 'Demo User', action: 'Document created', type: 'create' },
     { id: 2, timestamp: new Date(Date.now() - 3600000).toISOString(), user: 'Demo User', action: 'Opened document', type: 'view' }
   ]);
+
+  // Numbers/Formula states
+  const [formulas, setFormulas] = useState([
+    { id: 1, name: 'Total Assets', formula: 'SUM(GL:1000-1999)', scope: 'all_entities', noteLevel: false },
+    { id: 2, name: 'Revenue Note 5', formula: 'SUM(GL:4000-4999)', scope: 'all_entities', noteLevel: true, note: 5 }
+  ]);
+
+  // AI Chat states
+  const [aiMessages, setAiMessages] = useState([
+    { id: 1, role: 'assistant', content: 'Hello! I can help you with financial statement design, note structuring, and reporting suggestions. What would you like assistance with?' }
+  ]);
+  const [aiInput, setAiInput] = useState('');
+
+  // Templates states
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templates, setTemplates] = useState([
+    { id: 1, name: 'Standard Balance Sheet', category: 'Financial Statements', keywords: ['balance sheet', 'assets', 'liabilities', 'equity'], content: '<h2>Balance Sheet Template</h2>' },
+    { id: 2, name: 'Income Statement - Detailed', category: 'Financial Statements', keywords: ['income statement', 'profit', 'revenue', 'expenses'], content: '<h2>Income Statement Template</h2>' },
+    { id: 3, name: 'Note 1 - Accounting Policies', category: 'Notes', keywords: ['accounting policies', 'note 1', 'basis'], content: '<h3>Note 1: Accounting Policies</h3>' },
+    { id: 4, name: 'Cash Flow - Direct Method', category: 'Financial Statements', keywords: ['cash flow', 'direct method', 'operating', 'investing', 'financing'], content: '<h2>Cash Flow Statement</h2>' }
+  ]);
+
+  // History for undo/redo
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -169,6 +207,50 @@ export default function ReportingPage() {
 
   const applyFormatting = (command, value = null) => {
     document.execCommand(command, false, value);
+  };
+
+  const handleUndo = () => {
+    document.execCommand('undo', false, null);
+    showToast('Undo applied');
+  };
+
+  const handleRedo = () => {
+    document.execCommand('redo', false, null);
+    showToast('Redo applied');
+  };
+
+  const applyFontFamily = (family) => {
+    setFontFamily(family);
+    applyFormatting('fontName', family);
+  };
+
+  const insertHeaderFooter = () => {
+    // Add header and footer to all pages
+    const updatedPages = pages.map(page => {
+      let content = page.content;
+      if (documentHeader) {
+        const headerHTML = `<div style="text-align: center; color: #101828; font-size: 12px; padding-bottom: 20px; border-bottom: 1px solid #ccc; margin-bottom: 20px;">${documentHeader}</div>`;
+        if (!content.includes(headerHTML)) {
+          content = headerHTML + content;
+        }
+      }
+      if (documentFooter) {
+        const footerHTML = `<div style="text-align: center; color: #101828; font-size: 12px; padding-top: 20px; border-top: 1px solid #ccc; margin-top: 20px;">${documentFooter}</div>`;
+        if (!content.includes(footerHTML)) {
+          content = content + footerHTML;
+        }
+      }
+      return { ...page, content };
+    });
+    setPages(updatedPages);
+    showToast('Header/Footer applied');
+  };
+
+  const applyWatermark = () => {
+    // Apply watermark styling to document
+    if (watermark) {
+      showToast('Watermark applied to document');
+    }
   };
 
   const insertTable = (rows, cols) => {
@@ -409,6 +491,24 @@ export default function ReportingPage() {
         <div className="flex-1 overflow-auto bg-gray-300 p-8">
           {/* Toolbar */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-3 flex items-center gap-2 flex-wrap">
+            {/* Undo/Redo */}
+            <button
+              onClick={handleUndo}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-[#101828] hover:bg-gray-200 transition-colors"
+              title="Undo"
+            >
+              <Undo size={16} />
+            </button>
+            <button
+              onClick={handleRedo}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-[#101828] hover:bg-gray-200 transition-colors"
+              title="Redo"
+            >
+              <Redo size={16} />
+            </button>
+
+            <div className="w-px h-6 bg-gray-300"></div>
+
             <button
               onClick={() => togglePanel('editor')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -453,6 +553,36 @@ export default function ReportingPage() {
             >
               <Clock size={16} />
               Version
+            </button>
+
+            <div className="w-px h-6 bg-gray-300"></div>
+
+            <button
+              onClick={() => togglePanel('numbers')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activePanel === 'numbers' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+              }`}
+            >
+              <Hash size={16} />
+              Numbers
+            </button>
+            <button
+              onClick={() => togglePanel('ai')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activePanel === 'ai' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+              }`}
+            >
+              <Sparkles size={16} />
+              Ask AI
+            </button>
+            <button
+              onClick={() => togglePanel('templates')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activePanel === 'templates' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+              }`}
+            >
+              <FileSearch size={16} />
+              Templates
             </button>
 
             <div className="ml-auto flex items-center gap-2">
@@ -595,22 +725,48 @@ export default function ReportingPage() {
                   </div>
                 </div>
 
+                {/* Font Family */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Font Style</h4>
+                  <select
+                    value={fontFamily}
+                    onChange={(e) => applyFontFamily(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Calibri">Calibri</option>
+                    <option value="Cambria">Cambria</option>
+                  </select>
+                </div>
+
                 {/* Font Size */}
                 <div>
-                  <h4 className="text-sm font-bold text-[#101828] mb-3">Font Size</h4>
-                  <select
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Font Size (px)</h4>
+                  <input
+                    type="number"
                     value={fontSize}
                     onChange={(e) => {
                       setFontSize(e.target.value);
-                      applyFormatting('fontSize', e.target.value);
+                      const size = parseInt(e.target.value);
+                      document.execCommand('fontSize', false, '7');
+                      const fontElements = document.getElementsByTagName("font");
+                      for (let i = 0; i < fontElements.length; i++) {
+                        if (fontElements[i].size == "7") {
+                          fontElements[i].removeAttribute("size");
+                          fontElements[i].style.fontSize = size + "px";
+                        }
+                      }
                     }}
+                    min="8"
+                    max="72"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="1">Small</option>
-                    <option value="3">Normal</option>
-                    <option value="5">Large</option>
-                    <option value="7">Huge</option>
-                  </select>
+                    placeholder="16"
+                  />
                 </div>
 
                 {/* Colors */}
@@ -640,6 +796,89 @@ export default function ReportingPage() {
                   />
                 </div>
 
+                {/* Line Spacing */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Line Spacing</h4>
+                  <select
+                    value={lineSpacing}
+                    onChange={(e) => setLineSpacing(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="1.0">Single (1.0)</option>
+                    <option value="1.15">1.15</option>
+                    <option value="1.5">1.5</option>
+                    <option value="1.6">1.6</option>
+                    <option value="2.0">Double (2.0)</option>
+                  </select>
+                </div>
+
+                {/* Paragraph Spacing */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Paragraph Spacing (px)</h4>
+                  <input
+                    type="number"
+                    value={paragraphSpacing}
+                    onChange={(e) => setParagraphSpacing(e.target.value)}
+                    min="0"
+                    max="50"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="10"
+                  />
+                </div>
+
+                {/* Header & Footer */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
+                    <Header size={16} />
+                    Header & Footer
+                  </h4>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={documentHeader}
+                      onChange={(e) => setDocumentHeader(e.target.value)}
+                      placeholder="Header text..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      value={documentFooter}
+                      onChange={(e) => setDocumentFooter(e.target.value)}
+                      placeholder="Footer text..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={insertHeaderFooter}
+                      className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700"
+                    >
+                      Apply Header/Footer
+                    </button>
+                  </div>
+                </div>
+
+                {/* Watermark */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
+                    <Droplet size={16} />
+                    Watermark
+                  </h4>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={watermark}
+                      onChange={(e) => setWatermark(e.target.value)}
+                      placeholder="Watermark text..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={applyWatermark}
+                      className="w-full px-3 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700"
+                    >
+                      Apply Watermark
+                    </button>
+                  </div>
+                </div>
+
                 {/* Insert Table */}
                 <div>
                   <h4 className="text-sm font-bold text-[#101828] mb-3">Insert Table</h4>
@@ -650,6 +889,31 @@ export default function ReportingPage() {
                     <TableIcon size={16} />
                     Insert 3x3 Table
                   </button>
+                </div>
+
+                {/* Table Borders */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Table Borders</h4>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        document.execCommand('insertHTML', false, '<style>table, th, td { border: 1px solid #101828; border-collapse: collapse; }</style>');
+                        showToast('Table borders added');
+                      }}
+                      className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm font-semibold hover:bg-gray-800"
+                    >
+                      Add Borders
+                    </button>
+                    <button
+                      onClick={() => {
+                        document.execCommand('insertHTML', false, '<style>table, th, td { border: none; }</style>');
+                        showToast('Table borders removed');
+                      }}
+                      className="w-full px-3 py-2 bg-gray-400 text-white rounded text-sm font-semibold hover:bg-gray-500"
+                    >
+                      Remove Borders
+                    </button>
+                  </div>
                 </div>
 
                 {/* Margins */}
@@ -999,6 +1263,281 @@ export default function ReportingPage() {
                         <p className="text-sm text-gray-700">{activity.action}</p>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Numbers Sidepanel */}
+        {activePanel === 'numbers' && (
+          <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+            <div className="h-full flex flex-col">
+              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
+                <h3 className="text-xl font-bold">Numbers & Formulas</h3>
+                <button
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <p className="text-sm text-gray-600 mb-4">Create dynamic formulas for GL accounts, entities, and note-level consolidation</p>
+
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">
+                  <Plus size={16} />
+                  Create New Formula
+                </button>
+
+                <div className="space-y-3">
+                  {formulas.map((formula) => (
+                    <div key={formula.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-[#101828]">{formula.name}</h4>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">
+                          {formula.noteLevel ? 'Note Level' : 'GL Level'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded mb-2">{formula.formula}</p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Scope:</span>
+                        <span className="text-xs font-semibold text-[#101828]">
+                          {formula.scope === 'all_entities' ? 'All Entities (Combined)' : `Entity: ${formula.scope}`}
+                        </span>
+                      </div>
+                      {formula.noteLevel && formula.note && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-gray-500">Note:</span>
+                          <span className="text-xs font-semibold text-[#101828]">Note {formula.note}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-3">
+                        <button className="flex-1 px-3 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700">
+                          Insert to Document
+                        </button>
+                        <button className="px-3 py-1 bg-gray-200 text-[#101828] rounded text-xs font-semibold hover:bg-gray-300">
+                          Edit
+                        </button>
+                        <button className="px-3 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold hover:bg-red-200">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Formula Builder Section */}
+                <div className="mt-6 border-t border-gray-200 pt-6">
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Formula Builder</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Formula Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Total Revenue"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Formula Expression</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., SUM(GL:4000-4999)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Scope</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all_entities">All Entities (Combined)</option>
+                        <option value="entity_1">Entity 1</option>
+                        <option value="entity_2">Entity 2</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" className="rounded" id="noteLevel" />
+                      <label htmlFor="noteLevel" className="text-sm text-gray-700">Note Level Consolidation</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ask AI Sidepanel */}
+        {activePanel === 'ai' && (
+          <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+            <div className="h-full flex flex-col">
+              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={20} />
+                  <h3 className="text-xl font-bold">Ask AI</h3>
+                </div>
+                <button
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {aiMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`p-4 rounded-lg ${
+                      message.role === 'assistant'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : 'bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {message.role === 'assistant' ? (
+                        <Sparkles size={16} className="text-blue-600" />
+                      ) : (
+                        <User size={16} className="text-gray-600" />
+                      )}
+                      <span className="text-xs font-semibold text-[#101828]">
+                        {message.role === 'assistant' ? 'AI Assistant' : 'You'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700">{message.content}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-gray-200 p-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    placeholder="Ask for suggestions, design notes, or formatting help..."
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && aiInput.trim()) {
+                        const newMessage = {
+                          id: aiMessages.length + 1,
+                          role: 'user',
+                          content: aiInput
+                        };
+                        setAiMessages([...aiMessages, newMessage, {
+                          id: aiMessages.length + 2,
+                          role: 'assistant',
+                          content: 'This is a placeholder response. In production, this would connect to an AI service to provide intelligent suggestions about financial statement design, note structuring, and reporting best practices.'
+                        }]);
+                        setAiInput('');
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (aiInput.trim()) {
+                        const newMessage = {
+                          id: aiMessages.length + 1,
+                          role: 'user',
+                          content: aiInput
+                        };
+                        setAiMessages([...aiMessages, newMessage, {
+                          id: aiMessages.length + 2,
+                          role: 'assistant',
+                          content: 'This is a placeholder response. In production, this would connect to an AI service to provide intelligent suggestions.'
+                        }]);
+                        setAiInput('');
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+                  >
+                    Send
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">AI can help with note structuring, formatting, and compliance suggestions</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Templates Sidepanel */}
+        {activePanel === 'templates' && (
+          <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+            <div className="h-full flex flex-col">
+              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileSearch size={20} />
+                  <h3 className="text-xl font-bold">Template Library</h3>
+                </div>
+                <button
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 border-b border-gray-200">
+                <input
+                  type="text"
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  placeholder="Search templates by keyword..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-2">Search by keywords: balance sheet, income statement, notes, cash flow, policies, etc.</p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {templates
+                  .filter(template =>
+                    templateSearch === '' ||
+                    template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                    template.category.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                    template.keywords.some(kw => kw.toLowerCase().includes(templateSearch.toLowerCase()))
+                  )
+                  .map((template) => (
+                    <div key={template.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-[#101828]">{template.name}</h4>
+                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-semibold">
+                          {template.category}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {template.keywords.map((keyword, idx) => (
+                          <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const selectedPage = pages.find(p => p.id === selectedPageId);
+                          if (selectedPage) {
+                            updatePageContent(selectedPageId, selectedPage.content + template.content);
+                            showToast(`${template.name} added to document`);
+                          }
+                        }}
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center justify-center gap-2"
+                      >
+                        <Plus size={16} />
+                        Add to Document
+                      </button>
+                    </div>
+                  ))}
+
+                {templates.filter(template =>
+                  templateSearch === '' ||
+                  template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                  template.category.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                  template.keywords.some(kw => kw.toLowerCase().includes(templateSearch.toLowerCase()))
+                ).length === 0 && (
+                  <div className="text-center py-12">
+                    <FileSearch size={48} className="text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No templates found matching "{templateSearch}"</p>
+                    <p className="text-xs text-gray-400 mt-2">Try different keywords like "balance sheet", "notes", or "cash flow"</p>
                   </div>
                 )}
               </div>
