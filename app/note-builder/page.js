@@ -554,10 +554,10 @@ export default function NoteBuilderPage() {
           <table className="w-full border-collapse border border-gray-300">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Description</th>
-                <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Current Year ({currentPeriod})</th>
+                <th className="border border-gray-300 px-4 py-3 text-left font-semibold text-gray-900">Description</th>
+                <th className="border border-gray-300 px-4 py-3 text-right font-semibold text-gray-900">Current Year ({currentPeriod})</th>
                 {previousPeriod && (
-                  <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Previous Year ({previousPeriod})</th>
+                  <th className="border border-gray-300 px-4 py-3 text-right font-semibold text-gray-900">Previous Year ({previousPeriod})</th>
                 )}
               </tr>
             </thead>
@@ -566,10 +566,10 @@ export default function NoteBuilderPage() {
                 const cells = row.split(/\s{2,}/).filter(c => c.trim());
                 return (
                   <tr key={idx} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2">{cells[0]?.trim()}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right font-mono">{cells[1]?.trim()}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-gray-900">{cells[0]?.trim()}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right font-mono text-gray-900">{cells[1]?.trim()}</td>
                     {previousPeriod && cells[2] && (
-                      <td className="border border-gray-300 px-4 py-2 text-right font-mono">{cells[2]?.trim()}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right font-mono text-gray-900">{cells[2]?.trim()}</td>
                     )}
                   </tr>
                 );
@@ -577,7 +577,7 @@ export default function NoteBuilderPage() {
               {totalRow && (
                 <tr className="bg-gray-100 font-bold">
                   {totalRow.split(/\s{2,}/).filter(c => c.trim()).map((cell, idx) => (
-                    <td key={idx} className="border border-gray-300 px-4 py-2 text-right font-mono">
+                    <td key={idx} className="border border-gray-300 px-4 py-2 text-right font-mono text-gray-900">
                       {cell.trim()}
                     </td>
                   ))}
@@ -597,7 +597,7 @@ export default function NoteBuilderPage() {
               return null; // Skip note header as it's already shown
             }
             return (
-              <p key={idx} className="text-gray-800 leading-relaxed">
+              <p key={idx} className="text-gray-900 leading-relaxed">
                 {line}
               </p>
             );
@@ -1059,19 +1059,19 @@ export default function NoteBuilderPage() {
 
       {/* View Modal - PDF Preview */}
       {showViewModal && viewingNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-8">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 z-50 flex items-center justify-center p-8">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="bg-blue-600 text-white px-6 py-4 flex items-center justify-between rounded-t-xl">
               <div>
-                <h3 className="text-xl font-bold">Note Preview</h3>
+                <h3 className="text-xl font-bold text-white">Note Preview</h3>
                 <p className="text-sm text-blue-100 mt-1">PDF Print Preview</p>
               </div>
               <button
                 onClick={() => setShowViewModal(false)}
                 className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
               >
-                <X size={20} />
+                <X size={20} className="text-white" />
               </button>
             </div>
 
@@ -1087,8 +1087,8 @@ export default function NoteBuilderPage() {
                   </p>
                 </div>
 
-                <div className="prose max-w-none">
-                  {renderNoteContent(viewingNote)}
+                <div className="prose max-w-none text-gray-900">
+                  {renderNoteContent({ ...viewingNote, content: noteContents[viewingNote.noteRef] || viewingNote.content })}
                 </div>
               </div>
             </div>
