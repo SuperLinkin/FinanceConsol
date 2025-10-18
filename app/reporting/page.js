@@ -62,10 +62,15 @@ export default function ReportingPage() {
   const [versionTab, setVersionTab] = useState('history'); // 'history' | 'activity'
 
   // Page Settings states
-  const [showPageNumbers, setShowPageNumbers] = useState(true);
+  const [showPageNumbers, setShowPageNumbers] = useState(false);
   const [pageNumberPosition, setPageNumberPosition] = useState('bottom-right'); // 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
   const [documentTitle, setDocumentTitle] = useState('');
   const [pageOrientation, setPageOrientation] = useState('portrait'); // 'portrait' | 'landscape'
+
+  // Draggable toolbar states
+  const [toolbarPosition, setToolbarPosition] = useState({ x: window.innerWidth - 320, y: 120 });
+  const [isDraggingToolbar, setIsDraggingToolbar] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Editor states
   const [selectedText, setSelectedText] = useState(null);
@@ -150,6 +155,39 @@ export default function ReportingPage() {
   const togglePanel = (panelName) => {
     setActivePanel(activePanel === panelName ? null : panelName);
   };
+
+  const handleToolbarMouseDown = (e) => {
+    setIsDraggingToolbar(true);
+    setDragOffset({
+      x: e.clientX - toolbarPosition.x,
+      y: e.clientY - toolbarPosition.y
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (isDraggingToolbar) {
+        setToolbarPosition({
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingToolbar(false);
+    };
+
+    if (isDraggingToolbar) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingToolbar, dragOffset]);
 
   const saveSelection = () => {
     if (window.getSelection) {
@@ -577,122 +615,144 @@ export default function ReportingPage() {
       <div className="flex-1 overflow-hidden flex">
         {/* Main Document Area */}
         <div className="flex-1 overflow-auto bg-gray-300 p-8">
-          {/* Toolbar */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-3 flex items-center gap-2 flex-wrap">
-            {/* Undo/Redo */}
+          {/* Top Toolbar - Only Save and Export PDF */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-3 flex items-center justify-end gap-2">
             <button
-              onClick={handleUndo}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-[#101828] hover:bg-gray-200 transition-colors"
-              title="Undo"
+              onClick={saveDocument}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700"
             >
-              <Undo size={16} />
+              <Save size={16} />
+              Save
             </button>
-            <button
-              onClick={handleRedo}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-[#101828] hover:bg-gray-200 transition-colors"
-              title="Redo"
-            >
-              <Redo size={16} />
+            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+              <FileDown size={16} />
+              Export PDF
             </button>
+          </div>
 
-            <div className="w-px h-6 bg-gray-300"></div>
+          {/* Draggable Toolbar - Right Side */}
+          <div
+            className="fixed bg-white rounded-lg shadow-2xl border-2 border-gray-300 p-3 z-40"
+            style={{
+              left: `${toolbarPosition.x}px`,
+              top: `${toolbarPosition.y}px`,
+              cursor: isDraggingToolbar ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+          >
+            {/* Drag Handle */}
+            <div
+              onMouseDown={handleToolbarMouseDown}
+              className="bg-gray-200 rounded-t-lg p-2 mb-3 text-center text-xs font-bold text-gray-600 cursor-grab active:cursor-grabbing"
+            >
+              ⋮⋮ DRAG TO MOVE ⋮⋮
+            </div>
 
-            <button
-              onClick={() => togglePanel('editor')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'editor' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <Edit3 size={16} />
-              Editor
-            </button>
-            <button
-              onClick={() => togglePanel('sync')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'sync' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <RefreshCw size={16} />
-              Sync
-            </button>
-            <button
-              onClick={() => togglePanel('validation')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'validation' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <CheckSquare size={16} />
-              Validation
-            </button>
-            <button
-              onClick={() => togglePanel('pages')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'pages' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <Layers size={16} />
-              Pages
-            </button>
-            <button
-              onClick={() => togglePanel('version')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'version' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <Clock size={16} />
-              Version
-            </button>
-            <button
-              onClick={() => togglePanel('pageSettings')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'pageSettings' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <Settings size={16} />
-              Page Settings
-            </button>
+            {/* Toolbar Buttons */}
+            <div className="space-y-2">
+              {/* Undo/Redo */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUndo}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-[#101828] hover:bg-gray-200 transition-colors"
+                  title="Undo"
+                >
+                  <Undo size={16} />
+                </button>
+                <button
+                  onClick={handleRedo}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-[#101828] hover:bg-gray-200 transition-colors"
+                  title="Redo"
+                >
+                  <Redo size={16} />
+                </button>
+              </div>
 
-            <div className="w-px h-6 bg-gray-300"></div>
+              <div className="border-t border-gray-300 pt-2"></div>
 
-            <button
-              onClick={() => togglePanel('numbers')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'numbers' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <Hash size={16} />
-              Numbers
-            </button>
-            <button
-              onClick={() => togglePanel('ai')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'ai' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <Sparkles size={16} />
-              Ask AI
-            </button>
-            <button
-              onClick={() => togglePanel('templates')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activePanel === 'templates' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
-              }`}
-            >
-              <FileSearch size={16} />
-              Templates
-            </button>
-
-            <div className="ml-auto flex items-center gap-2">
               <button
-                onClick={saveDocument}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700"
+                onClick={() => togglePanel('editor')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'editor' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
               >
-                <Save size={16} />
-                Save
+                <Edit3 size={16} />
+                Editor
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
-                <FileDown size={16} />
-                Export PDF
+              <button
+                onClick={() => togglePanel('sync')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'sync' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <RefreshCw size={16} />
+                Sync
+              </button>
+              <button
+                onClick={() => togglePanel('validation')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'validation' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <CheckSquare size={16} />
+                Validation
+              </button>
+              <button
+                onClick={() => togglePanel('pages')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'pages' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <Layers size={16} />
+                Pages
+              </button>
+              <button
+                onClick={() => togglePanel('version')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'version' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <Clock size={16} />
+                Version
+              </button>
+              <button
+                onClick={() => togglePanel('pageSettings')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'pageSettings' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <Settings size={16} />
+                Page Settings
+              </button>
+
+              <div className="border-t border-gray-300 pt-2"></div>
+
+              <button
+                onClick={() => togglePanel('numbers')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'numbers' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <Hash size={16} />
+                Numbers
+              </button>
+              <button
+                onClick={() => togglePanel('ai')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'ai' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <Sparkles size={16} />
+                Ask AI
+              </button>
+              <button
+                onClick={() => togglePanel('templates')}
+                className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activePanel === 'templates' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+                }`}
+              >
+                <FileSearch size={16} />
+                Templates
               </button>
             </div>
           </div>
@@ -714,9 +774,11 @@ export default function ReportingPage() {
                 onClick={() => setSelectedPageId(page.id)}
               >
                 {/* Page Number */}
-                <div className="absolute top-2 right-2 text-xs text-gray-400 font-mono">
-                  Page {page.pageNumber}
-                </div>
+                {showPageNumbers && (
+                  <div className="absolute top-2 right-2 text-xs text-gray-400 font-mono">
+                    Page {page.pageNumber}
+                  </div>
+                )}
 
                 {/* Editable Content */}
                 <div
