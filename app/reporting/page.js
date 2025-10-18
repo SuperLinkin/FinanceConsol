@@ -68,7 +68,7 @@ export default function ReportingPage() {
   const [pageOrientation, setPageOrientation] = useState('portrait'); // 'portrait' | 'landscape'
 
   // Draggable toolbar states
-  const [toolbarPosition, setToolbarPosition] = useState({ x: window.innerWidth - 320, y: 120 });
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 120 });
   const [isDraggingToolbar, setIsDraggingToolbar] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
@@ -163,6 +163,13 @@ export default function ReportingPage() {
       y: e.clientY - toolbarPosition.y
     });
   };
+
+  // Set initial toolbar position on client side
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setToolbarPosition({ x: window.innerWidth - 320, y: 120 });
+    }
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
