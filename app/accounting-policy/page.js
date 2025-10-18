@@ -13,7 +13,9 @@ import {
   Sparkles,
   Copy,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Upload,
+  FileUp
 } from 'lucide-react';
 
 export default function AccountingPolicyPage() {
@@ -28,7 +30,6 @@ export default function AccountingPolicyPage() {
 
   const [policyForm, setPolicyForm] = useState({
     policy_name: '',
-    policy_category: '',
     policy_content: '',
     is_active: true
   });
@@ -36,6 +37,7 @@ export default function AccountingPolicyPage() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const POLICY_CATEGORIES = [
     'Revenue Recognition',
@@ -98,7 +100,6 @@ export default function AccountingPolicyPage() {
   const resetPolicyForm = () => {
     setPolicyForm({
       policy_name: '',
-      policy_category: '',
       policy_content: '',
       is_active: true
     });
@@ -108,7 +109,6 @@ export default function AccountingPolicyPage() {
     setEditingPolicy(policy);
     setPolicyForm({
       policy_name: policy.policy_name,
-      policy_category: policy.policy_category,
       policy_content: policy.policy_content,
       is_active: policy.is_active
     });
@@ -116,7 +116,7 @@ export default function AccountingPolicyPage() {
   };
 
   const handleSavePolicy = async () => {
-    if (!policyForm.policy_name || !policyForm.policy_category || !policyForm.policy_content) {
+    if (!policyForm.policy_name || !policyForm.policy_content) {
       showToast('Please fill all required fields', false);
       return;
     }
@@ -165,6 +165,52 @@ export default function AccountingPolicyPage() {
     }
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check if it's a Word document
+    const validTypes = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/msword' // .doc
+    ];
+
+    if (!validTypes.includes(file.type)) {
+      showToast('Please upload a Word document (.doc or .docx)', false);
+      return;
+    }
+
+    setUploadingFile(true);
+
+    try {
+      // Read file as text (simplified version - in production use proper Word parser like mammoth.js)
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          // For now, we'll show the user that the file was uploaded successfully
+          // In production, you'd parse the Word doc content here
+          showToast('Word document uploaded successfully! Please enter policy name and save.', true);
+
+          // You can add actual Word parsing here using mammoth.js or similar library
+          setPolicyForm({
+            ...policyForm,
+            policy_content: `Content from uploaded file: ${file.name}\n\n(Word document parsing will be implemented with mammoth.js library)`
+          });
+        } catch (error) {
+          console.error('Error parsing document:', error);
+          showToast('Error parsing Word document', false);
+        } finally {
+          setUploadingFile(false);
+        }
+      };
+      reader.readAsText(file);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      showToast('Error uploading file', false);
+      setUploadingFile(false);
+    }
+  };
+
   const handleAIGenerate = async () => {
     if (!aiPrompt.trim()) {
       showToast('Please enter a prompt', false);
@@ -178,569 +224,168 @@ export default function AccountingPolicyPage() {
       // Simulate AI generation (replace with actual API call)
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Enhanced policy templates based on common requests
-      let sampleResponse = '';
+      // STRICT GUARDRAILS: Only generate Initial Recognition and Subsequent Recognition
+      const sampleResponse = `# ${aiPrompt}
 
-      const promptLower = aiPrompt.toLowerCase();
+## Initial Recognition
 
-      if (promptLower.includes('revenue') || promptLower.includes('ifrs 15')) {
-        sampleResponse = `# Revenue Recognition Policy (IFRS 15)
+### Recognition Criteria
+A transaction shall be recognized when ALL of the following criteria are met:
 
-## 1. Objective
-This policy establishes principles for recognizing revenue from contracts with customers. It ensures that revenue is recognized to depict the transfer of promised goods or services to customers in amounts that reflect the consideration to which the entity expects to be entitled.
+1. **Probability of Economic Benefits**
+   - It is probable that future economic benefits associated with the item will flow to or from the entity
+   - Probability threshold: More likely than not (>50% likelihood)
 
-## 2. Scope
-This policy applies to all contracts with customers across all entities in the Group, except for:
-- Lease contracts (IFRS 16)
-- Insurance contracts (IFRS 17)
-- Financial instruments (IFRS 9)
+2. **Reliable Measurement**
+   - The cost or value of the item can be measured reliably
+   - Sufficient evidence exists to support the measurement
+   - Measurement method is consistent with applicable accounting standards
 
-## 3. Recognition Model - Five-Step Approach
-
-### Step 1: Identify the Contract
-A contract exists when:
-- All parties have approved the contract and are committed to perform
-- Rights and payment terms can be identified
-- Contract has commercial substance
-- Collection of consideration is probable
-
-### Step 2: Identify Performance Obligations
-Goods or services that are distinct, either:
-- Capable of being distinct (customer can benefit on its own), AND
-- Distinct within the context of the contract (separately identifiable from other promises)
-
-### Step 3: Determine Transaction Price
-The amount of consideration to which the entity expects to be entitled, considering:
-- Variable consideration (estimated using expected value or most likely amount)
-- Significant financing component (if payment timing differs from transfer of goods/services)
-- Non-cash consideration (measured at fair value)
-- Consideration payable to customer (reduces transaction price)
-
-### Step 4: Allocate Transaction Price
-Allocate to each performance obligation based on relative standalone selling prices. If not observable, estimate using:
-- Adjusted market assessment approach
-- Expected cost plus margin approach
-- Residual approach (only in limited circumstances)
-
-### Step 5: Recognize Revenue
-Revenue is recognized when (or as) performance obligations are satisfied by transferring control of goods or services. Control transfers:
-- Over time: Progress measured using output or input methods
-- At a point in time: When customer obtains control (delivery, acceptance, title transfer)
-
-## 4. Specific Application Guidelines
-
-### Contract Modifications
-- Account for as separate contract if new goods/services are distinct and price reflects standalone selling price
-- Otherwise, account prospectively or adjust transaction price cumulatively
-
-### Variable Consideration
-- Estimate using expected value or most likely amount
-- Include in transaction price only to extent highly probable that no significant reversal will occur
-- Reassess each reporting period
-
-### Principal vs Agent
-Recognize revenue based on whether entity:
-- Controls goods/services before transfer to customer (Principal - gross revenue)
-- Arranges for another party to provide goods/services (Agent - net commission)
-
-## 5. Contract Costs
-
-### Costs to Obtain a Contract
-- Incremental costs (e.g., sales commissions) - capitalize if expected to be recovered
-- Other costs - expense as incurred unless explicitly chargeable to customer
-
-### Costs to Fulfill a Contract
-Capitalize if costs:
-- Relate directly to a contract
-- Generate or enhance resources for future performance
-- Are expected to be recovered
-
-Amortize systematically consistent with transfer of goods/services.
-
-## 6. Disclosure Requirements
-
-### Qualitative Disclosures
-- Significant judgments in applying revenue recognition
-- Contract balances (receivables, contract assets, contract liabilities)
-- Performance obligations (timing, payment terms)
-- Significant payment terms
-
-### Quantitative Disclosures
-- Revenue disaggregated by type of good/service, geography, market, timing
-- Opening and closing balances of receivables, contract assets/liabilities
-- Remaining performance obligations
-- Assets recognized from costs to obtain or fulfill contracts
-
-## 7. Key Judgments and Estimates
-- Identification of distinct performance obligations
-- Estimation of variable consideration and constraint
-- Determination of standalone selling prices
-- Assessment of principal vs agent relationship
-- Estimation of contract costs to be capitalized
-
-## 8. Effective Date
-This policy is effective for annual periods beginning on or after 1 January 2024, with earlier application permitted.
-
-## 9. Transition
-Modified retrospective approach applied with cumulative effect recognized at date of initial application.`;
-      } else if (promptLower.includes('lease') || promptLower.includes('ifrs 16')) {
-        sampleResponse = `# Lease Accounting Policy (IFRS 16)
-
-## 1. Objective
-This policy establishes the principles for recognition, measurement, presentation and disclosure of leases to ensure relevant and faithful representation of lease transactions.
-
-## 2. Scope
-This policy applies to all leases except:
-- Leases for exploration or use of minerals, oil, natural gas and similar non-regenerative resources
-- Biological assets within scope of IAS 41
-- Service concession arrangements within scope of IFRIC 12
-- Licenses of intellectual property granted by a lessor within scope of IFRS 15
-- Rights held by lessee under licensing agreements within scope of IAS 38
-
-## 3. Lessee Accounting
-
-### Initial Recognition
-At commencement date, recognize:
-- **Right-of-use Asset** = Lease liability + Initial direct costs + Prepaid lease payments + Restoration costs - Lease incentives received
-- **Lease Liability** = Present value of future lease payments
-
-### Lease Payments Include:
-- Fixed payments (including in-substance fixed payments)
-- Variable payments based on index or rate
-- Exercise price of purchase options (if reasonably certain)
-- Termination penalties (if lease term reflects exercise)
-- Amounts expected under residual value guarantees
-
-### Discount Rate
-Use interest rate implicit in lease, if determinable. Otherwise, use lessee's incremental borrowing rate.
-
-### Subsequent Measurement
-
-**Right-of-use Asset:**
-- Cost model: Carrying amount = Cost - Accumulated depreciation - Accumulated impairment + Remeasurement of lease liability
-- Depreciate over shorter of useful life or lease term (unless title transfers, then useful life)
-- Apply IAS 36 for impairment testing
-
-**Lease Liability:**
-- Increase for interest on liability
-- Decrease for lease payments made
-- Remeasure when changes in: lease term, purchase option assessment, amounts under residual value guarantee, future lease payments from index/rate change
-
-### Lease Term
-Non-cancellable period + periods covered by:
-- Extension options (if reasonably certain to exercise)
-- Termination options (if reasonably certain not to exercise)
-
-### Short-term and Low-value Exemptions
-May elect to expense lease payments on straight-line basis for:
-- Short-term leases (≤12 months, no purchase option)
-- Low-value assets (underlying asset value when new ≤ $5,000)
-
-## 4. Lessor Accounting
-
-### Classification
-Classify as finance lease if substantially all risks and rewards of ownership transfer. Otherwise, operating lease.
-
-**Finance Lease Indicators:**
-- Transfer of ownership at end of lease term
-- Lessee has purchase option at below fair value
-- Lease term covers major part of economic life
-- Present value of lease payments ≥ substantially all of fair value
-- Asset is specialized for lessee's use
-
-### Finance Lease
-- Recognize lease receivable = Net investment in lease
-- Derecognize underlying asset
-- Recognize finance income over lease term (constant periodic rate of return)
-
-### Operating Lease
-- Continue to recognize underlying asset
-- Recognize lease income on straight-line basis or another systematic basis
-- Depreciate underlying asset per IAS 16/IAS 38
-
-## 5. Sale and Leaseback Transactions
-
-### Transfer is a Sale (per IFRS 15):
-**Seller-lessee:**
-- Recognize right-of-use asset as proportion of previous carrying amount retained
-- Recognize gain/loss only for rights transferred to buyer-lessor
-
-**Buyer-lessor:**
-- Account for purchase per applicable standards
-- Account for lease per lessor accounting requirements
-
-### Transfer is Not a Sale:
-**Seller-lessee:**
-- Continue to recognize transferred asset
-- Recognize financial liability per IFRS 9
-
-**Buyer-lessor:**
-- Do not recognize transferred asset
-- Recognize financial asset per IFRS 9
-
-## 6. Presentation
-
-### Statement of Financial Position (Lessee)
-- Right-of-use assets: Separate line item or disclose which line items include
-- Lease liabilities: Separate from other liabilities
-
-### Statement of Profit or Loss (Lessee)
-- Depreciation of right-of-use assets: Separate from interest on lease liabilities
-- Interest on lease liabilities: Present per IAS 1
-
-### Statement of Cash Flows (Lessee)
-- Principal portion: Financing activities
-- Interest portion: Per entity's policy for interest paid
-- Short-term/low-value exemption payments: Operating activities
-
-## 7. Disclosure Requirements
-
-### Lessee Disclosures:
-- Carrying amount of right-of-use assets by class
-- Additions to right-of-use assets
-- Depreciation charge by class
-- Interest expense on lease liabilities
-- Expense for short-term and low-value leases
-- Total cash outflow for leases
-- Maturity analysis of lease liabilities
-- Description of leasing activities and judgments
-
-### Lessor Disclosures:
-- Lease income (separate operating and finance)
-- Maturity analysis of lease payments receivable
-- Qualitative/quantitative information about residual value risk
-- Description of risk management related to residual value
-
-## 8. Key Judgments and Estimates
-- Determining lease term (extension and termination options)
-- Assessment of whether purchase option will be exercised
-- Determining appropriate discount rate (incremental borrowing rate)
-- Separating lease and non-lease components
-- Assessing whether contract contains a lease
-
-## 9. Effective Date
-This policy is effective for annual periods beginning on or after 1 January 2024.`;
-      } else if (promptLower.includes('inventory') || promptLower.includes('ias 2')) {
-        sampleResponse = `# Inventory Valuation Policy (IAS 2)
-
-## 1. Objective
-This policy establishes the accounting treatment for inventories, including determining the cost and subsequent recognition as an expense, and any write-down to net realizable value.
-
-## 2. Scope
-This policy applies to all inventories except:
-- Work in progress under construction contracts (IFRS 15)
-- Financial instruments (IFRS 9)
-- Biological assets related to agricultural activity (IAS 41)
-
-Inventories include:
-- Raw materials and supplies
-- Work in progress
-- Finished goods
-- Goods purchased for resale
-- Spare parts and servicing equipment
-
-## 3. Measurement - Initial Recognition
-
-### Cost of Inventories Includes:
-**Purchase Costs:**
-- Purchase price
-- Import duties and non-recoverable taxes
-- Transport, handling and other costs directly attributable to acquisition
-- Less: Trade discounts, rebates and other similar items
-
-**Conversion Costs:**
-- Direct labor
-- Direct expenses
-- Systematic allocation of fixed and variable production overheads
-
-**Other Costs:**
-- Only included to extent incurred to bring inventories to present location and condition
-- Examples: design costs for specific customers
-
-### Costs Excluded (Expensed):
-- Abnormal waste of materials, labor or other production costs
-- Storage costs (unless necessary in production process)
-- Administrative overheads not related to production
-- Selling costs
-- Foreign exchange differences
-- Interest cost (generally, unless qualifying under IAS 23)
-
-## 4. Cost Formulas
-
-### First-In, First-Out (FIFO)
-- Default method for the Group
-- Assumes items purchased/produced first are sold first
-- Ending inventory consists of most recently purchased/produced items
-- Use for all inventory categories unless specific identification required
-
-### Weighted Average Cost
-- Alternative method where appropriate
-- Cost determined on weighted average basis
-- Average recalculated after each purchase
-- May use periodic (monthly) average for practical purposes
-
-### Specific Identification
-- Required for goods not ordinarily interchangeable
-- Required for goods segregated for specific projects
-- Cost of individual items identified and tracked
-
-**Consistency:** Same cost formula applied to all inventories with similar nature and use to the entity.
-
-## 5. Net Realizable Value (NRV)
-
-### Definition
-Estimated selling price in ordinary course of business, less:
-- Estimated costs of completion, and
-- Estimated costs necessary to make the sale
-
-### Assessment
-- Performed at each reporting period
-- Assessed on item-by-item basis (or grouped for similar items)
-- Based on most reliable evidence at time estimate is made
-- Considers fluctuations in price/cost directly relating to events after year-end
-
-### Write-down to NRV Required When:
-- Inventory damaged
-- Inventory wholly or partially obsolete
-- Selling prices declined
-- Estimated costs to complete or make sale increased
-
-### Reversal of Write-downs
-- Required when circumstances that caused write-down no longer exist
-- New carrying amount is lower of cost and revised NRV
-- Reversal recognized in profit or loss in period it occurs
-- Disclosed separately if material
-
-## 6. Recognition as Expense
-
-### Timing
-- When inventory is sold: Recognize carrying amount as expense (cost of goods sold)
-- When written down to NRV: Recognize write-down as expense
-- When NRV write-down reverses: Recognize reversal as reduction in cost of goods sold
-
-### Allocation Methods
-For standard costs or retail method, regularly review:
-- Standard costs: Approximate actual costs
-- Retail method: Appropriate for items with similar margins, high turnover, and impractical to use other costing methods
-
-## 7. Manufacturing Overhead Allocation
-
-### Fixed Production Overheads
-- Indirect costs of production that remain relatively constant regardless of production volume
-- Examples: Depreciation, maintenance of factory buildings/equipment, factory management costs
-- **Allocation basis:** Normal capacity of production facilities
-- **Unallocated overhead:** Expense in period incurred when production below normal capacity
-
-### Variable Production Overheads
-- Indirect costs that vary directly with production volume
-- Examples: Indirect materials, indirect labor
-- **Allocation basis:** Actual use of production facilities
-
-### Normal Capacity
-- Average production expected over number of periods/seasons under normal circumstances
-- Consider loss of capacity from planned maintenance
-- May be used if approximates normal capacity: Actual production level (if similar to normal)
-
-## 8. Consignment Inventory
-
-### Goods Held on Consignment (as Consignee)
-- Do NOT include in inventory
-- Not owned until sold to third party or purchased from consignor
-- Disclose nature and extent if material
-
-### Goods Out on Consignment (as Consignor)
-- Continue to recognize in inventory
-- Carrying amount includes all costs incurred
-- Not revenue recognized until sold by consignee
-
-## 9. Goods in Transit
-
-### Purchased Goods in Transit
-- Include in inventory if risks and rewards transferred (per shipping terms)
-- FOB Shipping Point: Include in buyer's inventory when shipped
-- FOB Destination: Include in buyer's inventory when received
-
-### Sold Goods in Transit
-- Exclude from inventory if risks and rewards transferred
-- FOB Shipping Point: Exclude from seller's inventory when shipped
-- FOB Destination: Exclude from seller's inventory when received
-
-## 10. Disclosure Requirements
-
-### Financial Statements Disclosure:
-- Accounting policies for measurement (including cost formula)
-- Total carrying amount by classification appropriate to entity
-- Carrying amount at fair value less costs to sell
-- Amount recognized as expense during period (cost of goods sold)
-- Write-downs recognized as expense
-- Reversals of write-downs recognized as reduction in expense
-- Carrying amount pledged as security for liabilities
-
-### Additional Disclosures (if applicable):
-- For inventory measured at fair value less costs to sell: fair value hierarchy level
-- For biological produce harvested from biological assets: quantity and carrying amount
-
-## 11. Key Judgments and Estimates
-- Determination of net realizable value
-- Assessment of inventory obsolescence
-- Allocation of fixed production overheads based on normal capacity
-- Classification of overheads as fixed vs variable
-- Selection of appropriate cost formula
-
-## 12. Internal Controls
-- Physical inventory counts performed at least annually
-- Perpetual inventory system reconciled to physical counts
-- Cyclical counts for high-value or high-volume items
-- Approval required for inventory write-downs
-- Regular review of slow-moving and obsolete inventory
-
-## 13. Effective Date
-This policy is effective for annual periods beginning on or after 1 January 2024.`;
-      } else {
-        // Generic enhanced template
-        sampleResponse = `# ${aiPrompt}
-
-## 1. Objective and Purpose
-This policy establishes the accounting principles and procedures for ${aiPrompt.toLowerCase()}. The objective is to ensure consistent, accurate and compliant financial reporting across all Group entities in accordance with International Financial Reporting Standards (IFRS).
-
-## 2. Scope and Application
-This policy applies to all entities within the Group and covers all transactions related to ${aiPrompt.toLowerCase()}.
-
-**Included:** [Specify what is included in scope]
-**Excluded:** [Specify any exclusions, such as specific transaction types or other applicable standards]
-
-## 3. Key Definitions
-
-**[Term 1]:** [Definition relevant to this policy]
-**[Term 2]:** [Definition relevant to this policy]
-**[Term 3]:** [Definition relevant to this policy]
-
-## 4. Recognition Principles
-
-### Initial Recognition Criteria
-A transaction related to ${aiPrompt.toLowerCase()} shall be recognized when:
-- Probability: It is probable that future economic benefits will flow to/from the entity
-- Measurement: The cost or value can be measured reliably
-- Substance: The transaction has economic substance beyond its legal form
-
-### Timing of Recognition
-[Specify when the transaction should be recognized - at contract date, delivery date, etc.]
-
-### Derecognition Criteria
-[Specify when the item should be removed from the books]
-
-## 5. Measurement Methodology
+3. **Past Event**
+   - Recognition occurs as a result of a past transaction or event
+   - The entity has obtained control or the obligation has been incurred
 
 ### Initial Measurement
-At initial recognition, measure at:
-- [Primary measurement basis - e.g., fair value, historical cost, present value]
-- Include: [Direct costs to include]
-- Exclude: [Costs to expense immediately]
+At initial recognition, the item shall be measured at:
 
-### Subsequent Measurement
-After initial recognition, measure using:
-- [Cost model, revaluation model, fair value model, etc.]
-- [Frequency of remeasurement if applicable]
-- [Treatment of subsequent expenditure]
+**Primary Measurement Basis:** [Specify: Fair Value / Historical Cost / Present Value]
+
+**Components to Include:**
+- Purchase price or fair value at transaction date
+- Directly attributable costs necessary to bring the asset to its intended use or settle the liability
+- [List specific costs to include]
+
+**Components to Exclude (Expense Immediately):**
+- Administrative and general overhead costs
+- Start-up and pre-operating costs (unless specifically required by standards)
+- Training costs
+- [List specific costs to exclude]
+
+### Initial Recognition Timing
+The item shall be recognized on the date when:
+- Control is obtained (for assets) or obligation is incurred (for liabilities)
+- [Specify: Contract date / Settlement date / Delivery date / Other specific date]
+- All recognition criteria listed above are satisfied
+
+### Documentation Requirements for Initial Recognition
+- Source documents evidencing the transaction
+- Evidence supporting measurement (invoices, valuations, agreements)
+- Analysis supporting probability assessment
+- Approvals as required by internal controls
+
+---
+
+## Subsequent Recognition
+
+### Subsequent Measurement Model
+After initial recognition, the item shall be measured using:
+
+**[Specify Model: Cost Model / Revaluation Model / Fair Value Model / Amortized Cost]**
+
+### Cost Model (if applicable)
+- Carrying Amount = Cost - Accumulated Depreciation/Amortization - Accumulated Impairment Losses
+- No revaluation to fair value (except for impairment)
+
+### Revaluation Model (if applicable)
+- Carrying Amount = Fair Value at revaluation date - Subsequent accumulated depreciation - Subsequent impairment
+- Revaluation frequency: [Annual / When fair value differs materially / Specify period]
+- Revaluation increases: Recognize in Other Comprehensive Income (OCI) unless reversing previous decrease
+- Revaluation decreases: Recognize in Profit or Loss unless reversing previous increase in OCI
+
+### Fair Value Model (if applicable)
+- Remeasure to fair value at each reporting date
+- Gains and losses recognized in: [Profit or Loss / OCI]
+- Fair value determined using: [Specify valuation techniques]
+
+### Subsequent Expenditure
+**Capitalization Criteria:**
+- Expenditure meets initial recognition criteria
+- Expenditure enhances future economic benefits beyond original assessment
+- Expenditure can be measured reliably
+
+**Immediate Expense:**
+- Maintenance and repairs to maintain standard of performance
+- Day-to-day servicing costs
+- Expenditure that does not meet capitalization criteria
+
+### Depreciation / Amortization (if applicable)
+**Method:** [Straight-line / Diminishing balance / Units of production]
+**Useful Life:** [Specify years or basis for determination]
+**Residual Value:** [Specify amount or basis for determination]
+**Review Frequency:** Annually or when indicators of change exist
+
+**Factors Considered in Determining Useful Life:**
+- Expected usage and physical wear and tear
+- Technical or commercial obsolescence
+- Legal or similar limits on use
+- Entity's expected period of use
 
 ### Impairment Testing
-- Assess for indicators at each reporting date
-- Perform impairment test when indicators exist
-- Recognize impairment loss in profit or loss
-- [Specific impairment indicators for this policy area]
+**Frequency:**
+- At each reporting date: Assess for indicators of impairment
+- When indicators exist: Perform detailed impairment test
 
-## 6. Presentation in Financial Statements
+**Impairment Indicators Include:**
+- Significant decline in market value beyond normal passage of time
+- Significant adverse changes in technological, market, economic or legal environment
+- Evidence of obsolescence or physical damage
+- Significant underperformance compared to expected economic performance
+- [List specific indicators relevant to this policy]
 
-### Statement of Financial Position
-- Line item: [Where to present in balance sheet]
-- Classification: [Current vs non-current classification criteria]
-- Offsetting: [Conditions for offsetting, if any]
+**Impairment Measurement:**
+- Recoverable Amount = Higher of: Fair Value Less Costs of Disposal OR Value in Use
+- Impairment Loss = Carrying Amount - Recoverable Amount
+- Recognition: Immediately in Profit or Loss (unless revaluation model used)
 
-### Statement of Profit or Loss
-- Revenue/Expense recognition: [Where to present in P&L]
-- Classification: [Operating vs non-operating, by function or nature]
+**Reversal of Impairment:**
+- Permitted if: Indicators that led to impairment no longer exist or have decreased
+- Reversal limited to: Amount that would have been determined (net of depreciation) had no impairment been recognized
+- Recognition: In Profit or Loss (unless revaluation model used)
 
-### Statement of Cash Flows
-- Classification: [Operating, investing or financing activities]
-- Presentation: [Gross or net presentation]
+### Derecognition
+The item shall be derecognized when:
+- Control is transferred to another party (for assets)
+- Obligation is discharged, cancelled or expires (for liabilities)
+- No future economic benefits are expected from use or disposal
+- Item is permanently withdrawn from use with no disposal planned
 
-## 7. Disclosure Requirements
+**Gain or Loss on Derecognition:**
+- Proceeds from disposal (if any)
+- Less: Carrying amount at derecognition date
+- Less: Direct costs of disposal
+- Recognize in Profit or Loss in period of derecognition
 
-### Mandatory Disclosures
-- Accounting policy applied
-- Carrying amounts by category
-- Reconciliation of opening to closing balances
-- Key assumptions and estimates used
-- Risk exposure and management strategies
-- Future commitments
+### Reassessment and Review
+The following shall be reviewed at each reporting date:
+- Useful life and depreciation/amortization method
+- Residual values
+- Classification and measurement model
+- Impairment indicators
+- Assumptions used in measurement
 
-### Additional Disclosures (if material)
-- Fair value measurements and hierarchy
-- Sensitivity analysis for key estimates
-- Related party transactions
-- Contingent assets/liabilities
-- Subsequent events
+Changes in estimates:
+- Applied prospectively from date of change
+- Disclosed if material impact on current or future periods
 
-## 8. Key Judgments and Estimates
-The following areas require significant judgment or estimation:
-- [Judgment area 1]: [Description and approach]
-- [Judgment area 2]: [Description and approach]
-- [Estimate area 1]: [Description, method and key assumptions]
-- [Estimate area 2]: [Description, method and key assumptions]
+---
 
-**Review Frequency:** Judgments and estimates reviewed [quarterly/annually/when circumstances change]
+## Key Judgments and Estimates Required
 
-## 9. Internal Controls and Procedures
+1. **Initial Recognition:**
+   - Assessment of probability of future economic benefits
+   - Identification of directly attributable costs
+   - Determination of appropriate measurement basis
 
-### Authorization
-- Transactions require approval from [specify approval authority and limits]
-- Segregation of duties maintained between authorization, recording and reconciliation
+2. **Subsequent Measurement:**
+   - Estimation of useful life and residual value
+   - Selection of depreciation/amortization method
+   - Impairment indicators identification
+   - Recoverable amount determination
+   - Fair value measurements (if applicable)
 
-### Documentation
-- Supporting documentation requirements: [Specify required documents]
-- Retention period: [Specify document retention requirements]
+---
 
-### Reconciliation
-- Monthly reconciliation to be performed
-- Variance investigation threshold: [Specify threshold]
-- Sign-off required by [specify role]
-
-## 10. Compliance and Monitoring
-- Policy compliance monitored by [Finance team/Internal Audit/specified department]
-- Quarterly review of policy application and outcomes
-- Annual policy review to ensure alignment with standards and business changes
-- Non-compliance escalation process: [Specify escalation path]
-
-## 11. Transition and Implementation
-- Effective date: 1 January 2024
-- Transition method: [Prospective/Retrospective/Modified retrospective]
-- [Specific transition provisions if any]
-- Comparative information: [Treatment of prior period comparatives]
-
-## 12. Related Policies and Standards
-This policy should be read in conjunction with:
-- [Related internal policies]
-- [Applicable IFRS/IAS standards]
-- [Industry-specific guidance]
-- [Regulatory requirements]
-
-## 13. Responsibilities
-**Finance Team:** Implementation and day-to-day application
-**Controllers:** Oversight and compliance monitoring
-**Management:** Judgment calls and policy interpretations
-**Internal Audit:** Periodic review and testing
-
-## 14. Policy Review and Updates
-- Annual review scheduled for Q4 each year
-- Ad-hoc updates when standards change
-- Version control maintained with change log
-- Distribution of updates to all relevant stakeholders
-
-## 15. Contact and Queries
-For questions regarding this policy, contact:
-**Group Financial Controller**
-Email: finance@group.com`;
-      }
+**Note:** This policy must be applied in conjunction with relevant International Financial Reporting Standards (IFRS) or applicable accounting framework. Professional judgment should be exercised in interpreting and applying this policy to specific transactions and circumstances.`;
 
       setAiResponse(sampleResponse);
     } catch (error) {
@@ -848,9 +493,6 @@ Email: finance@group.com`;
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-slate-900">{policy.policy_name}</h3>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
-                          {policy.policy_category}
-                        </span>
                         {policy.is_active && (
                           <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
                             Active
@@ -923,18 +565,41 @@ Email: finance@group.com`;
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Category <span className="text-red-500">*</span>
+                    Upload Policy Document
                   </label>
-                  <select
-                    value={policyForm.policy_category}
-                    onChange={(e) => setPolicyForm({...policyForm, policy_category: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                  >
-                    <option value="">Select category...</option>
-                    {POLICY_CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-slate-900 transition-colors">
+                    <input
+                      type="file"
+                      id="word-upload"
+                      accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="word-upload"
+                      className="cursor-pointer flex flex-col items-center"
+                    >
+                      {uploadingFile ? (
+                        <>
+                          <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-3"></div>
+                          <p className="text-sm font-medium text-gray-700">Uploading...</p>
+                        </>
+                      ) : (
+                        <>
+                          <FileUp size={48} className="text-gray-400 mb-3" />
+                          <p className="text-sm font-semibold text-slate-900 mb-1">
+                            Click to upload Word document
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Supports .doc and .docx files
+                          </p>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Or manually enter policy content below
+                  </p>
                 </div>
 
                 <div>
