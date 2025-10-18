@@ -611,6 +611,106 @@ export default function ReportingPage() {
     showToast('Accounting Policy inserted');
   };
 
+  const exportToPDF = () => {
+    // Create a print-friendly window
+    const printWindow = window.open('', '_blank');
+
+    // Generate HTML for all pages
+    let pagesHTML = '';
+    pages.forEach((page, index) => {
+      pagesHTML += `
+        <div class="pdf-page" style="
+          width: 794px;
+          height: 1123px;
+          padding: ${documentMargins.top}px ${documentMargins.right}px ${documentMargins.bottom}px ${documentMargins.left}px;
+          background: white;
+          margin: 0 auto;
+          page-break-after: always;
+          position: relative;
+          box-sizing: border-box;
+        ">
+          ${showPageNumbers ? `
+            <div style="
+              position: absolute;
+              ${pageNumberPosition.includes('top') ? 'top: 8px;' : 'bottom: 8px;'}
+              ${pageNumberPosition.includes('left') ? 'left: 8px;' : pageNumberPosition.includes('right') ? 'right: 8px;' : 'left: 50%; transform: translateX(-50%);'}
+              font-size: 10px;
+              color: #999;
+              font-family: monospace;
+            ">
+              Page ${page.pageNumber}
+            </div>
+          ` : ''}
+          <div style="color: #101828; line-height: ${lineSpacing};">
+            ${page.content}
+          </div>
+        </div>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${documentTitle || 'Financial Statements'}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: white;
+              font-family: Arial, sans-serif;
+            }
+            .pdf-page:last-child {
+              page-break-after: auto;
+            }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 20px 0;
+            }
+            @media print {
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              .pdf-page {
+                page-break-after: always;
+                page-break-inside: avoid;
+              }
+              .pdf-page:last-child {
+                page-break-after: auto;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          ${pagesHTML}
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load, then trigger print dialog
+    printWindow.onload = function() {
+      setTimeout(() => {
+        printWindow.print();
+        showToast('PDF export ready - use browser print dialog to save as PDF');
+      }, 250);
+    };
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[#f7f5f2]">
       <PageHeader
@@ -631,7 +731,10 @@ export default function ReportingPage() {
               <Save size={16} />
               Save
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+            <button
+              onClick={exportToPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+            >
               <FileDown size={16} />
               Export PDF
             </button>
