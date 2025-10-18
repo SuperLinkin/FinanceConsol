@@ -36,7 +36,8 @@ import {
   Sparkles,
   FileSearch,
   Heading,
-  Droplet
+  Droplet,
+  Settings
 } from 'lucide-react';
 
 export default function ReportingPage() {
@@ -57,8 +58,14 @@ export default function ReportingPage() {
   });
 
   // Sidepanel states
-  const [activePanel, setActivePanel] = useState(null); // 'editor' | 'sync' | 'validation' | 'pages' | 'version' | 'numbers' | 'ai' | 'templates'
+  const [activePanel, setActivePanel] = useState(null); // 'editor' | 'sync' | 'validation' | 'pages' | 'version' | 'numbers' | 'ai' | 'templates' | 'pageSettings'
   const [versionTab, setVersionTab] = useState('history'); // 'history' | 'activity'
+
+  // Page Settings states
+  const [showPageNumbers, setShowPageNumbers] = useState(true);
+  const [pageNumberPosition, setPageNumberPosition] = useState('bottom-right'); // 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [pageOrientation, setPageOrientation] = useState('portrait'); // 'portrait' | 'landscape'
 
   // Editor states
   const [selectedText, setSelectedText] = useState(null);
@@ -635,6 +642,15 @@ export default function ReportingPage() {
               <Clock size={16} />
               Version
             </button>
+            <button
+              onClick={() => togglePanel('pageSettings')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activePanel === 'pageSettings' ? 'bg-[#101828] text-white' : 'bg-gray-100 text-[#101828] hover:bg-gray-200'
+              }`}
+            >
+              <Settings size={16} />
+              Page Settings
+            </button>
 
             <div className="w-px h-6 bg-gray-300"></div>
 
@@ -691,8 +707,9 @@ export default function ReportingPage() {
                 }`}
                 style={{
                   width: '794px',  // A4 width at 96 DPI
-                  minHeight: '1123px',  // A4 height at 96 DPI
-                  padding: `${documentMargins.top}px ${documentMargins.right}px ${documentMargins.bottom}px ${documentMargins.left}px`
+                  height: '1123px',  // A4 height at 96 DPI - fixed height
+                  padding: `${documentMargins.top}px ${documentMargins.right}px ${documentMargins.bottom}px ${documentMargins.left}px`,
+                  overflow: 'hidden' // Prevent content from exceeding page bounds
                 }}
                 onClick={() => setSelectedPageId(page.id)}
               >
@@ -711,11 +728,10 @@ export default function ReportingPage() {
                   onMouseUp={saveSelection}
                   onKeyUp={saveSelection}
                   onFocus={saveSelection}
-                  className="outline-none"
+                  className="outline-none h-full overflow-auto"
                   style={{
-                    minHeight: '800px',
                     color: '#101828',
-                    lineHeight: '1.6'
+                    lineHeight: lineSpacing
                   }}
                 />
               </div>
@@ -917,59 +933,6 @@ export default function ReportingPage() {
                   />
                 </div>
 
-                {/* Header & Footer */}
-                <div>
-                  <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
-                    <Heading size={16} />
-                    Header & Footer
-                  </h4>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={documentHeader}
-                      onChange={(e) => setDocumentHeader(e.target.value)}
-                      placeholder="Header text..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      value={documentFooter}
-                      onChange={(e) => setDocumentFooter(e.target.value)}
-                      placeholder="Footer text..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={insertHeaderFooter}
-                      className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700"
-                    >
-                      Apply Header/Footer
-                    </button>
-                  </div>
-                </div>
-
-                {/* Watermark */}
-                <div>
-                  <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
-                    <Droplet size={16} />
-                    Watermark
-                  </h4>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={watermark}
-                      onChange={(e) => setWatermark(e.target.value)}
-                      placeholder="Watermark text..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={applyWatermark}
-                      className="w-full px-3 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700"
-                    >
-                      Apply Watermark
-                    </button>
-                  </div>
-                </div>
-
                 {/* Insert Table */}
                 <div>
                   <h4 className="text-sm font-bold text-[#101828] mb-3">Insert Table</h4>
@@ -1024,49 +987,6 @@ export default function ReportingPage() {
                       <TableIcon size={16} />
                       Insert Table ({tableRows}x{tableCols})
                     </button>
-                  </div>
-                </div>
-
-                {/* Margins */}
-                <div>
-                  <h4 className="text-sm font-bold text-[#101828] mb-3">Page Margins (px)</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-600 w-16">Top:</label>
-                      <input
-                        type="number"
-                        value={documentMargins.top}
-                        onChange={(e) => setDocumentMargins({ ...documentMargins, top: parseInt(e.target.value) || 0 })}
-                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-600 w-16">Right:</label>
-                      <input
-                        type="number"
-                        value={documentMargins.right}
-                        onChange={(e) => setDocumentMargins({ ...documentMargins, right: parseInt(e.target.value) || 0 })}
-                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-600 w-16">Bottom:</label>
-                      <input
-                        type="number"
-                        value={documentMargins.bottom}
-                        onChange={(e) => setDocumentMargins({ ...documentMargins, bottom: parseInt(e.target.value) || 0 })}
-                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-600 w-16">Left:</label>
-                      <input
-                        type="number"
-                        value={documentMargins.left}
-                        onChange={(e) => setDocumentMargins({ ...documentMargins, left: parseInt(e.target.value) || 0 })}
-                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1651,6 +1571,186 @@ export default function ReportingPage() {
                     <p className="text-xs text-gray-400 mt-2">Try different keywords like "balance sheet", "notes", or "cash flow"</p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Page Settings Sidepanel */}
+        {activePanel === 'pageSettings' && (
+          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 border-l border-gray-200 animate-slideLeft">
+            <div className="h-full flex flex-col">
+              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings size={20} />
+                  <h3 className="text-xl font-bold">Page Settings</h3>
+                </div>
+                <button
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <p className="text-sm text-gray-600">Configure page format, headers, footers, and page numbers</p>
+
+                {/* Document Title */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Document Title</h4>
+                  <input
+                    type="text"
+                    value={documentTitle}
+                    onChange={(e) => setDocumentTitle(e.target.value)}
+                    placeholder="Financial Statements 2024..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Page Orientation */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Page Orientation</h4>
+                  <select
+                    value={pageOrientation}
+                    onChange={(e) => setPageOrientation(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
+                </div>
+
+                {/* Page Numbers */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Page Numbers</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="showPageNumbers"
+                        checked={showPageNumbers}
+                        onChange={(e) => setShowPageNumbers(e.target.checked)}
+                        className="rounded"
+                      />
+                      <label htmlFor="showPageNumbers" className="text-sm text-gray-700">Show page numbers</label>
+                    </div>
+
+                    {showPageNumbers && (
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Position</label>
+                        <select
+                          value={pageNumberPosition}
+                          onChange={(e) => setPageNumberPosition(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="top-left">Top Left</option>
+                          <option value="top-center">Top Center</option>
+                          <option value="top-right">Top Right</option>
+                          <option value="bottom-left">Bottom Left</option>
+                          <option value="bottom-center">Bottom Center</option>
+                          <option value="bottom-right">Bottom Right</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Header & Footer */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
+                    <Heading size={16} />
+                    Header & Footer
+                  </h4>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={documentHeader}
+                      onChange={(e) => setDocumentHeader(e.target.value)}
+                      placeholder="Header text..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      value={documentFooter}
+                      onChange={(e) => setDocumentFooter(e.target.value)}
+                      placeholder="Footer text..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={insertHeaderFooter}
+                      className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700"
+                    >
+                      Apply Header/Footer
+                    </button>
+                  </div>
+                </div>
+
+                {/* Watermark */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3 flex items-center gap-2">
+                    <Droplet size={16} />
+                    Watermark
+                  </h4>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={watermark}
+                      onChange={(e) => setWatermark(e.target.value)}
+                      placeholder="DRAFT, CONFIDENTIAL..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={applyWatermark}
+                      className="w-full px-3 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700"
+                    >
+                      Apply Watermark
+                    </button>
+                  </div>
+                </div>
+
+                {/* Page Margins */}
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828] mb-3">Page Margins (px)</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600 w-16">Top:</label>
+                      <input
+                        type="number"
+                        value={documentMargins.top}
+                        onChange={(e) => setDocumentMargins({ ...documentMargins, top: parseInt(e.target.value) || 0 })}
+                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600 w-16">Right:</label>
+                      <input
+                        type="number"
+                        value={documentMargins.right}
+                        onChange={(e) => setDocumentMargins({ ...documentMargins, right: parseInt(e.target.value) || 0 })}
+                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600 w-16">Bottom:</label>
+                      <input
+                        type="number"
+                        value={documentMargins.bottom}
+                        onChange={(e) => setDocumentMargins({ ...documentMargins, bottom: parseInt(e.target.value) || 0 })}
+                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600 w-16">Left:</label>
+                      <input
+                        type="number"
+                        value={documentMargins.left}
+                        onChange={(e) => setDocumentMargins({ ...documentMargins, left: parseInt(e.target.value) || 0 })}
+                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-[#101828]"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
