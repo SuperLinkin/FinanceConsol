@@ -10,7 +10,9 @@ import {
   Eye,
   Sparkles,
   TrendingUp,
-  Loader
+  Loader,
+  Edit2,
+  Wand2
 } from 'lucide-react';
 
 export default function CashFlowStatement() {
@@ -29,7 +31,9 @@ export default function CashFlowStatement() {
   const [showViewCashflowPanel, setShowViewCashflowPanel] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [isGeneratingWorkings, setIsGeneratingWorkings] = useState(false);
+  const [isGeneratingComponents, setIsGeneratingComponents] = useState(false);
   const [aiWorkings, setAiWorkings] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   // Add component form
   const [newComponent, setNewComponent] = useState({
@@ -133,13 +137,21 @@ export default function CashFlowStatement() {
     // AI-generated workings for cashflow components
     const componentName = component.name || 'Component';
 
+    // Show formula breakdown
+    let formulaBreakdown = '\n## Formula Breakdown\n\n';
+    if (component.formula && component.formula.length > 0) {
+      component.formula.forEach((item, index) => {
+        formulaBreakdown += `${index + 1}. ${item.operator} ${item.name} (${item.type})\n`;
+      });
+    }
+
     return `# ${componentName}
 
 ## Formula
 This component is calculated based on the movement between consolidated balances:
 
 **Formula:** Closing Balance (${formatPeriodDate(selectedPeriod)}) - Opening Balance (${formatPeriodDate(comparePeriod)})
-
+${formulaBreakdown}
 ## Consolidated Numbers Used
 
 ### ${formatPeriodDate(selectedPeriod)}
@@ -176,12 +188,235 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
 - Intercompany eliminations are already applied in consolidated balances`;
   };
 
+  const handleAIGenerate = async () => {
+    if (!selectedPeriod || !comparePeriod) {
+      alert('Please select both current and previous periods');
+      return;
+    }
+
+    setIsGeneratingComponents(true);
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // AI generates components based on COA and consolidated numbers
+    const generatedComponents = generateAIComponents();
+    setComponents(generatedComponents);
+    setIsGeneratingComponents(false);
+  };
+
+  const generateAIComponents = () => {
+    const components = [];
+    let idCounter = Date.now();
+
+    // 1. Operating Profit/Loss (Revenue - Expenses)
+    const revenueClasses = ['Revenue', 'Income'];
+    const expenseClasses = ['Expenses'];
+
+    const revenueFormula = revenueClasses.map(className => ({
+      operator: '+',
+      name: className,
+      type: 'class'
+    }));
+
+    const expenseFormula = expenseClasses.map(className => ({
+      operator: '-',
+      name: className,
+      type: 'class'
+    }));
+
+    const operatingFormula = [...revenueFormula, ...expenseFormula];
+    const operatingCurrent = calculateFormulaValue(operatingFormula, trialBalances);
+    const operatingPrevious = calculateFormulaValue(operatingFormula, compareTrialBalances);
+
+    components.push({
+      id: idCounter++,
+      name: 'Operating Profit / (Loss)',
+      formula: operatingFormula,
+      type: 'class',
+      currentYearValue: operatingCurrent,
+      previousYearValue: operatingPrevious,
+      movement: operatingCurrent - operatingPrevious,
+      isAIGenerated: true
+    });
+
+    // 2. Movement in Working Capital (Trade Receivables, Inventory, Trade Payables)
+    const workingCapitalItems = [
+      { name: 'Trade Receivables', keywords: ['receivable', 'debtors'], sign: -1 },
+      { name: 'Inventory', keywords: ['inventory', 'stock'], sign: -1 },
+      { name: 'Trade Payables', keywords: ['payable', 'creditors'], sign: 1 }
+    ];
+
+    workingCapitalItems.forEach(item => {
+      const accounts = glAccounts.filter(acc => {
+        const name = (acc.account_name || '').toLowerCase();
+        const note = (acc.note_name || '').toLowerCase();
+        return item.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
+      });
+
+      if (accounts.length > 0) {
+        // Get unique note names
+        const noteNames = [...new Set(accounts.map(acc => acc.note_name).filter(n => n))];
+
+        if (noteNames.length > 0) {
+          const formula = noteNames.map(noteName => ({
+            operator: item.sign > 0 ? '+' : '-',
+            name: noteName,
+            type: 'note'
+          }));
+
+          const currentValue = calculateFormulaValue(formula, trialBalances);
+          const previousValue = calculateFormulaValue(formula, compareTrialBalances);
+          const movement = (currentValue - previousValue) * item.sign;
+
+          components.push({
+            id: idCounter++,
+            name: `Change in ${item.name}`,
+            formula: formula,
+            type: 'note',
+            currentYearValue: currentValue,
+            previousYearValue: previousValue,
+            movement: movement,
+            isAIGenerated: true
+          });
+        }
+      }
+    });
+
+    // 3. Depreciation and Amortization
+    const depreciationAccounts = glAccounts.filter(acc =>
+      acc.account_name && (
+        acc.account_name.toLowerCase().includes('depreciation') ||
+        acc.account_name.toLowerCase().includes('amortization')
+      )
+    );
+
+    if (depreciationAccounts.length > 0) {
+      const depNotes = [...new Set(depreciationAccounts.map(acc => acc.note_name).filter(n => n))];
+      if (depNotes.length > 0) {
+        const formula = depNotes.map(noteName => ({
+          operator: '+',
+          name: noteName,
+          type: 'note'
+        }));
+
+        const currentValue = calculateFormulaValue(formula, trialBalances);
+        const previousValue = calculateFormulaValue(formula, compareTrialBalances);
+
+        components.push({
+          id: idCounter++,
+          name: 'Depreciation and Amortization',
+          formula: formula,
+          type: 'note',
+          currentYearValue: currentValue,
+          previousYearValue: previousValue,
+          movement: currentValue - previousValue,
+          isAIGenerated: true
+        });
+      }
+    }
+
+    // 4. Capital Expenditure (PPE, Intangibles)
+    const capexItems = [
+      { name: 'Property, Plant & Equipment', keywords: ['property', 'plant', 'equipment', 'ppe'] },
+      { name: 'Intangible Assets', keywords: ['intangible', 'goodwill'] }
+    ];
+
+    capexItems.forEach(item => {
+      const accounts = glAccounts.filter(acc => {
+        const name = (acc.account_name || '').toLowerCase();
+        const note = (acc.note_name || '').toLowerCase();
+        return item.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
+      });
+
+      if (accounts.length > 0) {
+        const noteNames = [...new Set(accounts.map(acc => acc.note_name).filter(n => n))];
+
+        if (noteNames.length > 0) {
+          const formula = noteNames.map(noteName => ({
+            operator: '+',
+            name: noteName,
+            type: 'note'
+          }));
+
+          const currentValue = calculateFormulaValue(formula, trialBalances);
+          const previousValue = calculateFormulaValue(formula, compareTrialBalances);
+          const movement = -(currentValue - previousValue); // Negative for cash outflow
+
+          components.push({
+            id: idCounter++,
+            name: `Purchase of ${item.name}`,
+            formula: formula,
+            type: 'note',
+            currentYearValue: currentValue,
+            previousYearValue: previousValue,
+            movement: movement,
+            isAIGenerated: true
+          });
+        }
+      }
+    });
+
+    // 5. Financing Activities (Borrowings, Share Capital)
+    const financingItems = [
+      { name: 'Borrowings', keywords: ['loan', 'borrowing', 'debt'] },
+      { name: 'Share Capital', keywords: ['share capital', 'equity'] }
+    ];
+
+    financingItems.forEach(item => {
+      const accounts = glAccounts.filter(acc => {
+        const name = (acc.account_name || '').toLowerCase();
+        const note = (acc.note_name || '').toLowerCase();
+        return item.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
+      });
+
+      if (accounts.length > 0) {
+        const noteNames = [...new Set(accounts.map(acc => acc.note_name).filter(n => n))];
+
+        if (noteNames.length > 0) {
+          const formula = noteNames.map(noteName => ({
+            operator: '+',
+            name: noteName,
+            type: 'note'
+          }));
+
+          const currentValue = calculateFormulaValue(formula, trialBalances);
+          const previousValue = calculateFormulaValue(formula, compareTrialBalances);
+          const movement = currentValue - previousValue;
+
+          components.push({
+            id: idCounter++,
+            name: `Proceeds from ${item.name}`,
+            formula: formula,
+            type: 'note',
+            currentYearValue: currentValue,
+            previousYearValue: previousValue,
+            movement: movement,
+            isAIGenerated: true
+          });
+        }
+      }
+    });
+
+    return components;
+  };
+
+  const handleEditComponent = (component) => {
+    setSelectedComponent(component);
+    setNewComponent({
+      name: component.name,
+      formula: component.formula || [],
+      type: component.type || 'note'
+    });
+    setIsEditing(true);
+    setShowAddComponentPanel(true);
+  };
+
   const handleAddComponent = () => {
     setNewComponent({
       name: '',
       formula: [],
       type: 'note'
     });
+    setIsEditing(false);
     setShowAddComponentPanel(true);
   };
 
@@ -201,17 +436,24 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     const previousYearValue = calculateFormulaValue(newComponent.formula, compareTrialBalances);
 
     const component = {
-      id: Date.now(),
+      id: isEditing ? selectedComponent.id : Date.now(),
       name: newComponent.name,
       formula: newComponent.formula,
       type: newComponent.type,
       currentYearValue,
       previousYearValue,
-      movement: currentYearValue - previousYearValue
+      movement: currentYearValue - previousYearValue,
+      isAIGenerated: isEditing ? selectedComponent.isAIGenerated : false
     };
 
-    setComponents(prev => [...prev, component]);
+    if (isEditing) {
+      setComponents(prev => prev.map(c => c.id === selectedComponent.id ? component : c));
+    } else {
+      setComponents(prev => [...prev, component]);
+    }
+
     setShowAddComponentPanel(false);
+    setIsEditing(false);
   };
 
   const calculateFormulaValue = (formula, tbData) => {
@@ -270,6 +512,15 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     }));
   };
 
+  const handleTypeChange = (newType) => {
+    // Update all formula items to use the new type
+    setNewComponent(prev => ({
+      ...prev,
+      type: newType,
+      formula: prev.formula.map(item => ({ ...item, type: newType, name: '' }))
+    }));
+  };
+
   const handleViewCashflow = () => {
     setShowViewCashflowPanel(true);
   };
@@ -292,7 +543,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     <div className="h-screen flex flex-col bg-[#f7f5f2]">
       <PageHeader
         title="Cash Flow Statement"
-        subtitle="Build cash flow components with consolidated numbers"
+        subtitle="AI-powered cashflow builder with consolidated numbers"
       />
 
       <div className="flex-1 overflow-hidden flex flex-col">
@@ -339,6 +590,23 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
 
             <div className="flex items-center gap-3">
               <button
+                onClick={handleAIGenerate}
+                disabled={isGeneratingComponents || !selectedPeriod || !comparePeriod}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isGeneratingComponents ? (
+                  <>
+                    <Loader className="animate-spin" size={20} />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={20} />
+                    AI Generate
+                  </>
+                )}
+              </button>
+              <button
                 onClick={handleAddComponent}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
@@ -378,7 +646,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                         <div className="flex flex-col items-center gap-3">
                           <TrendingUp size={48} className="text-gray-300" />
                           <p className="text-lg font-medium">No components added yet</p>
-                          <p className="text-sm">Click "Add Component" to create your first cashflow component</p>
+                          <p className="text-sm">Click "AI Generate" to auto-populate or "Add Component" to create manually</p>
                         </div>
                       </td>
                     </tr>
@@ -386,31 +654,60 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                     components.map((component, index) => (
                       <tr
                         key={component.id}
-                        className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => handleViewComponent(component)}
+                        className="border-b border-gray-200 hover:bg-gray-50"
                       >
-                        <td className="px-6 py-4 text-sm font-semibold text-[#101828]">
+                        <td
+                          className="px-6 py-4 text-sm font-semibold text-[#101828] cursor-pointer"
+                          onClick={() => handleViewComponent(component)}
+                        >
                           {component.name}
+                          {component.isAIGenerated && (
+                            <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">
+                              AI
+                            </span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-sm font-mono text-right text-[#101828]">
+                        <td
+                          className="px-6 py-4 text-sm font-mono text-right text-[#101828] cursor-pointer"
+                          onClick={() => handleViewComponent(component)}
+                        >
                           {formatCurrency(component.currentYearValue)}
                         </td>
-                        <td className="px-6 py-4 text-sm font-mono text-right text-gray-600">
+                        <td
+                          className="px-6 py-4 text-sm font-mono text-right text-gray-600 cursor-pointer"
+                          onClick={() => handleViewComponent(component)}
+                        >
                           {formatCurrency(component.previousYearValue)}
                         </td>
-                        <td className={`px-6 py-4 text-sm font-mono text-right font-semibold ${component.movement >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <td
+                          className={`px-6 py-4 text-sm font-mono text-right font-semibold cursor-pointer ${component.movement >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          onClick={() => handleViewComponent(component)}
+                        >
                           {component.movement >= 0 ? '+' : ''}{formatCurrency(component.movement)}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteComponent(component.id);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <X size={16} />
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditComponent(component);
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Edit component"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteComponent(component.id);
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete component"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -455,16 +752,19 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
         </div>
       )}
 
-      {/* Add Component Sidepanel */}
+      {/* Add/Edit Component Sidepanel */}
       {showAddComponentPanel && (
         <div className="fixed right-0 top-0 h-full w-[700px] bg-white shadow-2xl z-50 animate-slideLeft flex flex-col">
           <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold">Add Component</h3>
-              <p className="text-sm text-slate-300 mt-1">Create a new cashflow component</p>
+              <h3 className="text-2xl font-bold">{isEditing ? 'Edit Component' : 'Add Component'}</h3>
+              <p className="text-sm text-slate-300 mt-1">{isEditing ? 'Update' : 'Create a new'} cashflow component</p>
             </div>
             <button
-              onClick={() => setShowAddComponentPanel(false)}
+              onClick={() => {
+                setShowAddComponentPanel(false);
+                setIsEditing(false);
+              }}
               className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
             >
               <X size={24} />
@@ -492,7 +792,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                 </label>
                 <select
                   value={newComponent.type}
-                  onChange={(e) => setNewComponent(prev => ({ ...prev, type: e.target.value }))}
+                  onChange={(e) => handleTypeChange(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
                 >
                   <option value="note">Note Level</option>
@@ -574,6 +874,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                   <li>• Movement is calculated as: Current Period - Previous Period</li>
                   <li>• Select the appropriate level (Note, Sub-Note, Class, Sub-Class)</li>
                   <li>• Use + to add and - to subtract components</li>
+                  <li>• Changing calculation level will reset formula items</li>
                 </ul>
               </div>
             </div>
@@ -581,7 +882,10 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
 
           <div className="p-6 border-t border-gray-200 flex gap-3">
             <button
-              onClick={() => setShowAddComponentPanel(false)}
+              onClick={() => {
+                setShowAddComponentPanel(false);
+                setIsEditing(false);
+              }}
               className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
             >
               Cancel
@@ -591,7 +895,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1e293b] transition-colors"
             >
               <Save size={20} />
-              Save Component
+              {isEditing ? 'Update Component' : 'Save Component'}
             </button>
           </div>
         </div>
