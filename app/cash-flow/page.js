@@ -4,89 +4,48 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/PageHeader';
 import {
-  Download,
-  Save,
-  Loader,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Building2,
-  RefreshCw,
-  Calculator,
-  ChevronRight,
-  ChevronDown,
   Plus,
-  Edit2,
   X,
-  Check,
-  Upload,
-  FileDown
+  Save,
+  Eye,
+  Sparkles,
+  TrendingUp,
+  Loader
 } from 'lucide-react';
 
 export default function CashFlowStatement() {
   const [isLoading, setIsLoading] = useState(true);
+  const [components, setComponents] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [comparePeriod, setComparePeriod] = useState('');
   const [availablePeriods, setAvailablePeriods] = useState([]);
-  const [entities, setEntities] = useState([]);
   const [glAccounts, setGlAccounts] = useState([]);
   const [trialBalances, setTrialBalances] = useState([]);
   const [compareTrialBalances, setCompareTrialBalances] = useState([]);
-  const [expandedSections, setExpandedSections] = useState({
-    operating: true,
-    investing: true,
-    financing: true,
-    forex: true
-  });
 
-  // Formula builder states
-  const [showFormulaPanel, setShowFormulaPanel] = useState(false);
-  const [currentLineItem, setCurrentLineItem] = useState(null);
-  const [customFormulas, setCustomFormulas] = useState({});
-  const [customLineItems, setCustomLineItems] = useState([]); // Store custom line items
-  const [formulaBuilder, setFormulaBuilder] = useState({
+  // Sidepanel states
+  const [showWorkingsPanel, setShowWorkingsPanel] = useState(false);
+  const [showAddComponentPanel, setShowAddComponentPanel] = useState(false);
+  const [showViewCashflowPanel, setShowViewCashflowPanel] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState(null);
+  const [isGeneratingWorkings, setIsGeneratingWorkings] = useState(false);
+  const [aiWorkings, setAiWorkings] = useState('');
+
+  // Add component form
+  const [newComponent, setNewComponent] = useState({
     name: '',
     formula: [],
-    type: 'note', // note, subnote, subclass, class
-    calculationMethod: 'movement' // 'movement' (difference between periods) or 'within' (formula within period)
-  });
-
-  // Upload state
-  const [uploadFile, setUploadFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-
-  // Cash flow data structure
-  const [cashFlowData, setCashFlowData] = useState({
-    operating: {
-      profitLoss: 0,
-      adjustments: {},
-      workingCapitalChanges: {},
-      total: 0
-    },
-    investing: {
-      items: {},
-      total: 0
-    },
-    financing: {
-      items: {},
-      total: 0
-    },
-    forex: 0,
-    openingCash: 0,
-    closingCash: 0,
-    movementInCash: 0,
-    calculatedClosingCash: 0
+    type: 'note' // note, subnote, subclass, class
   });
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, comparePeriod]);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      console.log('🔄 Loading cash flow statement data...');
+      console.log('🔄 Loading cash flow data...');
 
       // Load trial balance data
       const tbResponse = await fetch('/api/trial-balance');
@@ -118,25 +77,16 @@ export default function CashFlowStatement() {
         return;
       }
 
-      // Load entities and COA
-      const [entitiesResponse, coaRes] = await Promise.all([
-        fetch('/api/entities'),
-        supabase.from('chart_of_accounts').select('*').eq('is_active', true)
-      ]);
-
-      const entitiesData = await entitiesResponse.json();
+      // Load COA
+      const coaRes = await supabase.from('chart_of_accounts').select('*').eq('is_active', true);
 
       // Filter trial balances for both periods
       const tbDataForPeriod = allTBData.filter(tb => tb.period === selectedPeriod);
       const tbDataForComparePeriod = comparePeriod ? allTBData.filter(tb => tb.period === comparePeriod) : [];
 
-      setEntities(entitiesData || []);
       setGlAccounts(coaRes.data || []);
       setTrialBalances(tbDataForPeriod || []);
       setCompareTrialBalances(tbDataForComparePeriod || []);
-
-      // Calculate cash flow
-      calculateCashFlow(coaRes.data, entitiesData, tbDataForPeriod, tbDataForComparePeriod);
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -145,329 +95,15 @@ export default function CashFlowStatement() {
     }
   };
 
-  const calculateCashFlow = (coa, entitiesData, currentTB, previousTB) => {
-    // 1. Calculate Operating Profit/Loss
-    const revenueAccounts = coa.filter(acc => ['Revenue', 'Income'].includes(acc.class_name));
-    const expenseAccounts = coa.filter(acc => acc.class_name === 'Expenses');
-
-    let totalRevenue = 0;
-    let totalExpenses = 0;
-
-    currentTB.forEach(tb => {
-      const account = coa.find(acc => acc.account_code === tb.account_code);
-      if (account) {
-        const debit = parseFloat(tb.debit || 0);
-        const credit = parseFloat(tb.credit || 0);
-
-        if (['Revenue', 'Income'].includes(account.class_name)) {
-          totalRevenue += (credit - debit);
-        } else if (account.class_name === 'Expenses') {
-          totalExpenses += (debit - credit);
-        }
-      }
-    });
-
-    const profitLoss = totalRevenue - totalExpenses;
-
-    // 2. Calculate Adjustments (Non-cash items)
-    const adjustments = calculateAdjustments(coa, currentTB);
-
-    // 3. Calculate Changes in Working Capital
-    const workingCapitalChanges = calculateWorkingCapitalChanges(coa, currentTB, previousTB);
-
-    // 4. Calculate Investing Activities
-    const investingActivities = calculateInvestingActivities(coa, currentTB, previousTB);
-
-    // 5. Calculate Financing Activities
-    const financingActivities = calculateFinancingActivities(coa, currentTB, previousTB);
-
-    // 6. Forex adjustment (placeholder - would need forex data)
-    const forexAdjustment = 0;
-
-    // 7. Calculate cash balances
-    const openingCash = calculateOpeningCash(coa, previousTB);
-    const closingCash = calculateClosingCash(coa, currentTB);
-
-    // Operating cash flow
-    const operatingCashFlow = profitLoss +
-      Object.values(adjustments).reduce((sum, val) => sum + val, 0) +
-      Object.values(workingCapitalChanges).reduce((sum, val) => sum + val, 0);
-
-    const investingCashFlow = Object.values(investingActivities).reduce((sum, val) => sum + val, 0);
-    const financingCashFlow = Object.values(financingActivities).reduce((sum, val) => sum + val, 0);
-
-    const movementInCash = operatingCashFlow + investingCashFlow + financingCashFlow + forexAdjustment;
-
-    setCashFlowData({
-      operating: {
-        profitLoss,
-        adjustments,
-        workingCapitalChanges,
-        total: operatingCashFlow
-      },
-      investing: {
-        items: investingActivities,
-        total: investingCashFlow
-      },
-      financing: {
-        items: financingActivities,
-        total: financingCashFlow
-      },
-      forex: forexAdjustment,
-      openingCash,
-      closingCash,
-      movementInCash,
-      calculatedClosingCash: openingCash + movementInCash
-    });
-  };
-
-  const calculateAdjustments = (coa, currentTB) => {
-    const adjustments = {};
-
-    // Depreciation and Amortization
-    const depreciationAccounts = coa.filter(acc =>
-      acc.account_name && (
-        acc.account_name.toLowerCase().includes('depreciation') ||
-        acc.account_name.toLowerCase().includes('amortization')
-      )
-    );
-
-    let totalDepreciation = 0;
-    depreciationAccounts.forEach(acc => {
-      const tbEntries = currentTB.filter(tb => tb.account_code === acc.account_code);
-      tbEntries.forEach(tb => {
-        const debit = parseFloat(tb.debit || 0);
-        const credit = parseFloat(tb.credit || 0);
-        totalDepreciation += (debit - credit);
-      });
-    });
-
-    if (totalDepreciation !== 0) {
-      adjustments['Depreciation and Amortization'] = totalDepreciation;
+  const formatPeriodDate = (period) => {
+    if (!period) return '';
+    // Try to parse as date (YYYY-MM-DD) and format nicely
+    if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const date = new Date(period);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     }
-
-    // Provisions
-    const provisionAccounts = coa.filter(acc =>
-      acc.account_name && acc.account_name.toLowerCase().includes('provision')
-    );
-
-    let totalProvisions = 0;
-    provisionAccounts.forEach(acc => {
-      const tbEntries = currentTB.filter(tb => tb.account_code === acc.account_code);
-      tbEntries.forEach(tb => {
-        const debit = parseFloat(tb.debit || 0);
-        const credit = parseFloat(tb.credit || 0);
-        totalProvisions += (credit - debit);
-      });
-    });
-
-    if (totalProvisions !== 0) {
-      adjustments['Provisions'] = totalProvisions;
-    }
-
-    return adjustments;
-  };
-
-  const calculateWorkingCapitalChanges = (coa, currentTB, previousTB) => {
-    const changes = {};
-
-    // Working capital categories
-    const workingCapitalCategories = [
-      { name: 'Trade Receivables', keywords: ['receivable', 'debtors', 'accounts receivable'] },
-      { name: 'Inventory', keywords: ['inventory', 'stock'] },
-      { name: 'Trade Payables', keywords: ['payable', 'creditors', 'accounts payable'] },
-      { name: 'Prepayments', keywords: ['prepayment', 'prepaid'] },
-      { name: 'Accruals', keywords: ['accrual', 'accrued'] }
-    ];
-
-    workingCapitalCategories.forEach(category => {
-      const accounts = coa.filter(acc => {
-        const name = (acc.account_name || '').toLowerCase();
-        return category.keywords.some(keyword => name.includes(keyword));
-      });
-
-      if (accounts.length > 0) {
-        let currentBalance = 0;
-        let previousBalance = 0;
-
-        accounts.forEach(acc => {
-          // Current period
-          const currentEntries = currentTB.filter(tb => tb.account_code === acc.account_code);
-          currentEntries.forEach(tb => {
-            const debit = parseFloat(tb.debit || 0);
-            const credit = parseFloat(tb.credit || 0);
-            currentBalance += (debit - credit);
-          });
-
-          // Previous period
-          if (previousTB.length > 0) {
-            const previousEntries = previousTB.filter(tb => tb.account_code === acc.account_code);
-            previousEntries.forEach(tb => {
-              const debit = parseFloat(tb.debit || 0);
-              const credit = parseFloat(tb.credit || 0);
-              previousBalance += (debit - credit);
-            });
-          }
-        });
-
-        const change = currentBalance - previousBalance;
-        if (change !== 0) {
-          // For assets (receivables, inventory): increase = negative cash flow, decrease = positive
-          // For liabilities (payables, accruals): increase = positive cash flow, decrease = negative
-          const isLiability = category.name.includes('Payable') || category.name.includes('Accrual');
-          changes[category.name] = isLiability ? change : -change;
-        }
-      }
-    });
-
-    return changes;
-  };
-
-  const calculateInvestingActivities = (coa, currentTB, previousTB) => {
-    const activities = {};
-
-    // Fixed Assets categories
-    const fixedAssetCategories = [
-      { name: 'Property, Plant & Equipment', keywords: ['property', 'plant', 'equipment', 'ppe', 'fixed asset'] },
-      { name: 'Intangible Assets', keywords: ['intangible', 'goodwill', 'patent', 'trademark'] },
-      { name: 'Investments', keywords: ['investment', 'subsidiary', 'associate'] }
-    ];
-
-    fixedAssetCategories.forEach(category => {
-      const accounts = coa.filter(acc => {
-        const name = (acc.account_name || '').toLowerCase();
-        const note = (acc.note_name || '').toLowerCase();
-        return category.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
-      });
-
-      if (accounts.length > 0) {
-        let currentBalance = 0;
-        let previousBalance = 0;
-
-        accounts.forEach(acc => {
-          // Current period
-          const currentEntries = currentTB.filter(tb => tb.account_code === acc.account_code);
-          currentEntries.forEach(tb => {
-            const debit = parseFloat(tb.debit || 0);
-            const credit = parseFloat(tb.credit || 0);
-            currentBalance += (debit - credit);
-          });
-
-          // Previous period
-          if (previousTB.length > 0) {
-            const previousEntries = previousTB.filter(tb => tb.account_code === acc.account_code);
-            previousEntries.forEach(tb => {
-              const debit = parseFloat(tb.debit || 0);
-              const credit = parseFloat(tb.credit || 0);
-              previousBalance += (debit - credit);
-            });
-          }
-        });
-
-        const change = currentBalance - previousBalance;
-        if (change !== 0) {
-          // Increase in assets = cash outflow (negative), decrease = cash inflow (positive)
-          activities[`Purchase/Sale of ${category.name}`] = -change;
-        }
-      }
-    });
-
-    return activities;
-  };
-
-  const calculateFinancingActivities = (coa, currentTB, previousTB) => {
-    const activities = {};
-
-    // Financing categories
-    const financingCategories = [
-      { name: 'Borrowings', keywords: ['loan', 'borrowing', 'debt', 'bond'] },
-      { name: 'Share Capital', keywords: ['share capital', 'equity', 'common stock'] },
-      { name: 'Dividends', keywords: ['dividend'] }
-    ];
-
-    financingCategories.forEach(category => {
-      const accounts = coa.filter(acc => {
-        const name = (acc.account_name || '').toLowerCase();
-        const note = (acc.note_name || '').toLowerCase();
-        return category.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
-      });
-
-      if (accounts.length > 0) {
-        let currentBalance = 0;
-        let previousBalance = 0;
-
-        accounts.forEach(acc => {
-          // Current period
-          const currentEntries = currentTB.filter(tb => tb.account_code === acc.account_code);
-          currentEntries.forEach(tb => {
-            const debit = parseFloat(tb.debit || 0);
-            const credit = parseFloat(tb.credit || 0);
-            // Liabilities and equity have natural credit balance
-            currentBalance += (credit - debit);
-          });
-
-          // Previous period
-          if (previousTB.length > 0) {
-            const previousEntries = previousTB.filter(tb => tb.account_code === acc.account_code);
-            previousEntries.forEach(tb => {
-              const debit = parseFloat(tb.debit || 0);
-              const credit = parseFloat(tb.credit || 0);
-              previousBalance += (credit - debit);
-            });
-          }
-        });
-
-        const change = currentBalance - previousBalance;
-        if (change !== 0) {
-          // For borrowings/equity: increase = cash inflow (positive), decrease = cash outflow (negative)
-          // For dividends: payment = cash outflow (negative)
-          const isDividend = category.name === 'Dividends';
-          activities[category.name] = isDividend ? -Math.abs(change) : change;
-        }
-      }
-    });
-
-    return activities;
-  };
-
-  const calculateOpeningCash = (coa, previousTB) => {
-    if (!previousTB || previousTB.length === 0) return 0;
-
-    const cashAccounts = coa.filter(acc => {
-      const name = (acc.account_name || '').toLowerCase();
-      return name.includes('cash') || name.includes('bank');
-    });
-
-    let total = 0;
-    cashAccounts.forEach(acc => {
-      const entries = previousTB.filter(tb => tb.account_code === acc.account_code);
-      entries.forEach(tb => {
-        const debit = parseFloat(tb.debit || 0);
-        const credit = parseFloat(tb.credit || 0);
-        total += (debit - credit);
-      });
-    });
-
-    return total;
-  };
-
-  const calculateClosingCash = (coa, currentTB) => {
-    const cashAccounts = coa.filter(acc => {
-      const name = (acc.account_name || '').toLowerCase();
-      return name.includes('cash') || name.includes('bank');
-    });
-
-    let total = 0;
-    cashAccounts.forEach(acc => {
-      const entries = currentTB.filter(tb => tb.account_code === acc.account_code);
-      entries.forEach(tb => {
-        const debit = parseFloat(tb.debit || 0);
-        const credit = parseFloat(tb.credit || 0);
-        total += (debit - credit);
-      });
-    });
-
-    return total;
+    // If it's like "FY 2024" or already formatted, return as is
+    return period;
   };
 
   const formatCurrency = (value) => {
@@ -478,153 +114,169 @@ export default function CashFlowStatement() {
     }).format(value || 0);
   };
 
-  const formatPeriod = (period) => {
-    if (!period) return '';
-    // Try to parse as date (YYYY-MM-DD) and format nicely
-    if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const date = new Date(period);
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const handleViewComponent = async (component) => {
+    setSelectedComponent(component);
+    setShowWorkingsPanel(true);
+    setIsGeneratingWorkings(true);
+    setAiWorkings('');
+
+    // Simulate AI generating workings
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Generate AI workings based on component
+    const workings = generateAIWorkings(component);
+    setAiWorkings(workings);
+    setIsGeneratingWorkings(false);
+  };
+
+  const generateAIWorkings = (component) => {
+    // AI-generated workings for cashflow components
+    const componentName = component.name || 'Component';
+
+    return `# ${componentName}
+
+## Formula
+This component is calculated based on the movement between consolidated balances:
+
+**Formula:** Closing Balance (${formatPeriodDate(selectedPeriod)}) - Opening Balance (${formatPeriodDate(comparePeriod)})
+
+## Consolidated Numbers Used
+
+### ${formatPeriodDate(selectedPeriod)}
+- Total Consolidated Balance: ${formatCurrency(component.currentYearValue || 0)}
+
+### ${formatPeriodDate(comparePeriod)}
+- Total Consolidated Balance: ${formatCurrency(component.previousYearValue || 0)}
+
+## Movement Calculation
+
+\`\`\`
+Movement = ${formatCurrency(component.currentYearValue || 0)} - ${formatCurrency(component.previousYearValue || 0)}
+Movement = ${formatCurrency((component.currentYearValue || 0) - (component.previousYearValue || 0))}
+\`\`\`
+
+## Impact on Cash Flow
+
+${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
+  `Negative movement of ${formatCurrency(Math.abs((component.currentYearValue || 0) - (component.previousYearValue || 0)))} indicates a **cash inflow**` :
+  `Positive movement of ${formatCurrency((component.currentYearValue || 0) - (component.previousYearValue || 0))} indicates a **cash outflow**`
+}
+
+## Data Sources
+
+- **Source**: Consolidated Trial Balance
+- **Current Period**: ${formatPeriodDate(selectedPeriod)}
+- **Previous Period**: ${formatPeriodDate(comparePeriod)}
+- **Calculation Method**: Movement-based (Indirect Method)
+
+## Notes
+
+- All amounts are consolidated at group level
+- Movements are calculated automatically based on trial balance data
+- Intercompany eliminations are already applied in consolidated balances`;
+  };
+
+  const handleAddComponent = () => {
+    setNewComponent({
+      name: '',
+      formula: [],
+      type: 'note'
+    });
+    setShowAddComponentPanel(true);
+  };
+
+  const handleSaveComponent = () => {
+    if (!newComponent.name.trim()) {
+      alert('Please enter a component name');
+      return;
     }
-    // If it's like "FY 2024" or already formatted, return as is
-    return period;
+
+    if (newComponent.formula.length === 0) {
+      alert('Please add at least one formula component');
+      return;
+    }
+
+    // Calculate values based on formula
+    const currentYearValue = calculateFormulaValue(newComponent.formula, trialBalances);
+    const previousYearValue = calculateFormulaValue(newComponent.formula, compareTrialBalances);
+
+    const component = {
+      id: Date.now(),
+      name: newComponent.name,
+      formula: newComponent.formula,
+      type: newComponent.type,
+      currentYearValue,
+      previousYearValue,
+      movement: currentYearValue - previousYearValue
+    };
+
+    setComponents(prev => [...prev, component]);
+    setShowAddComponentPanel(false);
   };
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
+  const calculateFormulaValue = (formula, tbData) => {
+    let total = 0;
 
-  const openFormulaBuilder = (lineItemName, section, isNew = false) => {
-    setCurrentLineItem({ name: lineItemName, section, isNew });
-    setShowFormulaPanel(true);
-
-    // Load existing formula if any
-    if (customFormulas[lineItemName]) {
-      setFormulaBuilder(customFormulas[lineItemName]);
-    } else {
-      setFormulaBuilder({
-        name: lineItemName,
-        formula: [],
-        type: 'note',
-        calculationMethod: 'movement' // Default to movement
+    formula.forEach(item => {
+      // Filter accounts based on type
+      const accounts = glAccounts.filter(acc => {
+        if (item.type === 'note') return acc.note_name === item.name;
+        if (item.type === 'subnote') return acc.sub_note_name === item.name;
+        if (item.type === 'subclass') return acc.sub_class_name === item.name;
+        if (item.type === 'class') return acc.class_name === item.name;
+        return false;
       });
-    }
+
+      // Calculate total for these accounts
+      let accountTotal = 0;
+      accounts.forEach(acc => {
+        const entries = tbData.filter(tb => tb.account_code === acc.account_code);
+        entries.forEach(tb => {
+          const debit = parseFloat(tb.debit || 0);
+          const credit = parseFloat(tb.credit || 0);
+          accountTotal += (debit - credit);
+        });
+      });
+
+      // Apply operator
+      if (item.operator === '+') {
+        total += accountTotal;
+      } else if (item.operator === '-') {
+        total -= accountTotal;
+      }
+    });
+
+    return total;
   };
 
-  const addNewLineItem = (section) => {
-    openFormulaBuilder('New Line Item', section, true);
-  };
-
-  const addFormulaComponent = (component) => {
-    setFormulaBuilder(prev => ({
+  const addFormulaItem = (operator) => {
+    setNewComponent(prev => ({
       ...prev,
-      formula: [...prev.formula, component]
+      formula: [...prev.formula, { operator, name: '', type: prev.type }]
     }));
   };
 
-  const removeFormulaComponent = (index) => {
-    setFormulaBuilder(prev => ({
+  const updateFormulaItem = (index, field, value) => {
+    setNewComponent(prev => ({
+      ...prev,
+      formula: prev.formula.map((item, i) => i === index ? { ...item, [field]: value } : item)
+    }));
+  };
+
+  const removeFormulaItem = (index) => {
+    setNewComponent(prev => ({
       ...prev,
       formula: prev.formula.filter((_, i) => i !== index)
     }));
   };
 
-  const saveFormula = () => {
-    const newName = formulaBuilder.name;
-
-    // If name changed, remove old entry
-    if (currentLineItem.name !== newName && customFormulas[currentLineItem.name]) {
-      const { [currentLineItem.name]: removed, ...rest } = customFormulas;
-      setCustomFormulas({ ...rest, [newName]: formulaBuilder });
-    } else {
-      setCustomFormulas(prev => ({
-        ...prev,
-        [newName]: formulaBuilder
-      }));
-    }
-
-    // Add to custom line items if new
-    if (currentLineItem.isNew && !customLineItems.find(item => item.name === newName)) {
-      setCustomLineItems(prev => [...prev, {
-        name: newName,
-        section: currentLineItem.section,
-        formula: formulaBuilder
-      }]);
-    }
-
-    setShowFormulaPanel(false);
+  const handleViewCashflow = () => {
+    setShowViewCashflowPanel(true);
   };
 
-  const downloadTemplate = () => {
-    // Create CSV template
-    const template = [
-      ['Cash Flow Statement Template'],
-      [''],
-      ['Section', 'Line Item', 'Period', 'Amount', 'Formula Type', 'Formula'],
-      ['Operating', 'Operating Profit / (Loss)', selectedPeriod, '', '', ''],
-      ['Operating', 'Depreciation and Amortization', selectedPeriod, '', '', ''],
-      ['Operating', 'Trade Receivables', selectedPeriod, '', '', ''],
-      ['Investing', 'Purchase of PPE', selectedPeriod, '', '', ''],
-      ['Investing', 'Sale of Investments', selectedPeriod, '', '', ''],
-      ['Financing', 'Proceeds from Borrowings', selectedPeriod, '', '', ''],
-      ['Financing', 'Dividends Paid', selectedPeriod, '', '', ''],
-    ];
-
-    const csvContent = template.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `cashflow_template_${selectedPeriod || 'current'}.csv`;
-    link.click();
-  };
-
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const text = await file.text();
-      const rows = text.split('\n').map(row =>
-        row.split(',').map(cell => cell.replace(/^"|"$/g, '').trim())
-      );
-
-      // Skip header rows
-      const dataRows = rows.slice(3).filter(row => row.length >= 4 && row[0]);
-
-      // Process each row
-      const newCustomItems = [];
-      dataRows.forEach(row => {
-        const [section, lineItem, period, amount, formulaType, formula] = row;
-        if (lineItem && section) {
-          // Check if this is a new custom item (not in default cash flow)
-          const sectionKey = section.toLowerCase();
-          newCustomItems.push({
-            name: lineItem,
-            section: sectionKey,
-            amount: parseFloat(amount) || 0,
-            formula: {
-              name: lineItem,
-              formula: formula ? JSON.parse(formula) : [],
-              type: formulaType || 'note'
-            }
-          });
-        }
-      });
-
-      if (newCustomItems.length > 0) {
-        setCustomLineItems(prev => [...prev, ...newCustomItems]);
-        alert(`Successfully uploaded ${newCustomItems.length} cash flow line items!`);
-      }
-
-      event.target.value = null; // Reset file input
-    } catch (error) {
-      console.error('Error uploading cash flow file:', error);
-      alert('Failed to upload cash flow file. Please check the format and try again.');
-    } finally {
-      setIsUploading(false);
+  const handleDeleteComponent = (id) => {
+    if (confirm('Are you sure you want to delete this component?')) {
+      setComponents(prev => prev.filter(c => c.id !== id));
     }
   };
 
@@ -640,696 +292,371 @@ export default function CashFlowStatement() {
     <div className="h-screen flex flex-col bg-[#f7f5f2]">
       <PageHeader
         title="Cash Flow Statement"
-        subtitle="Indirect Method - Operating, Investing, and Financing Activities"
+        subtitle="Build cash flow components with consolidated numbers"
       />
 
-      <div className="flex-1 overflow-hidden flex relative">
-        {/* Main Content Area */}
-        <div className={`flex-1 overflow-hidden flex flex-col transition-all duration-300 ${showFormulaPanel ? 'mr-96' : ''}`}>
-          {/* Controls */}
-          <div className="px-6 py-4 bg-white border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {/* Period Selector */}
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-[#101828]">Current Period:</label>
-                  <select
-                    value={selectedPeriod}
-                    onChange={(e) => setSelectedPeriod(e.target.value)}
-                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {availablePeriods.length === 0 ? (
-                      <option value="">No periods available</option>
-                    ) : (
-                      availablePeriods.map(period => (
-                        <option key={period.period_code} value={period.period_code}>
-                          {period.period_name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Compare Period */}
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-[#101828]">Previous Period:</label>
-                  <select
-                    value={comparePeriod}
-                    onChange={(e) => setComparePeriod(e.target.value)}
-                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select previous period</option>
-                    {availablePeriods.map(period => (
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Controls */}
+        <div className="px-8 py-4 bg-white border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Period Selectors */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-[#101828]">Current Period:</label>
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {availablePeriods.length === 0 ? (
+                    <option value="">No periods available</option>
+                  ) : (
+                    availablePeriods.map(period => (
                       <option key={period.period_code} value={period.period_code}>
-                        {period.period_name}
+                        {formatPeriodDate(period.period_name)}
                       </option>
-                    ))}
-                  </select>
-                </div>
+                    ))
+                  )}
+                </select>
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={loadData}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-[#101828]">Previous Period:</label>
+                <select
+                  value={comparePeriod}
+                  onChange={(e) => setComparePeriod(e.target.value)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-[#101828] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <RefreshCw size={16} />
-                  Refresh
-                </button>
-                <button
-                  onClick={downloadTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                >
-                  <FileDown size={16} />
-                  Template
-                </button>
-                <label className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors cursor-pointer">
-                  <Upload size={16} />
-                  {isUploading ? 'Uploading...' : 'Upload'}
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    disabled={isUploading}
-                  />
-                </label>
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                  <Save size={16} />
-                  Save
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] transition-colors">
-                  <Download size={16} />
-                  Export
-                </button>
+                  <option value="">Select previous period</option>
+                  {availablePeriods.map(period => (
+                    <option key={period.period_code} value={period.period_code}>
+                      {formatPeriodDate(period.period_name)}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-          </div>
 
-          {/* Cash Flow Statement */}
-          <div className="flex-1 overflow-auto px-6 py-6">
-            <div className="space-y-4">
-              {/* Operating Activities */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between">
-                  <div
-                    className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => toggleSection('operating')}
-                  >
-                    <Calculator size={18} />
-                    <h3 className="text-base font-bold">Cash Flow from Operating Activities</h3>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addNewLineItem('operating'); }}
-                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors"
-                    >
-                      <Plus size={14} />
-                      Add Line
-                    </button>
-                    <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.operating.total))}</span>
-                    <button onClick={() => toggleSection('operating')} className="hover:bg-white/10 p-1 rounded transition-colors">
-                      {expandedSections.operating ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {expandedSections.operating && (
-                  <div className="p-6 space-y-2">
-                    {/* Period Header */}
-                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
-                      <div className="font-semibold text-[#101828] text-sm">Line Item</div>
-                      <div className="flex gap-8">
-                        <div className="font-semibold text-[#101828] text-sm w-32 text-right">
-                          {formatPeriod(selectedPeriod) || 'Current'}
-                        </div>
-                        {comparePeriod && (
-                          <div className="font-semibold text-slate-500 text-sm w-32 text-right">
-                            {formatPeriod(comparePeriod)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div
-                      className="flex justify-between items-center py-2 border-b border-slate-200 group hover:bg-slate-50 cursor-pointer px-2 rounded"
-                      onClick={() => openFormulaBuilder('Operating Profit / (Loss)', 'operating')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#101828]">Operating Profit / (Loss)</span>
-                        <Edit2 size={14} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(cashFlowData.operating.profitLoss))}</span>
-                    </div>
-
-                    {Object.keys(cashFlowData.operating.adjustments).length > 0 && (
-                      <>
-                        <div className="mt-3 mb-2">
-                          <h4 className="font-semibold text-[#101828] text-sm">Adjustments for:</h4>
-                        </div>
-                        {Object.entries(cashFlowData.operating.adjustments).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                            onClick={() => openFormulaBuilder(key, 'operating')}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#101828]">{key}</span>
-                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(value))}</span>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {Object.keys(cashFlowData.operating.workingCapitalChanges).length > 0 && (
-                      <>
-                        <div className="mt-3 mb-2">
-                          <h4 className="font-semibold text-[#101828] text-sm">Changes in Working Capital:</h4>
-                        </div>
-                        {Object.entries(cashFlowData.operating.workingCapitalChanges).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                            onClick={() => openFormulaBuilder(key, 'operating')}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#101828]">{key}</span>
-                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
-                            </span>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Custom Line Items for Operating Activities */}
-                    {customLineItems.filter(item => item.section === 'operating').length > 0 && (
-                      <>
-                        <div className="mt-3 mb-2">
-                          <h4 className="font-semibold text-[#101828] text-sm">Custom Line Items:</h4>
-                        </div>
-                        {customLineItems.filter(item => item.section === 'operating').map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex justify-between items-center py-2 pl-6 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                            onClick={() => openFormulaBuilder(item.name, 'operating')}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#101828]">{item.name}</span>
-                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <span className="font-mono text-[#101828]">0.00</span>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-green-50 rounded px-3">
-                      <span className="font-bold text-[#101828]">Net Cash from Operating Activities</span>
-                      <span className="font-mono text-lg font-bold text-green-700">
-                        {formatCurrency(Math.abs(cashFlowData.operating.total))}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Investing Activities */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between">
-                  <div
-                    className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => toggleSection('investing')}
-                  >
-                    <TrendingUp size={18} />
-                    <h3 className="text-base font-bold">Cash Flow from Investing Activities</h3>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addNewLineItem('investing'); }}
-                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors"
-                    >
-                      <Plus size={14} />
-                      Add Line
-                    </button>
-                    <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.investing.total))}</span>
-                    <button onClick={() => toggleSection('investing')} className="hover:bg-white/10 p-1 rounded transition-colors">
-                      {expandedSections.investing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {expandedSections.investing && (
-                  <div className="p-6 space-y-2">
-                    {/* Period Header */}
-                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
-                      <div className="font-semibold text-[#101828] text-sm">Line Item</div>
-                      <div className="flex gap-8">
-                        <div className="font-semibold text-[#101828] text-sm w-32 text-right">
-                          {formatPeriod(selectedPeriod) || 'Current'}
-                        </div>
-                        {comparePeriod && (
-                          <div className="font-semibold text-slate-500 text-sm w-32 text-right">
-                            {formatPeriod(comparePeriod)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {Object.keys(cashFlowData.investing.items).length > 0 ? (
-                      <>
-                        {Object.entries(cashFlowData.investing.items).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2 cursor-pointer"
-                            onClick={() => openFormulaBuilder(key, 'investing')}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#101828]">{key}</span>
-                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
-                            </span>
-                          </div>
-                        ))}
-
-                        {/* Custom Line Items for Investing Activities */}
-                        {customLineItems.filter(item => item.section === 'investing').length > 0 && (
-                          <>
-                            <div className="mt-3 mb-2">
-                              <h4 className="font-semibold text-[#101828] text-sm">Custom Line Items:</h4>
-                            </div>
-                            {customLineItems.filter(item => item.section === 'investing').map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                                onClick={() => openFormulaBuilder(item.name, 'investing')}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[#101828]">{item.name}</span>
-                                  <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                                <span className="font-mono text-[#101828]">0.00</span>
-                              </div>
-                            ))}
-                          </>
-                        )}
-
-                        <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-blue-50 rounded px-3">
-                          <span className="font-bold text-[#101828]">Net Cash from Investing Activities</span>
-                          <span className={`font-mono text-lg font-bold ${cashFlowData.investing.total < 0 ? 'text-red-700' : 'text-blue-700'}`}>
-                            {cashFlowData.investing.total < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.investing.total))}{cashFlowData.investing.total < 0 ? ')' : ''}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      customLineItems.filter(item => item.section === 'investing').length > 0 ? (
-                        <>
-                          {customLineItems.filter(item => item.section === 'investing').map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                              onClick={() => openFormulaBuilder(item.name, 'investing')}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-[#101828]">{item.name}</span>
-                                <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                              <span className="font-mono text-[#101828]">0.00</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-blue-50 rounded px-3">
-                            <span className="font-bold text-[#101828]">Net Cash from Investing Activities</span>
-                            <span className="font-mono text-lg font-bold text-blue-700">0.00</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-center text-slate-500 py-4">No investing activities detected</div>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Financing Activities */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="bg-[#101828] text-white px-6 py-3 flex items-center justify-between">
-                  <div
-                    className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => toggleSection('financing')}
-                  >
-                    <Building2 size={18} />
-                    <h3 className="text-base font-bold">Cash Flow from Financing Activities</h3>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addNewLineItem('financing'); }}
-                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors"
-                    >
-                      <Plus size={14} />
-                      Add Line
-                    </button>
-                    <span className="text-lg font-bold">{formatCurrency(Math.abs(cashFlowData.financing.total))}</span>
-                    <button onClick={() => toggleSection('financing')} className="hover:bg-white/10 p-1 rounded transition-colors">
-                      {expandedSections.financing ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {expandedSections.financing && (
-                  <div className="p-6 space-y-2">
-                    {/* Period Header */}
-                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-300">
-                      <div className="font-semibold text-[#101828] text-sm">Line Item</div>
-                      <div className="flex gap-8">
-                        <div className="font-semibold text-[#101828] text-sm w-32 text-right">
-                          {formatPeriod(selectedPeriod) || 'Current'}
-                        </div>
-                        {comparePeriod && (
-                          <div className="font-semibold text-slate-500 text-sm w-32 text-right">
-                            {formatPeriod(comparePeriod)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {Object.keys(cashFlowData.financing.items).length > 0 ? (
-                      <>
-                        {Object.entries(cashFlowData.financing.items).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded px-2 cursor-pointer"
-                            onClick={() => openFormulaBuilder(key, 'financing')}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#101828]">{key}</span>
-                              <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <span className={`font-mono ${value < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {value < 0 ? '(' : ''}{formatCurrency(Math.abs(value))}{value < 0 ? ')' : ''}
-                            </span>
-                          </div>
-                        ))}
-
-                        {/* Custom Line Items for Financing Activities */}
-                        {customLineItems.filter(item => item.section === 'financing').length > 0 && (
-                          <>
-                            <div className="mt-3 mb-2">
-                              <h4 className="font-semibold text-[#101828] text-sm">Custom Line Items:</h4>
-                            </div>
-                            {customLineItems.filter(item => item.section === 'financing').map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                                onClick={() => openFormulaBuilder(item.name, 'financing')}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[#101828]">{item.name}</span>
-                                  <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                                <span className="font-mono text-[#101828]">0.00</span>
-                              </div>
-                            ))}
-                          </>
-                        )}
-
-                        <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-purple-50 rounded px-3">
-                          <span className="font-bold text-[#101828]">Net Cash from Financing Activities</span>
-                          <span className={`font-mono text-lg font-bold ${cashFlowData.financing.total < 0 ? 'text-red-700' : 'text-purple-700'}`}>
-                            {cashFlowData.financing.total < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.financing.total))}{cashFlowData.financing.total < 0 ? ')' : ''}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      customLineItems.filter(item => item.section === 'financing').length > 0 ? (
-                        <>
-                          {customLineItems.filter(item => item.section === 'financing').map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="flex justify-between items-center py-2 group hover:bg-slate-50 rounded cursor-pointer px-2"
-                              onClick={() => openFormulaBuilder(item.name, 'financing')}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-[#101828]">{item.name}</span>
-                                <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                              <span className="font-mono text-[#101828]">0.00</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center py-3 mt-4 border-t-2 border-[#101828] bg-purple-50 rounded px-3">
-                            <span className="font-bold text-[#101828]">Net Cash from Financing Activities</span>
-                            <span className="font-mono text-lg font-bold text-purple-700">0.00</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-center text-slate-500 py-4">No financing activities detected</div>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Forex Adjustment */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div
-                  className="px-6 py-3 flex justify-between items-center group hover:bg-slate-50 cursor-pointer rounded"
-                  onClick={() => openFormulaBuilder('Forex Adjustment', 'forex')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[#101828]">Effect of Foreign Exchange Rate Changes</span>
-                    <Edit2 size={12} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <span className="font-mono text-[#101828]">{formatCurrency(Math.abs(cashFlowData.forex))}</span>
-                </div>
-              </div>
-
-              {/* Movement in Cash */}
-              <div className="bg-[#101828] text-white rounded-lg shadow-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-lg font-bold">Net Increase / (Decrease) in Cash</span>
-                  <span className="text-2xl font-bold">{formatCurrency(Math.abs(cashFlowData.movementInCash))}</span>
-                </div>
-
-                <div className="space-y-2 pt-4 border-t border-white/30">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/90">Cash and Cash Equivalents at Beginning</span>
-                    <span className="font-mono">{formatCurrency(Math.abs(cashFlowData.openingCash))}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/90">Movement in Cash</span>
-                    <span className={`font-mono ${cashFlowData.movementInCash < 0 ? 'text-red-300' : 'text-green-300'}`}>
-                      {cashFlowData.movementInCash < 0 ? '(' : ''}{formatCurrency(Math.abs(cashFlowData.movementInCash))}{cashFlowData.movementInCash < 0 ? ')' : ''}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3 border-t-2 border-white/50">
-                    <span className="text-lg font-bold">Cash and Cash Equivalents at End</span>
-                    <span className="font-mono text-xl font-bold">{formatCurrency(Math.abs(cashFlowData.calculatedClosingCash))}</span>
-                  </div>
-
-                  {Math.abs(cashFlowData.closingCash - cashFlowData.calculatedClosingCash) > 0.01 && (
-                    <div className="mt-4 p-3 bg-yellow-500/20 rounded-lg border border-yellow-500/50">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Actual Closing Cash (from TB):</span>
-                        <span className="font-mono">{formatCurrency(Math.abs(cashFlowData.closingCash))}</span>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-sm">Difference:</span>
-                        <span className="font-mono text-yellow-300">
-                          {formatCurrency(Math.abs(cashFlowData.closingCash - cashFlowData.calculatedClosingCash))}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleAddComponent}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Plus size={20} />
+                Add Component
+              </button>
+              <button
+                onClick={handleViewCashflow}
+                disabled={components.length === 0}
+                className="flex items-center gap-2 px-6 py-3 bg-[#101828] text-white rounded-lg text-sm font-semibold hover:bg-[#1e293b] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                <Eye size={20} />
+                View Cashflow
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Formula Builder Side Panel */}
-        {showFormulaPanel && (
-          <div className="absolute right-0 top-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-xl flex flex-col z-50">
-              <div className="bg-[#101828] text-white px-6 py-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold">Formula Builder</h3>
-                <button
-                  onClick={() => setShowFormulaPanel(false)}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
-                >
-                  <X size={20} />
-                </button>
+        {/* Components Table */}
+        <div className="flex-1 overflow-auto px-8 py-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-[#101828] text-white">
+                    <th className="px-6 py-4 text-left text-sm font-bold">Component</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold">{formatPeriodDate(selectedPeriod)}</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold">{formatPeriodDate(comparePeriod) || 'Previous Period'}</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold">Movement</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {components.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                        <div className="flex flex-col items-center gap-3">
+                          <TrendingUp size={48} className="text-gray-300" />
+                          <p className="text-lg font-medium">No components added yet</p>
+                          <p className="text-sm">Click "Add Component" to create your first cashflow component</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    components.map((component, index) => (
+                      <tr
+                        key={component.id}
+                        className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleViewComponent(component)}
+                      >
+                        <td className="px-6 py-4 text-sm font-semibold text-[#101828]">
+                          {component.name}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-mono text-right text-[#101828]">
+                          {formatCurrency(component.currentYearValue)}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-mono text-right text-gray-600">
+                          {formatCurrency(component.previousYearValue)}
+                        </td>
+                        <td className={`px-6 py-4 text-sm font-mono text-right font-semibold ${component.movement >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {component.movement >= 0 ? '+' : ''}{formatCurrency(component.movement)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteComponent(component.id);
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Component Workings Sidepanel */}
+      {showWorkingsPanel && (
+        <div className="fixed right-0 top-0 h-full w-[800px] bg-white shadow-2xl z-50 animate-slideLeft flex flex-col">
+          <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold">{selectedComponent?.name}</h3>
+              <p className="text-sm text-slate-300 mt-1">Component Workings</p>
+            </div>
+            <button
+              onClick={() => setShowWorkingsPanel(false)}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto p-8">
+            {isGeneratingWorkings ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4">
+                <Sparkles className="animate-pulse text-purple-600" size={48} />
+                <p className="text-lg font-semibold text-gray-700">AI is generating workings...</p>
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans leading-relaxed">
+                  {aiWorkings}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Component Sidepanel */}
+      {showAddComponentPanel && (
+        <div className="fixed right-0 top-0 h-full w-[700px] bg-white shadow-2xl z-50 animate-slideLeft flex flex-col">
+          <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold">Add Component</h3>
+              <p className="text-sm text-slate-300 mt-1">Create a new cashflow component</p>
+            </div>
+            <button
+              onClick={() => setShowAddComponentPanel(false)}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto p-8">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Component Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newComponent.name}
+                  onChange={(e) => setNewComponent(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
+                  placeholder="e.g., Movement in Working Capital"
+                />
               </div>
 
-              <div className="flex-1 overflow-auto p-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-[#101828] mb-2">Line Item Name</label>
-                    <input
-                      type="text"
-                      value={formulaBuilder.name}
-                      onChange={(e) => setFormulaBuilder(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-[#101828] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter line item name"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Calculation Level
+                </label>
+                <select
+                  value={newComponent.type}
+                  onChange={(e) => setNewComponent(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
+                >
+                  <option value="note">Note Level</option>
+                  <option value="subnote">Sub-Note Level</option>
+                  <option value="subclass">Sub-Class Level</option>
+                  <option value="class">Class Level</option>
+                </select>
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-[#101828] mb-2">Calculation Method</label>
-                    <select
-                      value={formulaBuilder.calculationMethod}
-                      onChange={(e) => setFormulaBuilder(prev => ({ ...prev, calculationMethod: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-[#101828] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="movement">Movement Between Periods (Current - Previous)</option>
-                      <option value="within">Formula Within Current Period Only</option>
-                    </select>
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Formula <span className="text-red-500">*</span>
+                </label>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-[#101828] mb-2">Calculation Type</label>
-                    <select
-                      value={formulaBuilder.type}
-                      onChange={(e) => setFormulaBuilder(prev => ({ ...prev, type: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-[#101828] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="note">Note Balance</option>
-                      <option value="subnote">Sub-Note Balance</option>
-                      <option value="subclass">Sub-Class Balance</option>
-                      <option value="class">Class Balance</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-[#101828] mb-2">Formula Components</label>
-                    <div className="space-y-2 mb-3">
-                      {formulaBuilder.formula.length === 0 ? (
-                        <div className="text-sm text-slate-500 text-center py-4 border border-dashed border-slate-300 rounded-lg">
-                          No components added yet
+                <div className="space-y-3">
+                  {newComponent.formula.length === 0 ? (
+                    <div className="text-sm text-gray-500 text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      No formula items added yet
+                    </div>
+                  ) : (
+                    newComponent.formula.map((item, index) => (
+                      <div key={index} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg font-bold text-lg text-gray-700">
+                          {item.operator}
                         </div>
-                      ) : (
-                        formulaBuilder.formula.map((component, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-[#101828]">{component.operator} {component.name}</div>
-                              <div className="text-xs text-slate-600 mt-1">Type: {component.type}</div>
-                            </div>
-                            <button
-                              onClick={() => removeFormulaComponent(index)}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <button
-                        onClick={() => addFormulaComponent({ operator: '+', name: 'New Item', type: formulaBuilder.type })}
-                        className="flex items-center justify-center gap-2 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
-                      >
-                        <Plus size={14} />
-                        Add
-                      </button>
-                      <button
-                        onClick={() => addFormulaComponent({ operator: '-', name: 'New Item', type: formulaBuilder.type })}
-                        className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
-                      >
-                        <X size={14} />
-                        Subtract
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-200">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">
-                        {formulaBuilder.calculationMethod === 'movement' ? 'Movement Between Periods' : 'Within Period Calculation'}
-                      </h4>
-                      <div className="text-xs text-blue-700 space-y-1">
-                        <p>• Select calculation type (Note/Sub-Note/Class/Sub-Class)</p>
-                        <p>• Add components with + or - operators</p>
-                        {formulaBuilder.calculationMethod === 'movement' ? (
-                          <>
-                            <p>• Formula calculates difference between {formatPeriod(selectedPeriod) || 'current period'} and {comparePeriod ? formatPeriod(comparePeriod) : 'previous period'}</p>
-                            <p>• Result = Current Period Balance - Previous Period Balance</p>
-                          </>
-                        ) : (
-                          <>
-                            <p>• Formula calculates value within {formatPeriod(selectedPeriod) || 'current period'} only</p>
-                            <p>• Result = Sum of components in current period</p>
-                            <p>• Example: Operating Profit = Revenue - Expenses</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {glAccounts.length > 0 && (
-                      <div>
-                        <label className="block text-sm font-semibold text-[#101828] mb-2">
-                          {formulaBuilder.type === 'note' && 'Notes'}
-                          {formulaBuilder.type === 'subnote' && 'Sub-Notes'}
-                          {formulaBuilder.type === 'subclass' && 'Sub-Classes'}
-                          {formulaBuilder.type === 'class' && 'Classes'}
-                        </label>
-                        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg">
+                        <select
+                          value={item.name}
+                          onChange={(e) => updateFormulaItem(index, 'name', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">Select {newComponent.type}...</option>
                           {(() => {
                             const items = [...new Set(glAccounts.map(acc => {
-                              if (formulaBuilder.type === 'note') return acc.note_name;
-                              if (formulaBuilder.type === 'subnote') return acc.sub_note_name;
-                              if (formulaBuilder.type === 'subclass') return acc.sub_class_name;
-                              if (formulaBuilder.type === 'class') return acc.class_name;
+                              if (newComponent.type === 'note') return acc.note_name;
+                              if (newComponent.type === 'subnote') return acc.sub_note_name;
+                              if (newComponent.type === 'subclass') return acc.sub_class_name;
+                              if (newComponent.type === 'class') return acc.class_name;
                               return null;
                             }).filter(item => item && item.trim() !== ''))].sort();
 
-                            if (items.length === 0) {
-                              return (
-                                <div className="p-4 text-center text-slate-500 text-sm">
-                                  No {formulaBuilder.type === 'note' ? 'notes' : formulaBuilder.type === 'subnote' ? 'sub-notes' : formulaBuilder.type === 'subclass' ? 'sub-classes' : 'classes'} available
-                                </div>
-                              );
-                            }
-
                             return items.map((name, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => addFormulaComponent({ operator: '+', name, type: formulaBuilder.type })}
-                                className="w-full text-left px-3 py-2 text-sm text-[#101828] hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
-                              >
-                                {name}
-                              </button>
+                              <option key={idx} value={name}>{name}</option>
                             ));
                           })()}
-                        </div>
+                        </select>
+                        <button
+                          onClick={() => removeFormulaItem(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => addFormulaItem('+')}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+                  >
+                    <Plus size={16} />
+                    Add
+                  </button>
+                  <button
+                    onClick={() => addFormulaItem('-')}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                  >
+                    <X size={16} />
+                    Subtract
+                  </button>
                 </div>
               </div>
 
-              <div className="p-4 border-t border-slate-200 flex gap-3">
-                <button
-                  onClick={() => setShowFormulaPanel(false)}
-                  className="flex-1 px-4 py-2 border border-slate-300 text-[#101828] rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveFormula}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] transition-colors"
-                >
-                  <Check size={16} />
-                  Save Formula
-                </button>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2 text-sm">Note:</h4>
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• All data is from consolidated trial balance</li>
+                  <li>• Movement is calculated as: Current Period - Previous Period</li>
+                  <li>• Select the appropriate level (Note, Sub-Note, Class, Sub-Class)</li>
+                  <li>• Use + to add and - to subtract components</li>
+                </ul>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="p-6 border-t border-gray-200 flex gap-3">
+            <button
+              onClick={() => setShowAddComponentPanel(false)}
+              className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveComponent}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#101828] text-white rounded-lg font-semibold hover:bg-[#1e293b] transition-colors"
+            >
+              <Save size={20} />
+              Save Component
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* View Cashflow Sidepanel */}
+      {showViewCashflowPanel && (
+        <div className="fixed right-0 top-0 h-full w-[900px] bg-white shadow-2xl z-50 animate-slideLeft flex flex-col">
+          <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold">Cash Flow Statement</h3>
+              <p className="text-sm text-slate-300 mt-1">Consolidated cash flow movements</p>
+            </div>
+            <button
+              onClick={() => setShowViewCashflowPanel(false)}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto p-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-100 border-b-2 border-gray-300">
+                    <th className="px-6 py-4 text-left text-sm font-bold text-[#101828]">Components</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-[#101828]">
+                      {formatPeriodDate(selectedPeriod)}
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-[#101828]">
+                      {formatPeriodDate(comparePeriod) || 'Previous Period'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {components.map((component, index) => (
+                    <tr key={component.id} className="border-b border-gray-200">
+                      <td className="px-6 py-4 text-sm font-medium text-[#101828]">
+                        {component.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-mono text-right text-[#101828]">
+                        {formatCurrency(component.currentYearValue)}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-mono text-right text-gray-600">
+                        {formatCurrency(component.previousYearValue)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr className="bg-[#101828] text-white font-bold">
+                    <td className="px-6 py-4 text-base">Total Cash Movement</td>
+                    <td className="px-6 py-4 text-base font-mono text-right">
+                      {formatCurrency(components.reduce((sum, c) => sum + c.currentYearValue, 0))}
+                    </td>
+                    <td className="px-6 py-4 text-base font-mono text-right">
+                      {formatCurrency(components.reduce((sum, c) => sum + c.previousYearValue, 0))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
