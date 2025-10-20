@@ -8,11 +8,10 @@ import {
   X,
   Save,
   Eye,
-  Sparkles,
   TrendingUp,
   Loader,
   Edit2,
-  Wand2
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function CashFlowStatement() {
@@ -24,22 +23,24 @@ export default function CashFlowStatement() {
   const [glAccounts, setGlAccounts] = useState([]);
   const [trialBalances, setTrialBalances] = useState([]);
   const [compareTrialBalances, setCompareTrialBalances] = useState([]);
+  const [consolidatedCurrent, setConsolidatedCurrent] = useState({});
+  const [consolidatedCompare, setConsolidatedCompare] = useState({});
 
   // Sidepanel states
   const [showWorkingsPanel, setShowWorkingsPanel] = useState(false);
   const [showAddComponentPanel, setShowAddComponentPanel] = useState(false);
   const [showViewCashflowPanel, setShowViewCashflowPanel] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState(null);
-  const [isGeneratingWorkings, setIsGeneratingWorkings] = useState(false);
-  const [isGeneratingComponents, setIsGeneratingComponents] = useState(false);
-  const [aiWorkings, setAiWorkings] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [workingsContent, setWorkingsContent] = useState('');
 
   // Add component form
   const [newComponent, setNewComponent] = useState({
     name: '',
+    category: 'Operating', // Operating, Investing, Financing
     formula: [],
-    type: 'note' // note, subnote, subclass, class
+    type: 'note', // note, subnote, subclass, class
+    sign: 1 // 1 or -1 for cash flow impact
   });
 
   useEffect(() => {
@@ -92,11 +93,45 @@ export default function CashFlowStatement() {
       setTrialBalances(tbDataForPeriod || []);
       setCompareTrialBalances(tbDataForComparePeriod || []);
 
+      // Calculate consolidated balances by account
+      const consolidatedCurrentMap = calculateConsolidatedBalances(tbDataForPeriod);
+      const consolidatedCompareMap = calculateConsolidatedBalances(tbDataForComparePeriod);
+
+      setConsolidatedCurrent(consolidatedCurrentMap);
+      setConsolidatedCompare(consolidatedCompareMap);
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const calculateConsolidatedBalances = (tbData) => {
+    const balances = {};
+
+    tbData.forEach(tb => {
+      const accountCode = tb.account_code;
+      const debit = parseFloat(tb.debit || 0);
+      const credit = parseFloat(tb.credit || 0);
+      const netAmount = debit - credit;
+
+      if (!balances[accountCode]) {
+        balances[accountCode] = {
+          account_code: accountCode,
+          account_name: tb.account_name,
+          total_debit: 0,
+          total_credit: 0,
+          net_amount: 0
+        };
+      }
+
+      balances[accountCode].total_debit += debit;
+      balances[accountCode].total_credit += credit;
+      balances[accountCode].net_amount += netAmount;
+    });
+
+    return balances;
   };
 
   const formatPeriodDate = (period) => {
@@ -118,305 +153,80 @@ export default function CashFlowStatement() {
     }).format(value || 0);
   };
 
-  const handleViewComponent = async (component) => {
+  const handleViewComponent = (component) => {
     setSelectedComponent(component);
     setShowWorkingsPanel(true);
-    setIsGeneratingWorkings(true);
-    setAiWorkings('');
 
-    // Simulate AI generating workings
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Generate AI workings based on component
-    const workings = generateAIWorkings(component);
-    setAiWorkings(workings);
-    setIsGeneratingWorkings(false);
+    // Generate detailed workings
+    const workings = generateWorkings(component);
+    setWorkingsContent(workings);
   };
 
-  const generateAIWorkings = (component) => {
-    // AI-generated workings for cashflow components
-    const componentName = component.name || 'Component';
+  const generateWorkings = (component) => {
+    let workings = `# ${component.name}\n\n`;
+    workings += `**Category:** ${component.category}\n`;
+    workings += `**Cash Flow Impact Sign:** ${component.sign > 0 ? 'Positive (Inflow)' : 'Negative (Outflow)'}\n\n`;
 
-    // Show formula breakdown
-    let formulaBreakdown = '\n## Formula Breakdown\n\n';
+    workings += `## Formula\n\n`;
     if (component.formula && component.formula.length > 0) {
       component.formula.forEach((item, index) => {
-        formulaBreakdown += `${index + 1}. ${item.operator} ${item.name} (${item.type})\n`;
+        workings += `${index + 1}. ${item.operator} ${item.name} (${item.type})\n`;
       });
+    } else {
+      workings += `No formula defined.\n`;
     }
 
-    return `# ${componentName}
+    workings += `\n## Consolidated Balances\n\n`;
+    workings += `### ${formatPeriodDate(selectedPeriod)} (Current)\n`;
+    workings += `**Total Balance:** ${formatCurrency(component.currentYearValue || 0)}\n\n`;
 
-## Formula
-This component is calculated based on the movement between consolidated balances:
+    workings += `### ${formatPeriodDate(comparePeriod)} (Previous)\n`;
+    workings += `**Total Balance:** ${formatCurrency(component.previousYearValue || 0)}\n\n`;
 
-**Formula:** Closing Balance (${formatPeriodDate(selectedPeriod)}) - Opening Balance (${formatPeriodDate(comparePeriod)})
-${formulaBreakdown}
-## Consolidated Numbers Used
+    workings += `## Movement Calculation\n\n`;
+    const movement = (component.currentYearValue || 0) - (component.previousYearValue || 0);
+    workings += `\`\`\`\n`;
+    workings += `Movement = ${formatCurrency(component.currentYearValue || 0)} - ${formatCurrency(component.previousYearValue || 0)}\n`;
+    workings += `Movement = ${formatCurrency(movement)}\n`;
+    workings += `\`\`\`\n\n`;
 
-### ${formatPeriodDate(selectedPeriod)}
-- Total Consolidated Balance: ${formatCurrency(component.currentYearValue || 0)}
+    workings += `## Cash Flow Impact\n\n`;
+    const cashImpact = movement * component.sign;
+    workings += `Applying sign multiplier (${component.sign}):\n`;
+    workings += `**Cash Impact = ${formatCurrency(cashImpact)}**\n\n`;
 
-### ${formatPeriodDate(comparePeriod)}
-- Total Consolidated Balance: ${formatCurrency(component.previousYearValue || 0)}
+    if (component.category === 'Operating') {
+      workings += `### Working Capital Logic:\n`;
+      workings += `- **Assets (AR, Inventory):** Increase = Cash Outflow (negative), Decrease = Cash Inflow (positive)\n`;
+      workings += `- **Liabilities (AP, Accruals):** Increase = Cash Inflow (positive), Decrease = Cash Outflow (negative)\n`;
+      workings += `- **Non-cash Expenses (Depreciation):** Added back to cash flow (positive)\n`;
+    }
 
-## Movement Calculation
-
-\`\`\`
-Movement = ${formatCurrency(component.currentYearValue || 0)} - ${formatCurrency(component.previousYearValue || 0)}
-Movement = ${formatCurrency((component.currentYearValue || 0) - (component.previousYearValue || 0))}
-\`\`\`
-
-## Impact on Cash Flow
-
-${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
-  `Negative movement of ${formatCurrency(Math.abs((component.currentYearValue || 0) - (component.previousYearValue || 0)))} indicates a **cash inflow**` :
-  `Positive movement of ${formatCurrency((component.currentYearValue || 0) - (component.previousYearValue || 0))} indicates a **cash outflow**`
-}
-
-## Data Sources
-
-- **Source**: Consolidated Trial Balance
-- **Current Period**: ${formatPeriodDate(selectedPeriod)}
-- **Previous Period**: ${formatPeriodDate(comparePeriod)}
-- **Calculation Method**: Movement-based (Indirect Method)
-
-## Notes
-
-- All amounts are consolidated at group level
-- Movements are calculated automatically based on trial balance data
-- Intercompany eliminations are already applied in consolidated balances`;
+    return workings;
   };
 
-  const handleAIGenerate = async () => {
-    if (!selectedPeriod || !comparePeriod) {
-      alert('Please select both current and previous periods');
-      return;
-    }
-
-    setIsGeneratingComponents(true);
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // AI generates components based on COA and consolidated numbers
-    const generatedComponents = generateAIComponents();
-    setComponents(generatedComponents);
-    setIsGeneratingComponents(false);
-  };
-
-  const generateAIComponents = () => {
-    const components = [];
-    let idCounter = Date.now();
-
-    // 1. Operating Profit/Loss (Revenue - Expenses)
-    const revenueClasses = ['Revenue', 'Income'];
-    const expenseClasses = ['Expenses'];
-
-    const revenueFormula = revenueClasses.map(className => ({
-      operator: '+',
-      name: className,
-      type: 'class'
-    }));
-
-    const expenseFormula = expenseClasses.map(className => ({
-      operator: '-',
-      name: className,
-      type: 'class'
-    }));
-
-    const operatingFormula = [...revenueFormula, ...expenseFormula];
-    const operatingCurrent = calculateFormulaValue(operatingFormula, trialBalances);
-    const operatingPrevious = calculateFormulaValue(operatingFormula, compareTrialBalances);
-
-    components.push({
-      id: idCounter++,
-      name: 'Operating Profit / (Loss)',
-      formula: operatingFormula,
-      type: 'class',
-      currentYearValue: operatingCurrent,
-      previousYearValue: operatingPrevious,
-      movement: operatingCurrent - operatingPrevious,
-      isAIGenerated: true
+  const handleAddComponent = () => {
+    setNewComponent({
+      name: '',
+      category: 'Operating',
+      formula: [],
+      type: 'note',
+      sign: 1
     });
-
-    // 2. Movement in Working Capital (Trade Receivables, Inventory, Trade Payables)
-    const workingCapitalItems = [
-      { name: 'Trade Receivables', keywords: ['receivable', 'debtors'], sign: -1 },
-      { name: 'Inventory', keywords: ['inventory', 'stock'], sign: -1 },
-      { name: 'Trade Payables', keywords: ['payable', 'creditors'], sign: 1 }
-    ];
-
-    workingCapitalItems.forEach(item => {
-      const accounts = glAccounts.filter(acc => {
-        const name = (acc.account_name || '').toLowerCase();
-        const note = (acc.note_name || '').toLowerCase();
-        return item.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
-      });
-
-      if (accounts.length > 0) {
-        // Get unique note names
-        const noteNames = [...new Set(accounts.map(acc => acc.note_name).filter(n => n))];
-
-        if (noteNames.length > 0) {
-          const formula = noteNames.map(noteName => ({
-            operator: item.sign > 0 ? '+' : '-',
-            name: noteName,
-            type: 'note'
-          }));
-
-          const currentValue = calculateFormulaValue(formula, trialBalances);
-          const previousValue = calculateFormulaValue(formula, compareTrialBalances);
-          const movement = (currentValue - previousValue) * item.sign;
-
-          components.push({
-            id: idCounter++,
-            name: `Change in ${item.name}`,
-            formula: formula,
-            type: 'note',
-            currentYearValue: currentValue,
-            previousYearValue: previousValue,
-            movement: movement,
-            isAIGenerated: true
-          });
-        }
-      }
-    });
-
-    // 3. Depreciation and Amortization
-    const depreciationAccounts = glAccounts.filter(acc =>
-      acc.account_name && (
-        acc.account_name.toLowerCase().includes('depreciation') ||
-        acc.account_name.toLowerCase().includes('amortization')
-      )
-    );
-
-    if (depreciationAccounts.length > 0) {
-      const depNotes = [...new Set(depreciationAccounts.map(acc => acc.note_name).filter(n => n))];
-      if (depNotes.length > 0) {
-        const formula = depNotes.map(noteName => ({
-          operator: '+',
-          name: noteName,
-          type: 'note'
-        }));
-
-        const currentValue = calculateFormulaValue(formula, trialBalances);
-        const previousValue = calculateFormulaValue(formula, compareTrialBalances);
-
-        components.push({
-          id: idCounter++,
-          name: 'Depreciation and Amortization',
-          formula: formula,
-          type: 'note',
-          currentYearValue: currentValue,
-          previousYearValue: previousValue,
-          movement: currentValue - previousValue,
-          isAIGenerated: true
-        });
-      }
-    }
-
-    // 4. Capital Expenditure (PPE, Intangibles)
-    const capexItems = [
-      { name: 'Property, Plant & Equipment', keywords: ['property', 'plant', 'equipment', 'ppe'] },
-      { name: 'Intangible Assets', keywords: ['intangible', 'goodwill'] }
-    ];
-
-    capexItems.forEach(item => {
-      const accounts = glAccounts.filter(acc => {
-        const name = (acc.account_name || '').toLowerCase();
-        const note = (acc.note_name || '').toLowerCase();
-        return item.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
-      });
-
-      if (accounts.length > 0) {
-        const noteNames = [...new Set(accounts.map(acc => acc.note_name).filter(n => n))];
-
-        if (noteNames.length > 0) {
-          const formula = noteNames.map(noteName => ({
-            operator: '+',
-            name: noteName,
-            type: 'note'
-          }));
-
-          const currentValue = calculateFormulaValue(formula, trialBalances);
-          const previousValue = calculateFormulaValue(formula, compareTrialBalances);
-          const movement = -(currentValue - previousValue); // Negative for cash outflow
-
-          components.push({
-            id: idCounter++,
-            name: `Purchase of ${item.name}`,
-            formula: formula,
-            type: 'note',
-            currentYearValue: currentValue,
-            previousYearValue: previousValue,
-            movement: movement,
-            isAIGenerated: true
-          });
-        }
-      }
-    });
-
-    // 5. Financing Activities (Borrowings, Share Capital)
-    const financingItems = [
-      { name: 'Borrowings', keywords: ['loan', 'borrowing', 'debt'] },
-      { name: 'Share Capital', keywords: ['share capital', 'equity'] }
-    ];
-
-    financingItems.forEach(item => {
-      const accounts = glAccounts.filter(acc => {
-        const name = (acc.account_name || '').toLowerCase();
-        const note = (acc.note_name || '').toLowerCase();
-        return item.keywords.some(keyword => name.includes(keyword) || note.includes(keyword));
-      });
-
-      if (accounts.length > 0) {
-        const noteNames = [...new Set(accounts.map(acc => acc.note_name).filter(n => n))];
-
-        if (noteNames.length > 0) {
-          const formula = noteNames.map(noteName => ({
-            operator: '+',
-            name: noteName,
-            type: 'note'
-          }));
-
-          const currentValue = calculateFormulaValue(formula, trialBalances);
-          const previousValue = calculateFormulaValue(formula, compareTrialBalances);
-          const movement = currentValue - previousValue;
-
-          components.push({
-            id: idCounter++,
-            name: `Proceeds from ${item.name}`,
-            formula: formula,
-            type: 'note',
-            currentYearValue: currentValue,
-            previousYearValue: previousValue,
-            movement: movement,
-            isAIGenerated: true
-          });
-        }
-      }
-    });
-
-    return components;
+    setIsEditing(false);
+    setShowAddComponentPanel(true);
   };
 
   const handleEditComponent = (component) => {
     setSelectedComponent(component);
     setNewComponent({
       name: component.name,
+      category: component.category,
       formula: component.formula || [],
-      type: component.type || 'note'
+      type: component.type || 'note',
+      sign: component.sign || 1
     });
     setIsEditing(true);
-    setShowAddComponentPanel(true);
-  };
-
-  const handleAddComponent = () => {
-    setNewComponent({
-      name: '',
-      formula: [],
-      type: 'note'
-    });
-    setIsEditing(false);
     setShowAddComponentPanel(true);
   };
 
@@ -432,18 +242,22 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     }
 
     // Calculate values based on formula
-    const currentYearValue = calculateFormulaValue(newComponent.formula, trialBalances);
-    const previousYearValue = calculateFormulaValue(newComponent.formula, compareTrialBalances);
+    const currentYearValue = calculateFormulaValue(newComponent.formula, consolidatedCurrent);
+    const previousYearValue = calculateFormulaValue(newComponent.formula, consolidatedCompare);
+    const movement = currentYearValue - previousYearValue;
+    const cashImpact = movement * newComponent.sign;
 
     const component = {
       id: isEditing ? selectedComponent.id : Date.now(),
       name: newComponent.name,
+      category: newComponent.category,
       formula: newComponent.formula,
       type: newComponent.type,
+      sign: newComponent.sign,
       currentYearValue,
       previousYearValue,
-      movement: currentYearValue - previousYearValue,
-      isAIGenerated: isEditing ? selectedComponent.isAIGenerated : false
+      movement,
+      cashImpact
     };
 
     if (isEditing) {
@@ -456,12 +270,12 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     setIsEditing(false);
   };
 
-  const calculateFormulaValue = (formula, tbData) => {
+  const calculateFormulaValue = (formula, consolidatedData) => {
     let total = 0;
 
     formula.forEach(item => {
-      // Filter accounts based on type
-      const accounts = glAccounts.filter(acc => {
+      // Get accounts matching the formula item
+      const matchingAccounts = glAccounts.filter(acc => {
         if (item.type === 'note') return acc.note_name === item.name;
         if (item.type === 'subnote') return acc.sub_note_name === item.name;
         if (item.type === 'subclass') return acc.sub_class_name === item.name;
@@ -469,15 +283,13 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
         return false;
       });
 
-      // Calculate total for these accounts
+      // Sum up the consolidated balances for these accounts
       let accountTotal = 0;
-      accounts.forEach(acc => {
-        const entries = tbData.filter(tb => tb.account_code === acc.account_code);
-        entries.forEach(tb => {
-          const debit = parseFloat(tb.debit || 0);
-          const credit = parseFloat(tb.credit || 0);
-          accountTotal += (debit - credit);
-        });
+      matchingAccounts.forEach(acc => {
+        const consolidatedBalance = consolidatedData[acc.account_code];
+        if (consolidatedBalance) {
+          accountTotal += consolidatedBalance.net_amount;
+        }
       });
 
       // Apply operator
@@ -513,7 +325,6 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
   };
 
   const handleTypeChange = (newType) => {
-    // Update all formula items to use the new type
     setNewComponent(prev => ({
       ...prev,
       type: newType,
@@ -531,6 +342,19 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     }
   };
 
+  const getComponentsByCategory = () => {
+    const operating = components.filter(c => c.category === 'Operating');
+    const investing = components.filter(c => c.category === 'Investing');
+    const financing = components.filter(c => c.category === 'Financing');
+    return { operating, investing, financing };
+  };
+
+  const calculateCategoryTotal = (category) => {
+    return components
+      .filter(c => c.category === category)
+      .reduce((sum, c) => sum + (c.cashImpact || 0), 0);
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#f7f5f2]">
@@ -539,11 +363,13 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
     );
   }
 
+  const { operating, investing, financing } = getComponentsByCategory();
+
   return (
     <div className="h-screen flex flex-col bg-[#f7f5f2]">
       <PageHeader
         title="Cash Flow Statement"
-        subtitle="AI-powered cashflow builder with consolidated numbers"
+        subtitle="Build cashflow using indirect method with consolidated numbers"
       />
 
       <div className="flex-1 overflow-hidden flex flex-col">
@@ -590,23 +416,6 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
 
             <div className="flex items-center gap-3">
               <button
-                onClick={handleAIGenerate}
-                disabled={isGeneratingComponents || !selectedPeriod || !comparePeriod}
-                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isGeneratingComponents ? (
-                  <>
-                    <Loader className="animate-spin" size={20} />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 size={20} />
-                    AI Generate
-                  </>
-                )}
-              </button>
-              <button
                 onClick={handleAddComponent}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
@@ -633,25 +442,27 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                 <thead>
                   <tr className="bg-[#101828] text-white">
                     <th className="px-6 py-4 text-left text-sm font-bold">Component</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">Category</th>
                     <th className="px-6 py-4 text-right text-sm font-bold">{formatPeriodDate(selectedPeriod)}</th>
                     <th className="px-6 py-4 text-right text-sm font-bold">{formatPeriodDate(comparePeriod) || 'Previous Period'}</th>
                     <th className="px-6 py-4 text-right text-sm font-bold">Movement</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold">Cash Impact</th>
                     <th className="px-6 py-4 text-center text-sm font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {components.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                         <div className="flex flex-col items-center gap-3">
                           <TrendingUp size={48} className="text-gray-300" />
                           <p className="text-lg font-medium">No components added yet</p>
-                          <p className="text-sm">Click "AI Generate" to auto-populate or "Add Component" to create manually</p>
+                          <p className="text-sm">Click "Add Component" to create cashflow line items</p>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    components.map((component, index) => (
+                    components.map((component) => (
                       <tr
                         key={component.id}
                         className="border-b border-gray-200 hover:bg-gray-50"
@@ -661,11 +472,15 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                           onClick={() => handleViewComponent(component)}
                         >
                           {component.name}
-                          {component.isAIGenerated && (
-                            <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">
-                              AI
-                            </span>
-                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            component.category === 'Operating' ? 'bg-blue-100 text-blue-700' :
+                            component.category === 'Investing' ? 'bg-green-100 text-green-700' :
+                            'bg-purple-100 text-purple-700'
+                          }`}>
+                            {component.category}
+                          </span>
                         </td>
                         <td
                           className="px-6 py-4 text-sm font-mono text-right text-[#101828] cursor-pointer"
@@ -680,10 +495,16 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                           {formatCurrency(component.previousYearValue)}
                         </td>
                         <td
-                          className={`px-6 py-4 text-sm font-mono text-right font-semibold cursor-pointer ${component.movement >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          className={`px-6 py-4 text-sm font-mono text-right cursor-pointer ${component.movement >= 0 ? 'text-blue-600' : 'text-orange-600'}`}
                           onClick={() => handleViewComponent(component)}
                         >
                           {component.movement >= 0 ? '+' : ''}{formatCurrency(component.movement)}
+                        </td>
+                        <td
+                          className={`px-6 py-4 text-sm font-mono text-right font-semibold cursor-pointer ${component.cashImpact >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          onClick={() => handleViewComponent(component)}
+                        >
+                          {component.cashImpact >= 0 ? '+' : ''}{formatCurrency(component.cashImpact)}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -725,7 +546,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
           <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold">{selectedComponent?.name}</h3>
-              <p className="text-sm text-slate-300 mt-1">Component Workings</p>
+              <p className="text-sm text-slate-300 mt-1">Component Workings & Calculations</p>
             </div>
             <button
               onClick={() => setShowWorkingsPanel(false)}
@@ -736,18 +557,11 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
           </div>
 
           <div className="flex-1 overflow-auto p-8">
-            {isGeneratingWorkings ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4">
-                <Sparkles className="animate-pulse text-purple-600" size={48} />
-                <p className="text-lg font-semibold text-gray-700">AI is generating workings...</p>
-              </div>
-            ) : (
-              <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans leading-relaxed">
-                  {aiWorkings}
-                </pre>
-              </div>
-            )}
+            <div className="prose prose-sm max-w-none">
+              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans leading-relaxed bg-gray-50 p-6 rounded-lg">
+                {workingsContent}
+              </pre>
+            </div>
           </div>
         </div>
       )}
@@ -782,8 +596,40 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                   value={newComponent.name}
                   onChange={(e) => setNewComponent(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
-                  placeholder="e.g., Movement in Working Capital"
+                  placeholder="e.g., Change in Trade Receivables"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cash Flow Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={newComponent.category}
+                  onChange={(e) => setNewComponent(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
+                >
+                  <option value="Operating">Operating Activities</option>
+                  <option value="Investing">Investing Activities</option>
+                  <option value="Financing">Financing Activities</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cash Impact Sign
+                </label>
+                <select
+                  value={newComponent.sign}
+                  onChange={(e) => setNewComponent(prev => ({ ...prev, sign: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
+                >
+                  <option value="1">Positive (increase = inflow, decrease = outflow)</option>
+                  <option value="-1">Negative (increase = outflow, decrease = inflow)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Use Negative for current assets (AR, Inventory). Use Positive for liabilities (AP) and non-cash expenses.
+                </p>
               </div>
 
               <div>
@@ -868,13 +714,14 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2 text-sm">Note:</h4>
+                <h4 className="font-semibold text-blue-900 mb-2 text-sm">Indirect Method - Cash Flow Logic:</h4>
                 <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• All data is from consolidated trial balance</li>
-                  <li>• Movement is calculated as: Current Period - Previous Period</li>
-                  <li>• Select the appropriate level (Note, Sub-Note, Class, Sub-Class)</li>
-                  <li>• Use + to add and - to subtract components</li>
-                  <li>• Changing calculation level will reset formula items</li>
+                  <li>• <strong>Operating:</strong> Start with profit, adjust for non-cash items & working capital</li>
+                  <li>• <strong>Current Assets (AR, Inventory):</strong> Increase = Cash Out (use negative sign)</li>
+                  <li>• <strong>Current Liabilities (AP, Accruals):</strong> Increase = Cash In (use positive sign)</li>
+                  <li>• <strong>Non-cash Expenses (Depreciation):</strong> Add back (use positive sign)</li>
+                  <li>• <strong>Investing:</strong> PPE purchases are negative, disposals are positive</li>
+                  <li>• <strong>Financing:</strong> New borrowings/equity are positive, repayments/dividends are negative</li>
                 </ul>
               </div>
             </div>
@@ -903,11 +750,11 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
 
       {/* View Cashflow Sidepanel */}
       {showViewCashflowPanel && (
-        <div className="fixed right-0 top-0 h-full w-[900px] bg-white shadow-2xl z-50 animate-slideLeft flex flex-col">
+        <div className="fixed right-0 top-0 h-full w-[1000px] bg-white shadow-2xl z-50 animate-slideLeft flex flex-col">
           <div className="bg-[#101828] text-white px-8 py-6 flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold">Cash Flow Statement</h3>
-              <p className="text-sm text-slate-300 mt-1">Consolidated cash flow movements</p>
+              <h3 className="text-2xl font-bold">Consolidated Cash Flow Statement</h3>
+              <p className="text-sm text-slate-300 mt-1">Indirect Method</p>
             </div>
             <button
               onClick={() => setShowViewCashflowPanel(false)}
@@ -922,7 +769,7 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-100 border-b-2 border-gray-300">
-                    <th className="px-6 py-4 text-left text-sm font-bold text-[#101828]">Components</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-[#101828]">Line Item</th>
                     <th className="px-6 py-4 text-right text-sm font-bold text-[#101828]">
                       {formatPeriodDate(selectedPeriod)}
                     </th>
@@ -932,28 +779,110 @@ ${((component.currentYearValue || 0) - (component.previousYearValue || 0)) < 0 ?
                   </tr>
                 </thead>
                 <tbody>
-                  {components.map((component, index) => (
-                    <tr key={component.id} className="border-b border-gray-200">
-                      <td className="px-6 py-4 text-sm font-medium text-[#101828]">
-                        {component.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-mono text-right text-[#101828]">
-                        {formatCurrency(component.currentYearValue)}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-mono text-right text-gray-600">
-                        {formatCurrency(component.previousYearValue)}
-                      </td>
-                    </tr>
-                  ))}
+                  {/* Operating Activities */}
+                  {operating.length > 0 && (
+                    <>
+                      <tr className="bg-blue-50">
+                        <td colSpan="3" className="px-6 py-3 text-sm font-bold text-blue-900">
+                          CASH FLOWS FROM OPERATING ACTIVITIES
+                        </td>
+                      </tr>
+                      {operating.map((component) => (
+                        <tr key={component.id} className="border-b border-gray-200">
+                          <td className="px-6 py-3 text-sm text-[#101828] pl-12">
+                            {component.name}
+                          </td>
+                          <td className={`px-6 py-3 text-sm font-mono text-right ${component.cashImpact >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(component.cashImpact)}
+                          </td>
+                          <td className="px-6 py-3 text-sm font-mono text-right text-gray-600">
+                            {formatCurrency((component.previousYearValue - 0) * component.sign)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-blue-100 font-semibold">
+                        <td className="px-6 py-3 text-sm text-blue-900">Net Cash from Operating Activities</td>
+                        <td className={`px-6 py-3 text-sm font-mono text-right ${calculateCategoryTotal('Operating') >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(calculateCategoryTotal('Operating'))}
+                        </td>
+                        <td className="px-6 py-3 text-sm font-mono text-right text-gray-600">-</td>
+                      </tr>
+                    </>
+                  )}
 
+                  {/* Investing Activities */}
+                  {investing.length > 0 && (
+                    <>
+                      <tr className="bg-green-50">
+                        <td colSpan="3" className="px-6 py-3 text-sm font-bold text-green-900">
+                          CASH FLOWS FROM INVESTING ACTIVITIES
+                        </td>
+                      </tr>
+                      {investing.map((component) => (
+                        <tr key={component.id} className="border-b border-gray-200">
+                          <td className="px-6 py-3 text-sm text-[#101828] pl-12">
+                            {component.name}
+                          </td>
+                          <td className={`px-6 py-3 text-sm font-mono text-right ${component.cashImpact >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(component.cashImpact)}
+                          </td>
+                          <td className="px-6 py-3 text-sm font-mono text-right text-gray-600">
+                            {formatCurrency((component.previousYearValue - 0) * component.sign)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-green-100 font-semibold">
+                        <td className="px-6 py-3 text-sm text-green-900">Net Cash from Investing Activities</td>
+                        <td className={`px-6 py-3 text-sm font-mono text-right ${calculateCategoryTotal('Investing') >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(calculateCategoryTotal('Investing'))}
+                        </td>
+                        <td className="px-6 py-3 text-sm font-mono text-right text-gray-600">-</td>
+                      </tr>
+                    </>
+                  )}
+
+                  {/* Financing Activities */}
+                  {financing.length > 0 && (
+                    <>
+                      <tr className="bg-purple-50">
+                        <td colSpan="3" className="px-6 py-3 text-sm font-bold text-purple-900">
+                          CASH FLOWS FROM FINANCING ACTIVITIES
+                        </td>
+                      </tr>
+                      {financing.map((component) => (
+                        <tr key={component.id} className="border-b border-gray-200">
+                          <td className="px-6 py-3 text-sm text-[#101828] pl-12">
+                            {component.name}
+                          </td>
+                          <td className={`px-6 py-3 text-sm font-mono text-right ${component.cashImpact >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(component.cashImpact)}
+                          </td>
+                          <td className="px-6 py-3 text-sm font-mono text-right text-gray-600">
+                            {formatCurrency((component.previousYearValue - 0) * component.sign)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-purple-100 font-semibold">
+                        <td className="px-6 py-3 text-sm text-purple-900">Net Cash from Financing Activities</td>
+                        <td className={`px-6 py-3 text-sm font-mono text-right ${calculateCategoryTotal('Financing') >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(calculateCategoryTotal('Financing'))}
+                        </td>
+                        <td className="px-6 py-3 text-sm font-mono text-right text-gray-600">-</td>
+                      </tr>
+                    </>
+                  )}
+
+                  {/* Grand Total */}
                   <tr className="bg-[#101828] text-white font-bold">
-                    <td className="px-6 py-4 text-base">Total Cash Movement</td>
+                    <td className="px-6 py-4 text-base">NET INCREASE/(DECREASE) IN CASH</td>
                     <td className="px-6 py-4 text-base font-mono text-right">
-                      {formatCurrency(components.reduce((sum, c) => sum + c.currentYearValue, 0))}
+                      {formatCurrency(
+                        calculateCategoryTotal('Operating') +
+                        calculateCategoryTotal('Investing') +
+                        calculateCategoryTotal('Financing')
+                      )}
                     </td>
-                    <td className="px-6 py-4 text-base font-mono text-right">
-                      {formatCurrency(components.reduce((sum, c) => sum + c.previousYearValue, 0))}
-                    </td>
+                    <td className="px-6 py-4 text-base font-mono text-right">-</td>
                   </tr>
                 </tbody>
               </table>
