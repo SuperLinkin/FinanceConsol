@@ -1,0 +1,31 @@
+# Python Cash Flow Calculation Service
+# Dependencies for AI-powered financial consolidation
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Data Processing
+pandas==2.1.3
+numpy==1.26.2
+numpy-financial==1.0.0
+tablib==3.5.0
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+
+# AI/ML for Account Classification
+sentence-transformers==2.2.2
+transformers==4.35.2
+torch==2.1.1
+
+# LangChain for Orchestration
+langchain==0.0.340
+langchain-community==0.0.1
+openai==1.3.7
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.31.0
