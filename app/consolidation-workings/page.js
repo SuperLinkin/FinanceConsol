@@ -21,7 +21,8 @@ import {
   CheckCircle,
   Edit2,
   FileText,
-  BookOpen
+  BookOpen,
+  History
 } from 'lucide-react';
 
 export default function ConsolidationWorkings() {
@@ -55,6 +56,11 @@ export default function ConsolidationWorkings() {
   const [editingNoteNumber, setEditingNoteNumber] = useState(null); // { noteId, currentNumber }
   const [fy2024Expanded, setFy2024Expanded] = useState(false); // Expand/collapse FY2024 details
   const [fy2023Expanded, setFy2023Expanded] = useState(false); // Expand/collapse FY2023 details
+
+  // Save functionality states
+  const [isSaving, setIsSaving] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [consolidationLogs, setConsolidationLogs] = useState([]);
 
   // Statement tabs
   const statementTabs = [
@@ -695,6 +701,143 @@ export default function ConsolidationWorkings() {
       displayToast('Error populating data: ' + error.message, 'error');
     } finally {
       setIsPopulating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedPeriod || !selectedStatement) {
+      displayToast('Please select a period and statement type', 'error');
+      return;
+    }
+
+    if (coaHierarchy.length === 0) {
+      displayToast('No data to save', 'error');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      console.log('💾 Starting save for period:', selectedPeriod, 'statement:', selectedStatement);
+
+      // Collect all accounts from the hierarchy
+      const consolidationData = [];
+
+      const collectAccountsFromNode = (node) => {
+        const accounts = node.accounts || [];
+        const className = node.className || node.name;
+
+        // Skip profit row
+        if (node.isProfitRow) return;
+
+        // Process each account at subnote level
+        if (node.level === 'subnote' && accounts.length > 0) {
+          accounts.forEach(account => {
+            // Calculate entity amounts (JSONB object)
+            const entityAmounts = {};
+            entities.forEach(entity => {
+              const value = getEntityValue([account], entity.id, className, false);
+              if (value !== 0) {
+                entityAmounts[entity.id] = value;
+              }
+            });
+
+            // Calculate eliminations and adjustments
+            const eliminationAmount = getEliminationValue([account], className);
+            const adjustmentAmount = getAdjustmentValue([account], className);
+
+            // Calculate consolidated amount
+            let consolidatedAmount = 0;
+            entities.forEach(entity => {
+              consolidatedAmount += getEntityValue([account], entity.id, className, false);
+            });
+            consolidatedAmount += eliminationAmount + adjustmentAmount;
+
+            // Add to consolidation data
+            consolidationData.push({
+              account_code: account.account_code,
+              account_name: account.account_name,
+              class_name: node.className,
+              subclass_name: node.subclassName,
+              note_name: node.noteName,
+              subnote_name: node.name,
+              entity_amounts: entityAmounts,
+              elimination_amount: eliminationAmount,
+              adjustment_amount: adjustmentAmount,
+              translation_amount: 0, // Not calculated yet
+              consolidated_amount: consolidatedAmount
+            });
+          });
+        }
+
+        // Recursively process children
+        if (node.children && node.children.length > 0) {
+          node.children.forEach(child => collectAccountsFromNode(child));
+        }
+      };
+
+      // Collect from all hierarchy nodes
+      coaHierarchy.forEach(node => collectAccountsFromNode(node));
+
+      console.log(`📊 Collected ${consolidationData.length} account records to save`);
+
+      if (consolidationData.length === 0) {
+        displayToast('No account data to save', 'error');
+        setIsSaving(false);
+        return;
+      }
+
+      // Save to API
+      const response = await fetch('/api/consolidation/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          period: selectedPeriod,
+          statement_type: selectedStatement,
+          data: consolidationData
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save consolidation workings');
+      }
+
+      console.log('✅ Save successful:', result);
+      displayToast(`Successfully saved ${result.records_saved} consolidation records`, 'success');
+
+    } catch (error) {
+      console.error('Error saving consolidation workings:', error);
+      displayToast('Error saving: ' + error.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleViewLogs = async () => {
+    try {
+      console.log('📜 Fetching consolidation logs...');
+
+      const params = new URLSearchParams();
+      if (selectedPeriod) params.append('period', selectedPeriod);
+      if (selectedStatement) params.append('statement_type', selectedStatement);
+
+      const response = await fetch(`/api/consolidation/logs?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+
+      const logs = await response.json();
+      console.log('✅ Fetched logs:', logs);
+      setConsolidationLogs(logs);
+      setShowLogsModal(true);
+
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+      displayToast('Error fetching logs: ' + error.message, 'error');
     }
   };
 
@@ -1566,9 +1709,29 @@ export default function ConsolidationWorkings() {
                 <BookOpen size={16} />
                 Note Builder
               </Link>
-              <button className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-700">
-                <Save size={16} />
-                Save
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader className="animate-spin" size={16} />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Save
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleViewLogs}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+              >
+                <History size={16} />
+                View Logs
               </button>
               <button className="flex items-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b]">
                 <Download size={16} />
@@ -2056,6 +2219,121 @@ export default function ConsolidationWorkings() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Logs Modal */}
+      {showLogsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[800px] max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-indigo-700 text-white px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold">Consolidation Save History</h3>
+                <p className="text-sm text-indigo-100 mt-1">
+                  {selectedPeriod && selectedStatement
+                    ? `${selectedPeriod} - ${selectedStatement.replace('_', ' ').toUpperCase()}`
+                    : 'All periods and statements'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowLogsModal(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {consolidationLogs.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <History size={48} className="mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No save history found</p>
+                  <p className="text-sm mt-2">Save consolidation data to see history here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {consolidationLogs.map((log, index) => (
+                    <div
+                      key={log.id}
+                      className="border border-slate-200 rounded-lg p-4 hover:bg-indigo-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {log.action || 'save'}
+                            </span>
+                            <span className="text-sm font-semibold text-slate-900">
+                              {log.statement_type?.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-700">Period:</span>
+                              <span>{log.period}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-700">Records saved:</span>
+                              <span className="font-mono">{log.records_count}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-700">Saved by:</span>
+                              <span>{log.saved_by}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-700">Date:</span>
+                              <span>
+                                {new Date(log.saved_at).toLocaleString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            {log.notes && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="font-medium text-slate-700">Notes:</span>
+                                <span className="italic">{log.notes}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">
+                            {(() => {
+                              const diffMs = Date.now() - new Date(log.saved_at).getTime();
+                              const diffMins = Math.floor(diffMs / 60000);
+                              const diffHours = Math.floor(diffMins / 60);
+                              const diffDays = Math.floor(diffHours / 24);
+
+                              if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                              if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                              if (diffMins > 0) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+                              return 'Just now';
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-slate-200 px-6 py-4 flex justify-end">
+              <button
+                onClick={() => setShowLogsModal(false)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+              >
+                Close
               </button>
             </div>
           </div>
