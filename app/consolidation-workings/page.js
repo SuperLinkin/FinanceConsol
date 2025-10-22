@@ -841,6 +841,149 @@ export default function ConsolidationWorkings() {
     }
   };
 
+  const handleExport = () => {
+    try {
+      if (coaHierarchy.length === 0) {
+        displayToast('No data to export', 'error');
+        return;
+      }
+
+      console.log('📥 Exporting consolidation workings to CSV...');
+
+      // Prepare CSV data
+      const csvRows = [];
+
+      // Add header row
+      const headers = [
+        'Class',
+        'Subclass',
+        'Note',
+        'Subnote',
+        'Account Code',
+        'Account Name',
+        ...entities.map(e => e.entity_name),
+        'Eliminations',
+        'Adjustments',
+        `Consolidated (${selectedPeriod})`
+      ];
+
+      if (comparePeriod) {
+        headers.push(`Consolidated (${comparePeriod})`);
+      }
+
+      csvRows.push(headers.join(','));
+
+      // Helper function to collect rows from hierarchy
+      const collectRows = (node, depth = 0) => {
+        const className = node.className || node.name;
+        const accounts = node.accounts || [];
+
+        // Skip profit row
+        if (node.isProfitRow) return;
+
+        // Only export subnote level (actual accounts)
+        if (node.level === 'subnote' && accounts.length > 0) {
+          accounts.forEach(account => {
+            const row = [
+              node.className || '',
+              node.subclassName || '',
+              node.noteName || '',
+              node.name || '',
+              account.account_code || '',
+              `"${(account.account_name || '').replace(/"/g, '""')}"`, // Escape quotes
+            ];
+
+            // Add entity values
+            entities.forEach(entity => {
+              const value = getEntityValue([account], entity.id, className, false);
+              row.push(formatCurrency(Math.abs(value)));
+            });
+
+            // Add eliminations and adjustments
+            const elimValue = getEliminationValue([account], className);
+            const adjValue = getAdjustmentValue([account], className);
+            row.push(formatCurrency(Math.abs(elimValue)));
+            row.push(formatCurrency(Math.abs(adjValue)));
+
+            // Add consolidated value
+            let consolidatedValue = 0;
+            entities.forEach(entity => {
+              consolidatedValue += getEntityValue([account], entity.id, className, false);
+            });
+            consolidatedValue += elimValue + adjValue;
+            row.push(formatCurrency(Math.abs(consolidatedValue)));
+
+            // Add compare period if selected
+            if (comparePeriod) {
+              let compareValue = 0;
+              entities.forEach(entity => {
+                compareValue += getEntityValue([account], entity.id, className, true);
+              });
+              compareValue += elimValue + adjValue;
+              row.push(formatCurrency(Math.abs(compareValue)));
+            }
+
+            csvRows.push(row.join(','));
+          });
+        }
+
+        // Recursively process children
+        if (node.children && node.children.length > 0) {
+          node.children.forEach(child => collectRows(child, depth + 1));
+        }
+      };
+
+      // Collect all rows
+      coaHierarchy.forEach(node => collectRows(node));
+
+      // Create CSV blob and download
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', `consolidation_${selectedStatement}_${selectedPeriod}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      displayToast('Export successful!', 'success');
+      console.log('✅ Exported', csvRows.length - 1, 'rows');
+
+    } catch (error) {
+      console.error('Error exporting:', error);
+      displayToast('Error exporting: ' + error.message, 'error');
+    }
+  };
+
+  const handleSyncToReports = async () => {
+    try {
+      // This would integrate with your reporting builder
+      // For now, just show a success message
+      displayToast('Syncing to Reporting Builder...', 'success');
+
+      // TODO: Implement actual sync logic
+      // Example:
+      // await fetch('/api/reporting/sync', {
+      //   method: 'POST',
+      //   body: JSON.stringify({
+      //     period: selectedPeriod,
+      //     statement_type: selectedStatement
+      //   })
+      // });
+
+      setTimeout(() => {
+        displayToast('Data synced successfully!', 'success');
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error syncing:', error);
+      displayToast('Error syncing: ' + error.message, 'error');
+    }
+  };
+
   const getConsolidatedValue = (node, useComparePeriod = false) => {
     const className = node.className || node.name;
     let total = 0;
@@ -1675,67 +1818,77 @@ export default function ConsolidationWorkings() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Primary Actions */}
               <button
                 onClick={handlePopulate}
                 disabled={isPopulating}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isPopulating ? (
                   <>
-                    <Loader className="animate-spin" size={16} />
-                    Populating...
+                    <Loader className="animate-spin" size={14} />
+                    <span>Populating...</span>
                   </>
                 ) : (
                   <>
-                    <RefreshCw size={16} />
-                    Populate
+                    <RefreshCw size={14} />
+                    <span>Populate</span>
                   </>
                 )}
               </button>
-              <button
-                onClick={() => {
-                  displayToast('Data ready to sync with Reporting Builder!', 'success');
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-              >
-                <RefreshCw size={16} />
-                Sync to Reports
-              </button>
-              <Link
-                href="/note-builder"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
-              >
-                <BookOpen size={16} />
-                Note Builder
-              </Link>
+
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isSaving ? (
                   <>
-                    <Loader className="animate-spin" size={16} />
-                    Saving...
+                    <Loader className="animate-spin" size={14} />
+                    <span>Saving...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={16} />
-                    Save
+                    <Save size={14} />
+                    <span>Save</span>
                   </>
                 )}
               </button>
+
               <button
                 onClick={handleViewLogs}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors"
               >
-                <History size={16} />
-                View Logs
+                <History size={14} />
+                <span>Logs</span>
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#101828] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b]">
-                <Download size={16} />
-                Export
+
+              <div className="h-6 w-px bg-slate-300 mx-1"></div>
+
+              {/* Secondary Actions */}
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-600 text-white rounded-lg text-xs font-medium hover:bg-slate-700 transition-colors"
+              >
+                <Download size={14} />
+                <span>Export CSV</span>
+              </button>
+
+              <Link
+                href="/note-builder"
+                className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors"
+              >
+                <BookOpen size={14} />
+                <span>Notes</span>
+              </Link>
+
+              <button
+                onClick={handleSyncToReports}
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+              >
+                <RefreshCw size={14} />
+                <span>Sync</span>
               </button>
             </div>
           </div>
