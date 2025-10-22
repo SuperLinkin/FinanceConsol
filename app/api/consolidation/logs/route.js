@@ -21,6 +21,16 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
+    console.log('🔐 Session payload:', {
+      userId: payload.userId,
+      companyId: payload.companyId,
+      email: payload.email
+    });
+
+    if (!payload.companyId) {
+      return NextResponse.json({ error: 'Company ID missing from session' }, { status: 400 });
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period');
     const statement_type = searchParams.get('statement_type');

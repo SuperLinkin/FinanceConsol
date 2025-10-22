@@ -32,6 +32,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Company ID missing from session' }, { status: 400 });
     }
 
+    if (!payload.userId) {
+      return NextResponse.json({ error: 'User ID missing from session' }, { status: 400 });
+    }
+
     const { period, statement_type, data } = await request.json();
 
     if (!period || !statement_type || !data || !Array.isArray(data)) {
