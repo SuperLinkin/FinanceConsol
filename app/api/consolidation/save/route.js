@@ -22,6 +22,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
+    console.log('🔐 Session payload:', {
+      userId: payload.userId,
+      companyId: payload.companyId,
+      email: payload.email
+    });
+
+    if (!payload.companyId) {
+      return NextResponse.json({ error: 'Company ID missing from session' }, { status: 400 });
+    }
+
     const { period, statement_type, data } = await request.json();
 
     if (!period || !statement_type || !data || !Array.isArray(data)) {
@@ -65,7 +75,7 @@ export async function POST(request) {
         adjustment_amount: item.adjustment_amount || 0,
         translation_amount: item.translation_amount || 0,
         consolidated_amount: item.consolidated_amount || 0,
-        created_by: payload.email || 'Unknown',
+        created_by: payload.userId, // UUID foreign key to users table
         calculated_at: new Date().toISOString()
       }));
 
