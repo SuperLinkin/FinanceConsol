@@ -25,9 +25,11 @@ export async function GET(request) {
     const period = searchParams.get('period');
     const statement_type = searchParams.get('statement_type');
 
+    // CRITICAL: Filter by company_id for multi-tenancy security
     let query = supabaseAdmin
       .from('consolidation_logs')
       .select('*')
+      .eq('company_id', payload.companyId)
       .order('saved_at', { ascending: false });
 
     if (period) {

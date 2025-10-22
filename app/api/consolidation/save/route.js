@@ -96,6 +96,7 @@ export async function POST(request) {
     const { error: logError } = await supabaseAdmin
       .from('consolidation_logs')
       .insert({
+        company_id: payload.companyId,
         period,
         statement_type,
         action: 'save',

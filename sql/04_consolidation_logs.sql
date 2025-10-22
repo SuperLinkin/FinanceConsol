@@ -5,6 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS consolidation_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   period DATE NOT NULL,
   statement_type statement_type NOT NULL,
   action TEXT NOT NULL DEFAULT 'save', -- 'save', 'delete', 'update'
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS consolidation_logs (
 );
 
 -- Indexes for fast lookups
+CREATE INDEX IF NOT EXISTS idx_consolidation_logs_company_id ON consolidation_logs(company_id);
 CREATE INDEX IF NOT EXISTS idx_consolidation_logs_period ON consolidation_logs(period);
 CREATE INDEX IF NOT EXISTS idx_consolidation_logs_statement_type ON consolidation_logs(statement_type);
 CREATE INDEX IF NOT EXISTS idx_consolidation_logs_saved_at ON consolidation_logs(saved_at DESC);
@@ -29,12 +31,20 @@ ALTER TABLE consolidation_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view consolidation logs" ON consolidation_logs;
 CREATE POLICY "Users can view consolidation logs" ON consolidation_logs
   FOR SELECT
-  USING (true); -- All authenticated users can view logs
+  USING (
+    company_id IN (
+      SELECT company_id FROM users WHERE id = auth.uid()
+    )
+  );
 
 DROP POLICY IF EXISTS "Users can insert consolidation logs" ON consolidation_logs;
 CREATE POLICY "Users can insert consolidation logs" ON consolidation_logs
   FOR INSERT
-  WITH CHECK (true); -- All authenticated users can create logs
+  WITH CHECK (
+    company_id IN (
+      SELECT company_id FROM users WHERE id = auth.uid()
+    )
+  );
 
 -- Comments
 COMMENT ON TABLE consolidation_logs IS 'Audit log for consolidation workings saves';
