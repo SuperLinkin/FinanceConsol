@@ -76,21 +76,27 @@ This enables:
 
 After running both SQL scripts:
 
-1. **Login to your app** with test credentials:
+1. **Create test user** (if you haven't already):
+   - Run `CREATE_TEST_USER.sql` in Supabase SQL Editor
+   - This creates username: `testuser`, password: `test123`
+
+2. **IMPORTANT: Logout and Login Again**
+   - If you're already logged in, you MUST logout first
+   - Your old session token doesn't have the email field
+   - Login again to get a new JWT token with all required fields
    - Username: `testuser`
    - Password: `test123`
-   - (Or run `CREATE_TEST_USER.sql` if you haven't already)
 
-2. **Navigate to Consolidation Workings page**
+3. **Navigate to Consolidation Workings page**
 
-3. **Test Save Button:**
+4. **Test Save Button:**
    - Select a period (e.g., 2024-12-31)
    - Select a statement type (e.g., Balance Sheet)
    - Click "Populate" to load data
    - Click "Save" button
    - Should see success toast: "Successfully saved X records"
 
-4. **Test View Logs Button:**
+5. **Test View Logs Button:**
    - Click "View Logs" button
    - Should see your save history with timestamps and user info
 
