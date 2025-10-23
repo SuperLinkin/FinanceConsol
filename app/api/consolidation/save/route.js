@@ -36,6 +36,20 @@ export async function POST(request) {
       return NextResponse.json({ error: 'User ID missing from session' }, { status: 400 });
     }
 
+    // If email is missing from old JWT, fetch it from database
+    let userEmail = payload.email;
+    if (!userEmail) {
+      console.log('⚠️ Email missing from JWT payload, fetching from database...');
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('email')
+        .eq('id', payload.userId)
+        .single();
+
+      userEmail = user?.email || 'Unknown';
+      console.log('✅ Fetched email from database:', userEmail);
+    }
+
     const { period, statement_type, data } = await request.json();
 
     if (!period || !statement_type || !data || !Array.isArray(data)) {
@@ -115,7 +129,7 @@ export async function POST(request) {
         statement_type,
         action: 'save',
         records_count: data.length,
-        saved_by: payload.email || 'Unknown',
+        saved_by: userEmail,
         saved_at: new Date().toISOString()
       });
 
