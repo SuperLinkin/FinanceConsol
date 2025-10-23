@@ -273,7 +273,7 @@ export default function UploadPage() {
               debit: debit,
               credit: credit,
               currency: selectedCurrency,
-              period: new Date().toISOString().split('T')[0], // Default to today, can be customized
+              period: selectedPeriod,
               uploaded_by: 'System', // Replace with actual user
             };
           });
@@ -285,7 +285,7 @@ export default function UploadPage() {
             body: JSON.stringify({
               records: tbRecords,
               entity_id: selectedEntity,
-              period: new Date().toISOString().split('T')[0]
+              period: selectedPeriod
             })
           });
 
@@ -1038,6 +1038,38 @@ export default function UploadPage() {
               </select>
               <p className="text-xs text-gray-500 mt-1">
                 Select the currency in which the trial balance amounts are denominated
+              </p>
+            </div>
+
+            {/* Period Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Period *</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">Period End Date</label>
+                  <input
+                    type="date"
+                    value={selectedPeriod}
+                    onChange={(e) => setSelectedPeriod(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">Period Range</label>
+                  <select
+                    value={periodMonths}
+                    onChange={(e) => setPeriodMonths(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
+                  >
+                    <option value="1">1 Month</option>
+                    <option value="3">3 Months (Quarter)</option>
+                    <option value="6">6 Months (Half Year)</option>
+                    <option value="12">12 Months (Full Year)</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 mt-2">
+                Example: Dec 31, 2024 + 12 months = Full year ending Dec 31, 2024
               </p>
             </div>
 
