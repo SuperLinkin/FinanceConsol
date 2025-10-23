@@ -323,18 +323,41 @@ export default function UploadPage() {
   };
 
   const downloadTBTemplate = () => {
-    // Create sample TB template
-    const template = [
-      { 'Account Code': '1000', 'Account Name': 'Cash', 'Debit': 50000, 'Credit': 0 },
-      { 'Account Code': '2000', 'Account Name': 'Accounts Payable', 'Debit': 0, 'Credit': 30000 },
-      { 'Account Code': '3000', 'Account Name': 'Equity', 'Debit': 0, 'Credit': 20000 }
-    ];
+    // Create sample TB template based on selected column format
+    let template;
+
+    if (columnFormat === 'signed') {
+      // Single Amount column with +/- values
+      template = [
+        { 'Account Code': '1000', 'Account Name': 'Cash (Asset)', 'Amount': 50000 },
+        { 'Account Code': '1100', 'Account Name': 'Accounts Receivable (Asset)', 'Amount': 80000 },
+        { 'Account Code': '2000', 'Account Name': 'Accounts Payable (Liability)', 'Amount': 30000 },
+        { 'Account Code': '3000', 'Account Name': 'Share Capital (Equity)', 'Amount': 50000 },
+        { 'Account Code': '4000', 'Account Name': 'Revenue', 'Amount': 200000 },
+        { 'Account Code': '5000', 'Account Name': 'Operating Expenses', 'Amount': 120000 },
+        { 'Account Code': '3100', 'Account Name': 'Retained Earnings (Equity)', 'Amount': -50000 }
+      ];
+    } else {
+      // Standard Debit/Credit columns
+      template = [
+        { 'Account Code': '1000', 'Account Name': 'Cash (Asset)', 'Debit': 50000, 'Credit': 0 },
+        { 'Account Code': '1100', 'Account Name': 'Accounts Receivable (Asset)', 'Debit': 80000, 'Credit': 0 },
+        { 'Account Code': '2000', 'Account Name': 'Accounts Payable (Liability)', 'Debit': 0, 'Credit': 30000 },
+        { 'Account Code': '3000', 'Account Name': 'Share Capital (Equity)', 'Debit': 0, 'Credit': 50000 },
+        { 'Account Code': '4000', 'Account Name': 'Revenue', 'Debit': 0, 'Credit': 200000 },
+        { 'Account Code': '5000', 'Account Name': 'Operating Expenses', 'Debit': 120000, 'Credit': 0 },
+        { 'Account Code': '3100', 'Account Name': 'Retained Earnings (Equity)', 'Debit': 50000, 'Credit': 0 }
+      ];
+    }
 
     import('xlsx').then(XLSX => {
       const ws = XLSX.utils.json_to_sheet(template);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Trial Balance');
-      XLSX.writeFile(wb, 'TB_Template.xlsx');
+
+      // Add filename suffix based on format
+      const formatSuffix = columnFormat === 'signed' ? '_SignedAmount' : '_DebitCredit';
+      XLSX.writeFile(wb, `TB_Template${formatSuffix}.xlsx`);
     });
   };
 
