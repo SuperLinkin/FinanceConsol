@@ -117,36 +117,38 @@ export default function UploadPage() {
           hasAmountColumn = jsonData[0].Amount !== undefined || jsonData[0].amount !== undefined;
         }
 
-        if (hasAmountColumn) {
-          // For Amount column: positive values = debit/credit depending on account type
-          // We'll show a warning that COA lookup is needed
-          jsonData.forEach(row => {
-            const amount = parseFloat(row.Amount || row.amount || 0);
-            if (amount >= 0) {
-              totalDebit += amount;
-            } else {
-              totalCredit += Math.abs(amount);
-            }
+        if (hasAmountColumn && columnFormat === 'signed') {
+          // For signed Amount column format: Skip balance validation
+          // Cannot determine proper debit/credit without COA class mappings
+          // Validation will happen during upload after COA is fetched
+          setTbValidation({
+            isBalanced: true, // Skip validation for signed format
+            totalDebit: 0,
+            totalCredit: 0,
+            difference: 0,
+            rowCount: jsonData.length,
+            hasAmountColumn: true,
+            skipValidation: true // Flag to show different message
           });
         } else {
-          // For standard Debit/Credit columns
+          // For standard Debit/Credit columns - validate normally
           jsonData.forEach(row => {
             totalDebit += parseFloat(row.Debit || row.debit || 0);
             totalCredit += parseFloat(row.Credit || row.credit || 0);
           });
+
+          const difference = Math.abs(totalDebit - totalCredit);
+          const isBalanced = difference < 0.01; // Allow small rounding differences
+
+          setTbValidation({
+            isBalanced,
+            totalDebit,
+            totalCredit,
+            difference,
+            rowCount: jsonData.length,
+            hasAmountColumn: false
+          });
         }
-
-        const difference = Math.abs(totalDebit - totalCredit);
-        const isBalanced = difference < 0.01; // Allow small rounding differences
-
-        setTbValidation({
-          isBalanced,
-          totalDebit,
-          totalCredit,
-          difference,
-          rowCount: jsonData.length,
-          hasAmountColumn
-        });
       } catch (error) {
         console.error('Error validating file:', error);
         setTbValidation({ error: 'Invalid file format' });
@@ -1198,17 +1200,23 @@ export default function UploadPage() {
                     <h3 className={`font-bold mb-2 ${
                       tbValidation.isBalanced ? 'text-green-800' : 'text-red-800'
                     }`}>
-                      {tbValidation.isBalanced ? 'Trial Balance is Balanced ✓' : 'Trial Balance is NOT Balanced'}
+                      {tbValidation.skipValidation ? 'File Validated - Ready for Upload ✓' : (tbValidation.isBalanced ? 'Trial Balance is Balanced ✓' : 'Trial Balance is NOT Balanced')}
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-700">Total Rows: <span className="font-semibold">{tbValidation.rowCount}</span></p>
-                      {tbValidation.hasAmountColumn && (
-                        <p className="text-blue-700 font-semibold">📊 Amount column format detected - will map to Debit/Credit based on Chart of Accounts</p>
-                      )}
-                      <p className="text-gray-700">Total Debit: <span className="font-semibold">{tbValidation.totalDebit.toFixed(2)}</span></p>
-                      <p className="text-gray-700">Total Credit: <span className="font-semibold">{tbValidation.totalCredit.toFixed(2)}</span></p>
-                      {!tbValidation.isBalanced && (
-                        <p className="text-red-700 font-semibold">Difference: {tbValidation.difference.toFixed(2)}</p>
+                      {tbValidation.skipValidation ? (
+                        <p className="text-blue-700 font-semibold">📊 Signed Amount format detected - amounts will be mapped to Debit/Credit based on Chart of Accounts class during upload</p>
+                      ) : (
+                        <>
+                          {tbValidation.hasAmountColumn && (
+                            <p className="text-blue-700 font-semibold">📊 Amount column format detected - will map to Debit/Credit based on Chart of Accounts</p>
+                          )}
+                          <p className="text-gray-700">Total Debit: <span className="font-semibold">{tbValidation.totalDebit.toFixed(2)}</span></p>
+                          <p className="text-gray-700">Total Credit: <span className="font-semibold">{tbValidation.totalCredit.toFixed(2)}</span></p>
+                          {!tbValidation.isBalanced && (
+                            <p className="text-red-700 font-semibold">Difference: {tbValidation.difference.toFixed(2)}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
