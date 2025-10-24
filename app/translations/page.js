@@ -387,6 +387,52 @@ export default function TranslationsPage() {
     }
   };
 
+  const applyTranslationsToTrialBalance = async () => {
+    if (!selectedEntity || !selectedPeriod) {
+      showToast('Please select entity and period', false);
+      return;
+    }
+
+    if (translatedBalances.length === 0) {
+      showToast('Please load translations first', false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/translations/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          entity_id: selectedEntity,
+          period: selectedPeriod
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to apply translations');
+      }
+
+      if (result.success) {
+        showToast(
+          `✓ Applied translations to ${result.stats?.translated_count || 0} records. FCTR Net: ${result.stats?.fctr_net || '0.00'}`,
+          true
+        );
+
+        // Reload translations to show updated data
+        fetchLiveTranslations();
+      } else {
+        showToast(result.message || 'No records were translated', false);
+      }
+    } catch (error) {
+      console.error('Error applying translations:', error);
+      showToast(`Error: ${error.message}`, false);
+    }
+  };
+
   const calculateFctrBalances = async () => {
     try {
       // Get all FCTR accounts from translation rules
@@ -673,12 +719,27 @@ export default function TranslationsPage() {
               </div>
             </div>
 
-            <button
-              onClick={fetchLiveTranslations}
-              className="mt-4 px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-semibold"
-            >
-              Load Translations
-            </button>
+            <div className="flex gap-4 mt-4">
+              <button
+                onClick={fetchLiveTranslations}
+                className="px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-semibold"
+              >
+                Load Translations
+              </button>
+
+              <button
+                onClick={applyTranslationsToTrialBalance}
+                disabled={translatedBalances.length === 0}
+                className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                  translatedBalances.length === 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                title={translatedBalances.length === 0 ? 'Load translations first' : 'Apply translations to trial balance and calculate FCTR'}
+              >
+                Apply Translations to Trial Balance
+              </button>
+            </div>
           </div>
 
           {/* Currency Check Alert */}

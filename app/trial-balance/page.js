@@ -757,13 +757,16 @@ export default function TrialBalancePage() {
                   <th className="px-4 py-4 text-left text-sm font-bold">Sub-Note</th>
                   <th className="px-4 py-4 text-right text-sm font-bold">Debit</th>
                   <th className="px-4 py-4 text-right text-sm font-bold">Credit</th>
+                  <th className="px-4 py-4 text-right text-sm font-bold bg-blue-700">Trans. Debit</th>
+                  <th className="px-4 py-4 text-right text-sm font-bold bg-blue-700">Trans. Credit</th>
+                  <th className="px-4 py-4 text-right text-sm font-bold bg-green-700">FCTR</th>
                   <th className="px-4 py-4 text-center text-sm font-bold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredTBs.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-16 text-center text-gray-500">
+                    <td colSpan="12" className="px-6 py-16 text-center text-gray-500">
                       <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                       <div className="text-lg font-semibold">No trial balance records found</div>
                       <div className="text-sm mt-2">Upload trial balances in the Upload page</div>
@@ -856,6 +859,35 @@ export default function TrialBalancePage() {
                           />
                         ) : (
                           formatNumber(tb.credit)
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right font-mono bg-blue-50">
+                        {tb.translated_debit ? (
+                          <span className="text-blue-900 font-semibold">
+                            {formatNumber(tb.translated_debit)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right font-mono bg-blue-50">
+                        {tb.translated_credit ? (
+                          <span className="text-blue-900 font-semibold">
+                            {formatNumber(tb.translated_credit)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right font-mono bg-green-50">
+                        {tb.fctr_amount ? (
+                          <span className={`font-semibold ${
+                            parseFloat(tb.fctr_amount) >= 0 ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            {formatNumber(tb.fctr_amount)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
