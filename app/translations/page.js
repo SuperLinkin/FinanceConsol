@@ -316,8 +316,11 @@ export default function TranslationsPage() {
 
       if (tbError) throw tbError;
 
-      // Check if this is a bulk upload (TB already in group currency)
-      const isBulkUpload = tbData && tbData.length > 0 && entCurrency !== grpCurrency;
+      // Check if trial balance was uploaded in group currency (bulk upload scenario)
+      // If TB currency matches group currency AND entity's functional currency is different,
+      // then it's a bulk upload that doesn't need translation
+      const tbCurrency = tbData && tbData.length > 0 ? tbData[0].currency : null;
+      const isBulkUpload = tbCurrency === grpCurrency && entCurrency !== grpCurrency;
       setHasBulkUpload(isBulkUpload);
 
       // Fetch chart of accounts to get class information
