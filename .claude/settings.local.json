@@ -36,7 +36,9 @@
       "Bash(echo:*)",
       "WebSearch",
       "Bash(tree:*)",
-      "Bash(dir /S /B \"C:\\Users\\Pranav Mv\\Documents\\financial-consolidation\")"
+      "Bash(dir /S /B \"C:\\Users\\Pranav Mv\\Documents\\financial-consolidation\")",
+      "WebFetch(domain:www.frankfurter.app)",
+      "WebFetch(domain:frankfurter.dev)"
     ],
     "deny": [],
     "ask": []

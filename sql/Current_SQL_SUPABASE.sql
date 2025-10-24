@@ -170,6 +170,20 @@ CREATE TABLE public.consolidation_changes (
   user_agent text,
   CONSTRAINT consolidation_changes_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.consolidation_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL,
+  period date NOT NULL,
+  statement_type USER-DEFINED NOT NULL,
+  action text NOT NULL DEFAULT 'save'::text,
+  records_count integer NOT NULL DEFAULT 0,
+  saved_by text NOT NULL,
+  saved_at timestamp with time zone NOT NULL DEFAULT now(),
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT consolidation_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT consolidation_logs_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
+);
 CREATE TABLE public.consolidation_workings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   period date NOT NULL,
@@ -186,7 +200,9 @@ CREATE TABLE public.consolidation_workings (
   translation_amount numeric DEFAULT 0,
   consolidated_amount numeric,
   calculated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT consolidation_workings_pkey PRIMARY KEY (id)
+  created_by uuid,
+  CONSTRAINT consolidation_workings_pkey PRIMARY KEY (id),
+  CONSTRAINT consolidation_workings_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.currencies (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

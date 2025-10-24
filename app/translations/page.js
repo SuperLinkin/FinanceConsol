@@ -99,17 +99,19 @@ export default function TranslationsPage() {
     try {
       setLoading(true);
 
-      const [entitiesData, currenciesData, glData, rulesData] = await Promise.all([
+      const [entitiesData, currenciesData, glData, rulesData, ratesData] = await Promise.all([
         supabase.from('entities').select('*').eq('is_active', true).order('entity_name'),
         supabase.from('currencies').select('*').eq('is_active', true).order('currency_code'),
         supabase.from('chart_of_accounts').select('*').eq('is_active', true).order('account_code'),
-        supabase.from('translation_rules').select('*, entities(entity_name), currencies!translation_rules_from_currency_fkey(currency_code)').order('created_at', { ascending: false })
+        supabase.from('translation_rules').select('*, entities(entity_name), currencies!translation_rules_from_currency_fkey(currency_code)').order('created_at', { ascending: false }),
+        supabase.from('exchange_rates').select('*').eq('is_active', true)
       ]);
 
       setEntities(entitiesData.data || []);
       setCurrencies(currenciesData.data || []);
       setGlAccounts(glData.data || []);
       setTranslationRules(rulesData.data || []);
+      setExchangeRates(ratesData.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       showToast('Error loading data', false);
@@ -345,41 +347,64 @@ export default function TranslationsPage() {
 
       setTrialBalances(enrichedTBs);
 
-      // Fetch applicable translation rules
-      const { data: rulesData } = await supabase
-        .from('translation_rules')
+      // Fetch exchange rates for this entity and period
+      const { data: exRatesData } = await supabase
+        .from('exchange_rates')
         .select('*')
         .eq('entity_id', selectedEntity)
-        .eq('is_active', true);
+        .eq('period', selectedPeriod)
+        .single();
 
-      // Apply translations
+      console.log('Exchange rates data:', exRatesData);
+
+      // Apply translations based on account class and exchange rates
       const translated = enrichedTBs.map(tb => {
-        const applicableRule = (rulesData || []).find(rule => {
-          if (rule.applies_to === 'All') return true;
-          if (rule.applies_to === 'Class' && rule.class_name === tb.coa_class) return true;
-          if (rule.applies_to === 'Specific GL' && rule.gl_account_code === tb.account_code) return true;
-          return false;
-        });
-
-        if (applicableRule && applicableRule.rate_value) {
-          const rate = parseFloat(applicableRule.rate_value);
+        // If no translation needed (same currency), return as-is
+        if (!needsTranslation || hasBulkUpload) {
           return {
             ...tb,
-            translated_debit: (parseFloat(tb.debit || 0) * rate).toFixed(2),
-            translated_credit: (parseFloat(tb.credit || 0) * rate).toFixed(2),
-            rate_used: rate,
-            rate_type: applicableRule.rate_type,
-            target_currency: applicableRule.to_currency
+            translated_debit: tb.debit,
+            translated_credit: tb.credit,
+            rate_used: 1,
+            rate_type: 'No Translation',
+            target_currency: grpCurrency
           };
+        }
+
+        // Determine which rate to use based on account class
+        let rate = 1;
+        let rateType = 'No Rate Set';
+
+        if (exRatesData) {
+          const accountClass = tb.coa_class;
+
+          // Balance Sheet items (Assets, Liabilities, Equity) use Closing Rate
+          if (['Assets', 'Liabilities', 'Equity'].includes(accountClass)) {
+            rate = parseFloat(exRatesData.closing_rate || 1);
+            rateType = 'Closing Rate';
+          }
+          // P&L items (Revenue, Expenses, Income) use Average Rate
+          else if (['Revenue', 'Expenses', 'Income'].includes(accountClass)) {
+            rate = parseFloat(exRatesData.average_rate || 1);
+            rateType = 'Average Rate';
+          }
+          // Check for historical rates for specific classes
+          else if (exRatesData.historical_rates && Array.isArray(exRatesData.historical_rates)) {
+            const historicalRate = exRatesData.historical_rates.find(hr => hr.applies_to_class === accountClass);
+            if (historicalRate && historicalRate.rate_value) {
+              rate = parseFloat(historicalRate.rate_value);
+              rateType = `Historical: ${historicalRate.rate_name || 'Custom'}`;
+            }
+          }
         }
 
         return {
           ...tb,
-          translated_debit: tb.debit,
-          translated_credit: tb.credit,
-          rate_used: 1,
-          rate_type: 'No Translation',
-          target_currency: '-'
+          translated_debit: (parseFloat(tb.debit || 0) * rate).toFixed(2),
+          translated_credit: (parseFloat(tb.credit || 0) * rate).toFixed(2),
+          rate_used: rate,
+          rate_type: rateType,
+          target_currency: grpCurrency
         };
       });
 
@@ -640,13 +665,75 @@ export default function TranslationsPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button
-                            onClick={() => {
-                              setEditingRate(rateData || { entity_id: ep.entity_id, period: ep.period, from_currency: entity.functional_currency });
+                            onClick={async () => {
+                              // Fetch group currency for "to_currency"
+                              const { data: groupCurrData } = await supabase
+                                .from('currencies')
+                                .select('currency_code')
+                                .eq('is_group_reporting_currency', true)
+                                .single();
+
+                              const toCurrency = groupCurrData?.currency_code || 'EUR';
+
+                              // If rates don't exist, auto-fetch them
+                              if (!rateData && entity.functional_currency !== toCurrency) {
+                                try {
+                                  showToast('Fetching exchange rates...', true);
+
+                                  const response = await fetch('/api/exchange-rates/calculate', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      from_currency: entity.functional_currency,
+                                      to_currency: toCurrency,
+                                      period: ep.period
+                                    })
+                                  });
+
+                                  const result = await response.json();
+
+                                  if (result.success && result.data) {
+                                    setEditingRate({
+                                      entity_id: ep.entity_id,
+                                      period: ep.period,
+                                      from_currency: entity.functional_currency,
+                                      closing_rate: result.data.closing_rate,
+                                      average_rate: result.data.average_rate,
+                                      historical_rates: []
+                                    });
+                                    showToast(`Rates fetched: Closing ${result.data.closing_rate?.toFixed(4)}, Average ${result.data.average_rate?.toFixed(4)}`, true);
+                                  } else {
+                                    throw new Error('Failed to fetch rates');
+                                  }
+                                } catch (error) {
+                                  console.error('Error fetching rates:', error);
+                                  showToast('Could not fetch live rates, please enter manually', false);
+                                  setEditingRate({
+                                    entity_id: ep.entity_id,
+                                    period: ep.period,
+                                    from_currency: entity.functional_currency,
+                                    closing_rate: null,
+                                    average_rate: null,
+                                    historical_rates: []
+                                  });
+                                }
+                              } else {
+                                // Rates exist, just open modal with existing data
+                                setEditingRate(rateData || {
+                                  entity_id: ep.entity_id,
+                                  period: ep.period,
+                                  from_currency: entity.functional_currency,
+                                  closing_rate: null,
+                                  average_rate: null,
+                                  historical_rates: []
+                                });
+                              }
+
                               setShowRateModal(true);
                             }}
                             className="px-4 py-2 bg-slate-900 text-white text-xs rounded-lg hover:bg-slate-800 transition-colors font-semibold"
                           >
-                            {rateData ? 'Edit Rates' : 'Set Rates'}
+                            {rateData ? 'View Rates' : 'Fetch Rates'}
                           </button>
                         </td>
                       </tr>
@@ -1205,15 +1292,15 @@ export default function TranslationsPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Closing Rate <span className="text-gray-500 text-xs">(for Balance Sheet items)</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="e.g., 1.2345"
-                    value={editingRate.closing_rate || ''}
-                    onChange={(e) => setEditingRate({ ...editingRate, closing_rate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Exchange rate at period end</p>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      value={editingRate.closing_rate ? parseFloat(editingRate.closing_rate).toFixed(4) : 'Not available'}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-slate-900 font-mono font-semibold text-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Exchange rate at period end (auto-fetched from Frankfurter API)</p>
                 </div>
 
                 {/* Average Rate */}
@@ -1221,89 +1308,32 @@ export default function TranslationsPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Average Rate <span className="text-gray-500 text-xs">(for P&L items)</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="e.g., 1.2000"
-                    value={editingRate.average_rate || ''}
-                    onChange={(e) => setEditingRate({ ...editingRate, average_rate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent text-slate-900"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Average exchange rate for the period</p>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      value={editingRate.average_rate ? parseFloat(editingRate.average_rate).toFixed(4) : 'Not available'}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-slate-900 font-mono font-semibold text-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Average exchange rate for the period (auto-calculated from daily rates)</p>
                 </div>
 
-                {/* Historical Rates Section */}
+                {/* Info Box */}
                 <div className="border-t border-gray-200 pt-6">
-                  <h4 className="text-lg font-bold text-slate-900 mb-4">Historical Rates (Optional)</h4>
-                  <p className="text-sm text-gray-600 mb-4">For specific asset classes or accounts</p>
-
-                  {(editingRate.historical_rates || []).map((rate, idx) => (
-                    <div key={idx} className="bg-gray-50 p-4 rounded-lg mb-3">
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="text-sm font-semibold text-slate-900">Historical Rate {idx + 1}</span>
-                        <button
-                          onClick={() => {
-                            const updated = [...(editingRate.historical_rates || [])];
-                            updated.splice(idx, 1);
-                            setEditingRate({ ...editingRate, historical_rates: updated });
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          placeholder="Rate name"
-                          value={rate.rate_name || ''}
-                          onChange={(e) => {
-                            const updated = [...(editingRate.historical_rates || [])];
-                            updated[idx] = { ...updated[idx], rate_name: e.target.value };
-                            setEditingRate({ ...editingRate, historical_rates: updated });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-slate-900"
-                        />
-                        <input
-                          type="number"
-                          step="0.0001"
-                          placeholder="Rate value"
-                          value={rate.rate_value || ''}
-                          onChange={(e) => {
-                            const updated = [...(editingRate.historical_rates || [])];
-                            updated[idx] = { ...updated[idx], rate_value: e.target.value };
-                            setEditingRate({ ...editingRate, historical_rates: updated });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-slate-900"
-                        />
-                      </div>
-                      <select
-                        value={rate.applies_to_class || ''}
-                        onChange={(e) => {
-                          const updated = [...(editingRate.historical_rates || [])];
-                          updated[idx] = { ...updated[idx], applies_to_class: e.target.value };
-                          setEditingRate({ ...editingRate, historical_rates: updated });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mt-2 text-slate-900"
-                      >
-                        <option value="">Applies to class...</option>
-                        {ACCOUNT_CLASSES.map(cls => (
-                          <option key={cls} value={cls}>{cls}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-
-                  <button
-                    onClick={() => {
-                      const updated = [...(editingRate.historical_rates || []), { rate_name: '', rate_value: null, applies_to_class: '' }];
-                      setEditingRate({ ...editingRate, historical_rates: updated });
-                    }}
-                    className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-slate-900 hover:text-slate-900 transition-colors font-semibold flex items-center justify-center gap-2"
-                  >
-                    <Plus size={18} />
-                    Add Historical Rate
-                  </button>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                      <AlertCircle size={18} />
+                      About Exchange Rates
+                    </h4>
+                    <p className="text-sm text-blue-800 mb-2">
+                      Exchange rates are automatically fetched from the Frankfurter API (European Central Bank data).
+                    </p>
+                    <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
+                      <li><strong>Closing Rate:</strong> Used for Balance Sheet items (Assets, Liabilities, Equity)</li>
+                      <li><strong>Average Rate:</strong> Used for P&L items (Revenue, Expenses, Income)</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
 
@@ -1311,9 +1341,43 @@ export default function TranslationsPage() {
                 <button
                   onClick={async () => {
                     try {
-                      // TODO: Save exchange rates to database
-                      // This would need an exchange_rates table or similar
+                      // Prepare exchange rate data for upsert
+                      const rateData = {
+                        entity_id: editingRate.entity_id,
+                        period: editingRate.period,
+                        from_currency: editingRate.from_currency,
+                        to_currency: groupCurrency,
+                        closing_rate: editingRate.closing_rate ? parseFloat(editingRate.closing_rate) : null,
+                        average_rate: editingRate.average_rate ? parseFloat(editingRate.average_rate) : null,
+                        historical_rates: (editingRate.historical_rates || []).filter(r => r.rate_name && r.rate_value),
+                        is_active: true
+                      };
+
+                      // Upsert to exchange_rates table
+                      const { error } = await supabase
+                        .from('exchange_rates')
+                        .upsert(rateData, {
+                          onConflict: 'entity_id,period',
+                          ignoreDuplicates: false
+                        });
+
+                      if (error) throw error;
+
                       showToast('Exchange rates saved successfully', true);
+
+                      // Reload exchange rates data
+                      const { data: updatedRates } = await supabase
+                        .from('exchange_rates')
+                        .select('*')
+                        .eq('is_active', true);
+
+                      setExchangeRates(updatedRates || []);
+
+                      // If we're currently viewing translations for this entity/period, reload them
+                      if (selectedEntity === editingRate.entity_id && selectedPeriod === editingRate.period) {
+                        await fetchLiveTranslations();
+                      }
+
                       setIsRateModalClosing(true);
                       setTimeout(() => {
                         setShowRateModal(false);
