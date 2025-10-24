@@ -38,7 +38,13 @@
       "Bash(tree:*)",
       "Bash(dir /S /B \"C:\\Users\\Pranav Mv\\Documents\\financial-consolidation\")",
       "WebFetch(domain:www.frankfurter.app)",
-      "WebFetch(domain:frankfurter.dev)"
+      "WebFetch(domain:frankfurter.dev)",
+      "Bash(dir /S /B *.py)",
+      "Bash(mkdir:*)",
+      "Bash(git mv:*)",
+      "Bash(mv:*)",
+      "Bash(rmdir:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []
