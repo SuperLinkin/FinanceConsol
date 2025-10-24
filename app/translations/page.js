@@ -305,6 +305,11 @@ export default function TranslationsPage() {
       const entCurrency = entityData?.functional_currency || '';
       const grpCurrency = groupCurrData?.currency_code || '';
 
+      console.log('💱 Currency Check:');
+      console.log('  Entity Currency:', entCurrency);
+      console.log('  Group Currency:', grpCurrency);
+      console.log('  Needs Translation:', entCurrency !== grpCurrency);
+
       setEntityCurrency(entCurrency);
       setGroupCurrency(grpCurrency);
       setNeedsTranslation(entCurrency !== grpCurrency);
@@ -322,8 +327,6 @@ export default function TranslationsPage() {
       // If TB currency matches group currency AND entity's functional currency is different,
       // then it's a bulk upload that doesn't need translation
       const tbCurrency = tbData && tbData.length > 0 ? tbData[0].currency : null;
-      const isBulkUpload = tbCurrency === grpCurrency && entCurrency !== grpCurrency;
-      setHasBulkUpload(isBulkUpload);
 
       // Fetch chart of accounts to get class information
       const { data: coaData, error: coaError } = await supabase
@@ -348,19 +351,34 @@ export default function TranslationsPage() {
       setTrialBalances(enrichedTBs);
 
       // Fetch exchange rates for this entity and period
-      const { data: exRatesData } = await supabase
+      const { data: exRatesData, error: exRatesError } = await supabase
         .from('exchange_rates')
         .select('*')
         .eq('entity_id', selectedEntity)
         .eq('period', selectedPeriod)
         .single();
 
-      console.log('Exchange rates data:', exRatesData);
+      // Use local variables instead of state for immediate comparison
+      const requiresTranslation = entCurrency !== grpCurrency;
+      const isBulkUpload = tbCurrency === grpCurrency && entCurrency !== grpCurrency;
+
+      console.log('🔍 Exchange Rates Query:');
+      console.log('  Entity ID:', selectedEntity);
+      console.log('  Period:', selectedPeriod);
+      console.log('  Exchange rates found:', !!exRatesData);
+      if (exRatesData) {
+        console.log('  Closing Rate:', exRatesData.closing_rate);
+        console.log('  Average Rate:', exRatesData.average_rate);
+      } else {
+        console.log('  Error:', exRatesError);
+      }
+      console.log('  Requires Translation (local):', requiresTranslation);
+      console.log('  Is Bulk Upload (local):', isBulkUpload);
 
       // Apply translations based on account class and exchange rates
       const translated = enrichedTBs.map(tb => {
         // If no translation needed (same currency), return as-is
-        if (!needsTranslation || hasBulkUpload) {
+        if (!requiresTranslation || isBulkUpload) {
           return {
             ...tb,
             translated_debit: tb.debit,
@@ -378,15 +396,23 @@ export default function TranslationsPage() {
         if (exRatesData) {
           const accountClass = tb.coa_class;
 
-          // Balance Sheet items (Assets, Liabilities, Equity) use Closing Rate
-          if (['Assets', 'Liabilities', 'Equity'].includes(accountClass)) {
+          // Normalize class name: trim, lowercase, and remove trailing 's' for comparison
+          const normalizedClass = accountClass ? accountClass.trim().toLowerCase().replace(/ies$/, 'y').replace(/s$/, '') : '';
+
+          // Debug: Log account class for every record
+          console.log(`Account ${tb.account_code}: class="${accountClass}" (normalized: "${normalizedClass}")`);
+
+          // Balance Sheet items (Assets/Asset, Liabilities/Liability, Equity) use Closing Rate
+          if (['asset', 'liability', 'equity'].includes(normalizedClass)) {
             rate = parseFloat(exRatesData.closing_rate || 1);
             rateType = 'Closing Rate';
+            console.log(`  → Using Closing Rate: ${rate}`);
           }
-          // P&L items (Revenue, Expenses, Income) use Average Rate
-          else if (['Revenue', 'Expenses', 'Income'].includes(accountClass)) {
+          // P&L items (Revenue, Expenses/Expense, Income) use Average Rate
+          else if (['revenue', 'expense', 'income'].includes(normalizedClass)) {
             rate = parseFloat(exRatesData.average_rate || 1);
             rateType = 'Average Rate';
+            console.log(`  → Using Average Rate: ${rate}`);
           }
           // Check for historical rates for specific classes
           else if (exRatesData.historical_rates && Array.isArray(exRatesData.historical_rates)) {
@@ -394,7 +420,10 @@ export default function TranslationsPage() {
             if (historicalRate && historicalRate.rate_value) {
               rate = parseFloat(historicalRate.rate_value);
               rateType = `Historical: ${historicalRate.rate_name || 'Custom'}`;
+              console.log(`  → Using Historical Rate: ${rate}`);
             }
+          } else {
+            console.log(`  → No rate applied (class not matched or no exchange rates)`);
           }
         }
 
