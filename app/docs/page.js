@@ -89,11 +89,11 @@ Before you start, ensure you have:
 5. Repeat for all entities in your group
 
 **Entity Structure Example**:
-\`\`\`
+
 Parent Company (100%)
   ├── Subsidiary A (100% ownership)
   └── Subsidiary B (60% ownership)
-\`\`\`
+
 
 ## Step 2: Upload Trial Balance
 
@@ -430,19 +430,19 @@ Configure your group structure and settings.
 ### Ownership Structures
 
 **Simple Hierarchy**:
-\`\`\`
+
 Parent (100%)
   ├── Sub A (100%)
   └── Sub B (100%)
-\`\`\`
+
 
 **Complex Ownership**:
-\`\`\`
+
 Parent (100%)
   ├── Sub A (60%)
   │   └── Sub C (80%)
   └── Sub B (100%)
-\`\`\`
+
 
 **Split Ownership** (two parents):
 - Use parent_entity_id_2 field
@@ -561,14 +561,14 @@ Detailed breakdowns:
 Map individual GL accounts to the hierarchy:
 
 **Example**:
-\`\`\`
+
 GL Code: 1001
 GL Name: Cash - Bank of America
 Class: Assets
 Sub-Class: Current Assets
 Note: Cash & Cash Equivalents
 Sub-Note: Bank Accounts
-\`\`\`
+
 
 ### Bulk Upload
 
@@ -684,18 +684,18 @@ Click **Export to CSV** to download:
 ## Data-Driven Calculations
 
 ### Balance Sheet Check Formula:
-\`\`\`
+
 (Assets Net) +
 (Intercompany Net) +
 (Liability Net) +
 (Equity Net) -
 (P&L Net) = 0
-\`\`\`
+
 
 ### P&L Calculation:
-\`\`\`
+
 (Revenue Net) + (Expenses Net)
-\`\`\`
+
 
 Note: Revenue is credit normal, expenses is debit normal.
 
@@ -818,10 +818,10 @@ If failed, check:
 3. Select your NetSuite integration
 4. System fetches subsidiaries from NetSuite
 5. Map each NetSuite subsidiary to CLOE entity:
-   \`\`\`
+   
    NetSuite Sub A → Entity A
    NetSuite Sub B → Entity B
-   \`\`\`
+   
 6. Click **Save Mappings**
 
 ## Step 8: Test Data Sync
@@ -991,10 +991,10 @@ SAP uses Company Codes instead of subsidiaries:
 2. Click **Map ERP Entities**
 3. System fetches company codes from SAP
 4. Map each company code to CLOE entity:
-   \`\`\`
+   
    SAP CC 1000 → Entity A
    SAP CC 2000 → Entity B
-   \`\`\`
+   
 5. Click **Save Mappings**
 
 ## Step 8: Configure Chart of Accounts
@@ -1196,7 +1196,7 @@ In CLOE integration settings:
 
 ### Account Types
 QuickBooks account types map to CLOE classes:
-\`\`\`
+
 Bank → Assets (Current)
 Accounts Receivable → Assets (Current)
 Other Current Asset → Assets (Current)
@@ -1210,7 +1210,7 @@ Cost of Goods Sold → Expenses
 Expense → Expenses
 Other Income → Income
 Other Expense → Expenses
-\`\`\`
+
 
 ### Reporting Basis
 - **Accrual**: Revenue when earned, expenses when incurred
@@ -1399,7 +1399,7 @@ Tally uses Ledger Groups (similar to account classes):
 Tally → CLOE class mapping:
 
 **Tally Group** → **CLOE Class**
-\`\`\`
+
 Cash-in-Hand → Assets (Current)
 Bank Accounts → Assets (Current)
 Sundry Debtors → Assets (Current)
@@ -1415,7 +1415,7 @@ Sales Accounts → Income
 Purchase Accounts → Expenses
 Direct Expenses → Expenses
 Indirect Expenses → Expenses
-\`\`\`
+
 
 ## Step 9: Test Data Sync
 
@@ -1459,13 +1459,13 @@ If tracking by location:
 ## Period Mapping
 
 Tally fiscal year → CLOE period:
-\`\`\`
+
 Apr 2024 - Mar 2025 → FY 2024-25
 Period 1 (Apr) → 2024-04-30
 Period 2 (May) → 2024-05-31
 ...
 Period 12 (Mar) → 2025-03-31
-\`\`\`
+
 
 ## Troubleshooting
 
@@ -1543,41 +1543,41 @@ Eliminate intercompany transactions for accurate consolidated financials.
 **Example**: Entity A owes Entity B $10,000
 
 **Before Elimination**:
-\`\`\`
+
 Entity A: Accounts Payable (B) = $10,000 Credit
 Entity B: Accounts Receivable (A) = $10,000 Debit
-\`\`\`
+
 
 **Elimination Entry**:
-\`\`\`
+
 Debit: Accounts Payable (Entity A) = $10,000
 Credit: Accounts Receivable (Entity B) = $10,000
-\`\`\`
+
 
 ### 2. Intercompany Revenue/Expense
 **Example**: Entity A invoices Entity B for $5,000 services
 
 **Before Elimination**:
-\`\`\`
+
 Entity A: Revenue = $5,000 Credit
 Entity B: Expense = $5,000 Debit
-\`\`\`
+
 
 **Elimination Entry**:
-\`\`\`
+
 Debit: Revenue (Entity A) = $5,000
 Credit: Expense (Entity B) = $5,000
-\`\`\`
+
 
 ### 3. Inventory in Transit
 **Example**: Entity A sold goods to Entity B for $3,000 (cost $2,000)
 
 **Unrealized Profit Elimination**:
-\`\`\`
+
 Debit: Revenue (Entity A) = $3,000
 Credit: Cost of Sales (Entity A) = $2,000
 Credit: Inventory (Entity B) = $1,000
-\`\`\`
+
 
 ## Setting Up Eliminations
 
@@ -1702,13 +1702,13 @@ If entities use different currencies:
 3. Exchange differences go to FCTR
 
 **Example**:
-\`\`\`
+
 Entity A (USD): IC Receivable = $10,000
 Entity B (EUR): IC Payable = €9,200
 Spot Rate: 1 EUR = 1.10 USD
 Translated: €9,200 × 1.10 = $10,120
 Difference: $120 → FCTR
-\`\`\`
+
 
 ## Reporting
 
@@ -1808,11 +1808,11 @@ Used for integrated foreign operations.
    - **Presentation Currency**: (Optional) If different
 
 **Example**:
-\`\`\`
+
 Entity A: Functional = EUR, Presentation = EUR
 Entity B: Functional = GBP, Presentation = USD
 Entity C: Functional = JPY, Presentation = USD
-\`\`\`
+
 
 ### Step 3: Create Translation Rules
 
@@ -1827,14 +1827,14 @@ Entity C: Functional = JPY, Presentation = USD
    - **FCTR Account**: Where to book translation differences
 
 **Example Rule**:
-\`\`\`
+
 Entity: UK Subsidiary
 From: GBP
 To: USD
 Applies To: Assets (Class)
 Rate Type: Closing Rate
 FCTR Account: 3900 (FCTR - Reserve)
-\`\`\`
+
 
 ### Step 4: Enter Exchange Rates
 
@@ -1854,7 +1854,7 @@ FCTR Account: 3900 (FCTR - Reserve)
 - Average rate = arithmetic mean of daily rates
 
 **Example Rates (Dec 2024)**:
-\`\`\`
+
 EUR/USD:
   Closing: 1.0850
   Average: 1.0920
@@ -1866,19 +1866,19 @@ GBP/USD:
 USD/JPY:
   Closing: 149.50
   Average: 148.20
-\`\`\`
+
 
 ## Translation Process
 
 ### Step 1: Upload Functional Currency Data
 
 Upload trial balance in entity's functional currency:
-\`\`\`
+
 Entity: UK Sub
 GL 1001: Cash = £100,000
 GL 2001: AP = £50,000
 GL 4001: Revenue = £200,000
-\`\`\`
+
 
 ### Step 2: Run Translation
 
@@ -1888,7 +1888,7 @@ GL 4001: Revenue = £200,000
 4. Click **Calculate Translation**
 
 System applies rules:
-\`\`\`
+
 Cash (Asset):
   £100,000 × 1.2650 (Closing) = $126,500
 
@@ -1897,12 +1897,12 @@ AP (Liability):
 
 Revenue (Income):
   £200,000 × 1.2720 (Average) = $254,400
-\`\`\`
+
 
 ### Step 3: Review Translation Adjustment
 
 FCTR (balancing amount) calculated:
-\`\`\`
+
 Assets (translated) = $XXX
 Liabilities (translated) = $XXX
 Equity (historical) = $XXX
@@ -1910,7 +1910,7 @@ Income (average) = $XXX
 Expenses (average) = $XXX
 
 FCTR = Plug to balance
-\`\`\`
+
 
 ### Step 4: Include in Consolidation
 
@@ -1924,23 +1924,23 @@ Translated amounts flow to consolidation working:
 Different classes need different rates:
 
 **Balance Sheet**:
-\`\`\`
+
 Current Assets → Closing Rate
 Non-Current Assets → Closing Rate
   (Except: PPE can use Historical if temporal method)
 Current Liabilities → Closing Rate
 Non-Current Liabilities → Closing Rate
 Equity → Historical Rate
-\`\`\`
+
 
 **Income Statement**:
-\`\`\`
+
 Revenue → Average Rate
 Cost of Sales → Average Rate
 Operating Expenses → Average Rate
 Finance Costs → Average Rate
 Tax → Average Rate
-\`\`\`
+
 
 ## Historical Rate Tracking
 
@@ -1951,13 +1951,13 @@ For equity and non-monetary items at historical rate:
 3. Maintains historical cost
 
 **Example**:
-\`\`\`
+
 Building purchased 3 years ago:
   Cost: €1,000,000
   Rate at purchase: 1.15
   Historical USD: $1,150,000
   (Not retranslated at closing rate)
-\`\`\`
+
 
 ## Hyperinflationary Economies
 
@@ -1979,17 +1979,17 @@ If presentation ≠ functional:
 3. Final statements in group reporting currency
 
 **Example**:
-\`\`\`
+
 Entity B: Functional = GBP, Presentation = USD
 
 Step 1: Translate GBP → USD (entity level)
 Step 2: Consolidate USD amounts (group level)
-\`\`\`
+
 
 ## FCTR in Equity
 
 Translation differences go to equity:
-\`\`\`
+
 Consolidated Balance Sheet:
   Assets: $XXX
   Liabilities: $XXX
@@ -1997,7 +1997,7 @@ Consolidated Balance Sheet:
     Share Capital: $XXX
     Retained Earnings: $XXX
     FCTR: $XXX (separate line)
-\`\`\`
+
 
 On disposal of foreign operation:
 - Recycle FCTR to profit or loss
