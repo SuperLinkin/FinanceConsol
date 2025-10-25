@@ -1,6 +1,10 @@
+import { useRouter } from 'next/navigation';
+import { HelpCircle } from 'lucide-react';
 import UserProfileButton from './UserProfileButton';
 
 export default function PageHeader({ title, subtitle, children, sticky = false, icon: Icon }) {
+  const router = useRouter();
+
   return (
     <div className={`bg-white border-b border-slate-200 ${sticky ? 'sticky top-0 z-30' : ''}`}>
       <div className="px-8 py-4 flex items-center justify-between">
@@ -17,6 +21,16 @@ export default function PageHeader({ title, subtitle, children, sticky = false, 
         </div>
         <div className="flex items-center gap-3">
           {children}
+          <button
+            onClick={() => router.push('/docs')}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors group relative"
+            title="Help & Documentation"
+          >
+            <HelpCircle size={24} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
+            <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              Help & Docs
+            </span>
+          </button>
           <UserProfileButton />
         </div>
       </div>
