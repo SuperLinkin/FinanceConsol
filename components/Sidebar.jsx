@@ -206,13 +206,11 @@ export default function Sidebar() {
     const isHovered = hoveredGroup === group.label;
 
     return (
-      <div
-        className="relative"
-        onMouseEnter={() => isCollapsed && setHoveredGroup(group.label)}
-        onMouseLeave={() => isCollapsed && setHoveredGroup(null)}
-      >
+      <div className="relative group/item">
         <button
           onClick={() => !isCollapsed && toggleGroup(group.label)}
+          onMouseEnter={() => isCollapsed && setHoveredGroup(group.label)}
+          onMouseLeave={() => isCollapsed && setHoveredGroup(null)}
           className={`
             w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
             ${hasActivePage
@@ -238,12 +236,17 @@ export default function Sidebar() {
 
         {/* Hover Menu for Collapsed Sidebar */}
         {isCollapsed && isHovered && (
-          <div className="absolute left-full ml-2 top-0 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 py-2 z-50 min-w-[200px]">
+          <div
+            className="absolute left-full ml-3 top-0 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 py-2 min-w-[220px]"
+            style={{ zIndex: 9999 }}
+            onMouseEnter={() => setHoveredGroup(group.label)}
+            onMouseLeave={() => setHoveredGroup(null)}
+          >
             {/* Group Title */}
-            <div className="px-4 py-2 border-b border-slate-700">
+            <div className="px-4 py-2.5 border-b border-slate-700">
               <div className="flex items-center gap-2">
-                <Icon size={14} className="text-blue-400" />
-                <span className="text-xs font-semibold text-white">{group.label}</span>
+                <Icon size={16} className="text-blue-400" />
+                <span className="text-sm font-bold text-white">{group.label}</span>
               </div>
             </div>
             {/* Group Items */}
@@ -265,8 +268,8 @@ export default function Sidebar() {
                     `}
                     onClick={() => setHoveredGroup(null)}
                   >
-                    <ItemIcon size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
-                    <span className="text-xs">{item.label}</span>
+                    <ItemIcon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                    <span>{item.label}</span>
                     {isActive && (
                       <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
                     )}
@@ -282,7 +285,7 @@ export default function Sidebar() {
 
   return (
     <div
-      className={`bg-gradient-to-b from-[#0f172a] to-[#1e293b] h-screen flex flex-col transition-all duration-300 ease-in-out shadow-2xl ${
+      className={`bg-gradient-to-b from-[#0f172a] to-[#1e293b] h-screen flex flex-col transition-all duration-300 ease-in-out shadow-2xl relative ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -395,7 +398,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 overflow-y-auto overflow-x-visible">
         <ul className="space-y-1">
           {menuStructure.map((item, index) => {
             if (item.type === 'single') {
