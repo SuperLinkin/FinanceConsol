@@ -24,6 +24,7 @@ export default function ChartOfAccounts() {
   const [uploadResults, setUploadResults] = useState(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [showERPSyncPanel, setShowERPSyncPanel] = useState(false);
+  const [syncPanelType, setSyncPanelType] = useState('chart_of_accounts'); // or 'coa_master_hierarchy'
 
   const [accountForm, setAccountForm] = useState({
     account_code: '',
@@ -917,11 +918,14 @@ export default function ChartOfAccounts() {
 
                 <div className="flex items-center gap-4">
                   <button
-                    onClick={() => setShowERPSyncPanel(true)}
+                    onClick={() => {
+                      setSyncPanelType('chart_of_accounts');
+                      setShowERPSyncPanel(true);
+                    }}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                   >
                     <Database size={18} />
-                    Sync from ERP
+                    Sync GL Codes from ERP
                   </button>
 
                   <button
@@ -1163,6 +1167,17 @@ export default function ChartOfAccounts() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => {
+                      setSyncPanelType('coa_master_hierarchy');
+                      setShowERPSyncPanel(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Database size={18} />
+                    Sync Master from ERP
+                  </button>
+
                   <button
                     onClick={downloadMasterTemplate}
                     className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
@@ -1613,10 +1628,15 @@ export default function ChartOfAccounts() {
       <ERPSyncPanel
         isOpen={showERPSyncPanel}
         onClose={() => setShowERPSyncPanel(false)}
-        syncType="chart_of_accounts"
+        syncType={syncPanelType}
         onSyncComplete={() => {
-          fetchAccounts();
-          showToast('Chart of Accounts synced from ERP successfully', true);
+          if (syncPanelType === 'chart_of_accounts') {
+            fetchAccounts();
+            showToast('GL Codes synced from ERP successfully', true);
+          } else if (syncPanelType === 'coa_master_hierarchy') {
+            fetchMasters();
+            showToast('Master Hierarchy synced from ERP successfully', true);
+          }
         }}
       />
     </div>

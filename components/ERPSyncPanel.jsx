@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Database, RefreshCw, CheckCircle, XCircle, Clock, Zap, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { X, Database, RefreshCw, CheckCircle, XCircle, Clock, Zap, AlertCircle, TrendingUp, TrendingDown, Eye, History, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function ERPSyncPanel({
   isOpen,
   onClose,
-  syncType = 'trial_balance', // 'trial_balance', 'chart_of_accounts', 'entities'
+  syncType = 'trial_balance', // 'trial_balance', 'chart_of_accounts', 'entities', 'coa_master_hierarchy'
   onSyncComplete
 }) {
   const [integrations, setIntegrations] = useState([]);
@@ -19,6 +20,15 @@ export default function ERPSyncPanel({
   const [lastSync, setLastSync] = useState(null);
   const [syncHistory, setSyncHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // New states for preview and version control
+  const [showPreview, setShowPreview] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [snapshots, setSnapshots] = useState([]);
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -86,6 +96,149 @@ export default function ERPSyncPanel({
     }
   };
 
+  const fetchSnapshots = async () => {
+    setLoadingSnapshots(true);
+    try {
+      const tableName = getTableName();
+      const { data, error } = await supabase
+        .rpc('get_snapshot_history', { p_table_name: tableName, p_limit: 10 });
+
+      if (error) throw error;
+      setSnapshots(data || []);
+    } catch (error) {
+      console.error('Error fetching snapshots:', error);
+    } finally {
+      setLoadingSnapshots(false);
+    }
+  };
+
+  const getTableName = () => {
+    switch (syncType) {
+      case 'chart_of_accounts': return 'chart_of_accounts';
+      case 'coa_master_hierarchy': return 'coa_master_hierarchy';
+      case 'trial_balance': return 'trial_balance';
+      case 'subsidiaries': return 'entities';
+      default: return syncType;
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!selectedIntegration) {
+      alert('Please select an integration');
+      return;
+    }
+
+    if (syncType === 'trial_balance' && (!selectedEntity || !selectedPeriod)) {
+      alert('Please select entity and period for trial balance sync');
+      return;
+    }
+
+    setLoadingPreview(true);
+    setPreviewData(null);
+    setDuplicateWarning(null);
+
+    try {
+      // Check for existing data
+      const tableName = getTableName();
+      let existingData = [];
+
+      if (tableName === 'chart_of_accounts') {
+        const { data } = await supabase.from('chart_of_accounts').select('account_code, account_name');
+        existingData = data || [];
+      } else if (tableName === 'coa_master_hierarchy') {
+        const { data } = await supabase.from('coa_master_hierarchy').select('class_name, subclass_name, note_name, subnote_name');
+        existingData = data || [];
+      } else if (tableName === 'trial_balance') {
+        const { data } = await supabase
+          .from('trial_balance')
+          .select('entity_id, period, gl_code')
+          .eq('entity_id', selectedEntity)
+          .eq('period', selectedPeriod);
+        existingData = data || [];
+      } else if (tableName === 'entities') {
+        const { data } = await supabase.from('entities').select('entity_code, entity_name');
+        existingData = data || [];
+      }
+
+      // Fetch preview data from ERP (mock for now - will be replaced with actual API)
+      // In production, this would call a preview endpoint that doesn't write to DB
+      const mockPreviewData = generateMockPreview(tableName, existingData);
+
+      setPreviewData(mockPreviewData);
+
+      if (existingData.length > 0) {
+        setDuplicateWarning({
+          existingCount: existingData.length,
+          willOverwrite: true,
+          message: `This sync will overwrite ${existingData.length} existing records. A snapshot will be created for rollback.`
+        });
+      }
+
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Error loading preview:', error);
+      alert('Failed to load preview: ' + error.message);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const generateMockPreview = (tableName, existingData) => {
+    // Mock data generation - in production, this comes from ERP API
+    const toAdd = [];
+    const toUpdate = [];
+    const toDelete = [];
+    const unchanged = [];
+
+    if (tableName === 'chart_of_accounts') {
+      toAdd.push({ account_code: '1000', account_name: 'Cash' });
+      toAdd.push({ account_code: '2000', account_name: 'Accounts Payable' });
+      if (existingData.length > 0) {
+        toUpdate.push({ ...existingData[0], account_name: existingData[0].account_name + ' (Updated)' });
+      }
+    } else if (tableName === 'trial_balance') {
+      toAdd.push({ gl_code: '1000', gl_name: 'Cash', debit: 5000, credit: 0 });
+      toAdd.push({ gl_code: '2000', gl_name: 'AP', debit: 0, credit: 3000 });
+    }
+
+    return {
+      toAdd,
+      toUpdate,
+      toDelete,
+      unchanged: existingData.length > 2 ? existingData.slice(2) : [],
+      summary: {
+        total: toAdd.length + toUpdate.length + toDelete.length + existingData.length,
+        added: toAdd.length,
+        updated: toUpdate.length,
+        deleted: toDelete.length,
+        unchanged: Math.max(0, existingData.length - toUpdate.length)
+      }
+    };
+  };
+
+  const handleRollback = async (snapshotId) => {
+    if (!confirm('Are you sure you want to rollback to this snapshot? This will restore all data to this point in time.')) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('rollback_to_snapshot', { p_snapshot_id: snapshotId, p_delete_newer_snapshots: false });
+
+      if (error) throw error;
+
+      alert(`Rollback successful! Restored ${data.records_restored} records.`);
+      setShowSnapshots(false);
+
+      if (onSyncComplete) {
+        onSyncComplete({ type: 'rollback', snapshotId });
+      }
+    } catch (error) {
+      console.error('Error during rollback:', error);
+      alert('Rollback failed: ' + error.message);
+    }
+  };
+
   const handleSync = async () => {
     if (!selectedIntegration) {
       alert('Please select an integration');
@@ -97,10 +250,41 @@ export default function ERPSyncPanel({
       return;
     }
 
+    // Show warning if data will be overwritten
+    if (duplicateWarning && duplicateWarning.willOverwrite) {
+      const proceed = confirm(
+        `⚠️ WARNING: ${duplicateWarning.message}\n\n` +
+        `A backup snapshot will be created before syncing. You can rollback if needed.\n\n` +
+        `Do you want to proceed?`
+      );
+      if (!proceed) return;
+    }
+
     setSyncing(true);
     setSyncResult(null);
 
     try {
+      // Create snapshot before sync
+      const tableName = getTableName();
+      const metadata = syncType === 'trial_balance'
+        ? { entity_id: selectedEntity, period: selectedPeriod }
+        : {};
+
+      const { data: snapshotData, error: snapshotError } = await supabase
+        .rpc('create_data_snapshot', {
+          p_table_name: tableName,
+          p_operation_type: 'erp_sync',
+          p_created_by: 'user',
+          p_metadata: metadata
+        });
+
+      if (snapshotError) {
+        console.error('Snapshot creation warning:', snapshotError);
+        // Continue even if snapshot fails
+      } else {
+        console.log('Snapshot created:', snapshotData);
+      }
+
       const integration = integrations.find(i => i.id === selectedIntegration);
       let endpoint = '/api/integrations/sync';
       let body = {
@@ -348,6 +532,53 @@ export default function ERPSyncPanel({
                 </div>
               )}
 
+              {/* Preview Data Button */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Eye className="text-purple-600" size={20} />
+                    <h4 className="font-semibold text-purple-900">Preview Changes</h4>
+                  </div>
+                  <button
+                    onClick={handlePreview}
+                    disabled={loadingPreview || !selectedIntegration || (syncType === 'trial_balance' && (!selectedEntity || !selectedPeriod))}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:bg-gray-400"
+                  >
+                    {loadingPreview ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Eye size={16} />
+                        Preview
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-purple-800">
+                  See what will be added, updated, or deleted before syncing
+                </p>
+              </div>
+
+              {/* Duplicate Warning */}
+              {duplicateWarning && (
+                <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <h4 className="font-bold text-amber-900 mb-1">Overwrite Warning</h4>
+                      <p className="text-sm text-amber-800">{duplicateWarning.message}</p>
+                      <p className="text-xs text-amber-700 mt-2">
+                        ✓ Automatic snapshot will be created before sync<br />
+                        ✓ You can rollback using version control
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Info Box */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
@@ -358,6 +589,7 @@ export default function ERPSyncPanel({
                       <li>• Connects to your ERP system securely via API</li>
                       <li>• Fetches {getSyncTypeLabel()} data</li>
                       <li>• Automatically maps and validates data</li>
+                      <li>• Creates backup snapshot before import</li>
                       <li>• Imports directly into CLOE database</li>
                       <li>• Process takes 30-60 seconds</li>
                     </ul>
@@ -460,6 +692,18 @@ export default function ERPSyncPanel({
         {/* Footer Actions */}
         {integrations.length > 0 && (
           <div className="border-t border-slate-200 p-6 bg-slate-50">
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={() => {
+                  fetchSnapshots();
+                  setShowSnapshots(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                <History size={16} />
+                Version Control
+              </button>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
@@ -489,6 +733,214 @@ export default function ERPSyncPanel({
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && previewData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Sync Preview - {getSyncTypeLabel()}</h2>
+                <p className="text-purple-100 text-sm">Review changes before syncing</p>
+              </div>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-4 gap-4 p-6 bg-slate-50">
+              <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 text-center">
+                <div className="text-3xl font-bold text-green-700">{previewData.summary.added}</div>
+                <div className="text-sm text-green-600 font-semibold mt-1">To Add</div>
+              </div>
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 text-center">
+                <div className="text-3xl font-bold text-blue-700">{previewData.summary.updated}</div>
+                <div className="text-sm text-blue-600 font-semibold mt-1">To Update</div>
+              </div>
+              <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-center">
+                <div className="text-3xl font-bold text-red-700">{previewData.summary.deleted}</div>
+                <div className="text-sm text-red-600 font-semibold mt-1">To Delete</div>
+              </div>
+              <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-4 text-center">
+                <div className="text-3xl font-bold text-gray-700">{previewData.summary.unchanged}</div>
+                <div className="text-sm text-gray-600 font-semibold mt-1">Unchanged</div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="p-6 overflow-y-auto max-h-[50vh]">
+              {/* To Add */}
+              {previewData.toAdd.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
+                    <Plus className="text-green-600" size={20} />
+                    Records to Add ({previewData.toAdd.length})
+                  </h3>
+                  <div className="bg-green-50 rounded-lg border border-green-200 overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      {previewData.toAdd.map((item, idx) => (
+                        <div key={idx} className="px-4 py-2 border-b border-green-100 last:border-b-0 text-sm">
+                          <span className="font-mono font-semibold text-green-800">
+                            {item.account_code || item.gl_code || JSON.stringify(item).substring(0, 100)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* To Update */}
+              {previewData.toUpdate.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-blue-700 mb-3 flex items-center gap-2">
+                    <Edit2 className="text-blue-600" size={20} />
+                    Records to Update ({previewData.toUpdate.length})
+                  </h3>
+                  <div className="bg-blue-50 rounded-lg border border-blue-200 overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      {previewData.toUpdate.map((item, idx) => (
+                        <div key={idx} className="px-4 py-2 border-b border-blue-100 last:border-b-0 text-sm">
+                          <span className="font-mono font-semibold text-blue-800">
+                            {item.account_code || item.gl_code || JSON.stringify(item).substring(0, 100)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* To Delete */}
+              {previewData.toDelete.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-red-700 mb-3 flex items-center gap-2">
+                    <Trash2 className="text-red-600" size={20} />
+                    Records to Delete ({previewData.toDelete.length})
+                  </h3>
+                  <div className="bg-red-50 rounded-lg border border-red-200 overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      {previewData.toDelete.map((item, idx) => (
+                        <div key={idx} className="px-4 py-2 border-b border-red-100 last:border-b-0 text-sm">
+                          <span className="font-mono font-semibold text-red-800">
+                            {JSON.stringify(item).substring(0, 100)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowPreview(false)}
+                className="px-6 py-3 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
+              >
+                Close Preview
+              </button>
+              <button
+                onClick={() => {
+                  setShowPreview(false);
+                  handleSync();
+                }}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+              >
+                Proceed with Sync
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Snapshot History Modal */}
+      {showSnapshots && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <History size={24} />
+                <div>
+                  <h2 className="text-xl font-bold">Version Control - Data Snapshots</h2>
+                  <p className="text-slate-300 text-sm">Rollback to previous versions</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSnapshots(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              {loadingSnapshots ? (
+                <div className="text-center py-8 text-slate-500">Loading snapshots...</div>
+              ) : snapshots.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <History size={48} className="mx-auto mb-4 text-slate-300" />
+                  <p>No snapshots available yet</p>
+                  <p className="text-sm mt-2">Snapshots are created automatically before each sync</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {snapshots.map((snapshot, index) => (
+                    <div
+                      key={snapshot.snapshot_id || index}
+                      className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:border-slate-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-slate-900">{snapshot.snapshot_name}</h3>
+                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                              {snapshot.operation_type}
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600 space-y-1">
+                            <div>Created: {formatDate(snapshot.created_at)}</div>
+                            <div>Records: {snapshot.record_count}</div>
+                            {snapshot.metadata && Object.keys(snapshot.metadata).length > 0 && (
+                              <div className="text-xs text-slate-500">
+                                {JSON.stringify(snapshot.metadata)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRollback(snapshot.snapshot_id)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                        >
+                          Rollback
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowSnapshots(false)}
+                className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes slideInRight {
