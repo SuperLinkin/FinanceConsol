@@ -25,28 +25,75 @@ import {
   LogOut,
   User,
   ChevronDown,
+  ChevronUp,
   Building,
   Database,
   FlaskConical,
-  TrendingUp
+  TrendingUp,
+  Package,
+  Zap,
+  ClipboardList,
+  PieChart
 } from 'lucide-react';
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: Sparkles, label: 'Integrations Hub', href: '/platform' },
-  { icon: Settings, label: 'Consol Config', href: '/settings' },
-  { icon: FileText, label: 'Chart of Accounts', href: '/chart-of-accounts' },
-  { icon: Upload, label: 'Upload TB', href: '/upload' },
-  { icon: Globe, label: 'Translations', href: '/translations' },
-  { icon: TableProperties, label: 'TB Viewer', href: '/trial-balance' },
-  { icon: Scissors, label: 'Eliminations', href: '/eliminations' },
-  { icon: Wrench, label: 'Adjustment Entry', href: '/builder' },
-  { icon: FolderKanban, label: 'Consol Workings', href: '/consolidation-workings' },
-  { icon: TrendingUp, label: 'Cash Flow', href: '/cash-flow' },
-  { icon: FileCode, label: 'Accounting Policy', href: '/accounting-policy' },
-  { icon: BookOpen, label: 'Note Builder', href: '/note-builder' },
-  { icon: FileBarChart, label: 'MD&A', href: '/mda' },
-  { icon: FileBarChart, label: 'Reporting', href: '/reporting' },
+// Organized menu structure with collapsible groups
+const menuStructure = [
+  {
+    type: 'single',
+    icon: LayoutDashboard,
+    label: 'Dashboard',
+    href: '/'
+  },
+  {
+    type: 'single',
+    icon: Sparkles,
+    label: 'Integration Hub',
+    href: '/platform'
+  },
+  {
+    type: 'group',
+    label: 'Setup & Upload',
+    icon: Package,
+    items: [
+      { icon: Settings, label: 'Consol Config', href: '/settings' },
+      { icon: FileText, label: 'Chart of Accounts', href: '/chart-of-accounts' },
+      { icon: Upload, label: 'Upload TB', href: '/upload' }
+    ]
+  },
+  {
+    type: 'group',
+    label: 'Data Preparation',
+    icon: Zap,
+    items: [
+      { icon: Globe, label: 'Translations', href: '/translations' },
+      { icon: Scissors, label: 'Eliminations', href: '/eliminations' },
+      { icon: Wrench, label: 'Adjustment Entry', href: '/builder' },
+      { icon: TableProperties, label: 'TB Viewer', href: '/trial-balance' }
+    ]
+  },
+  {
+    type: 'group',
+    label: 'Workings',
+    icon: ClipboardList,
+    items: [
+      { icon: FolderKanban, label: 'Consol Workings', href: '/consolidation-workings' },
+      { icon: TrendingUp, label: 'Cash Flow', href: '/cash-flow' },
+      { icon: FileCode, label: 'Accounting Policy', href: '/accounting-policy' },
+      { icon: BookOpen, label: 'Note Builder', href: '/note-builder' }
+    ]
+  },
+  {
+    type: 'single',
+    icon: FileBarChart,
+    label: 'MD&A',
+    href: '/mda'
+  },
+  {
+    type: 'single',
+    icon: PieChart,
+    label: 'Reporting',
+    href: '/reporting'
+  }
 ];
 
 export default function Sidebar() {
@@ -56,6 +103,7 @@ export default function Sidebar() {
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState({ name: 'John Doe', email: 'john@example.com' });
   const [currentCompany, setCurrentCompany] = useState({ name: 'Acme Corporation', env: 'Production' });
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   const userMenuRef = useRef(null);
   const companyMenuRef = useRef(null);
@@ -67,6 +115,20 @@ export default function Sidebar() {
 
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
     if (savedCompany) setCurrentCompany(JSON.parse(savedCompany));
+
+    // Auto-expand groups that contain the current page
+    const autoExpandGroups = {};
+    menuStructure.forEach((item, index) => {
+      if (item.type === 'group') {
+        const hasActivePage = item.items.some(subItem =>
+          pathname === subItem.href || pathname.startsWith(subItem.href + '/')
+        );
+        if (hasActivePage) {
+          autoExpandGroups[item.label] = true;
+        }
+      }
+    });
+    setExpandedGroups(autoExpandGroups);
 
     // Close dropdowns when clicking outside
     const handleClickOutside = (event) => {
@@ -80,7 +142,7 @@ export default function Sidebar() {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [pathname]);
 
   const handleLogout = () => {
     // Implement logout logic
@@ -99,6 +161,74 @@ export default function Sidebar() {
     setCurrentCompany(updatedCompany);
     localStorage.setItem('currentCompany', JSON.stringify(updatedCompany));
     setShowCompanyMenu(false);
+  };
+
+  const toggleGroup = (groupLabel) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupLabel]: !prev[groupLabel]
+    }));
+  };
+
+  const renderMenuItem = (item) => {
+    const Icon = item.icon;
+    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+
+    return (
+      <Link
+        href={item.href}
+        className={`
+          flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
+          ${isActive
+            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium shadow-lg shadow-blue-500/20'
+            : 'text-slate-300 hover:bg-white/5 hover:text-white'
+          }
+          ${isCollapsed ? 'justify-center' : ''}
+        `}
+        title={isCollapsed ? item.label : ''}
+      >
+        <Icon size={16} className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+        {!isCollapsed && <span>{item.label}</span>}
+        {!isCollapsed && isActive && (
+          <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
+        )}
+      </Link>
+    );
+  };
+
+  const renderGroupHeader = (group) => {
+    const Icon = group.icon;
+    const isExpanded = expandedGroups[group.label];
+    const hasActivePage = group.items.some(item =>
+      pathname === item.href || pathname.startsWith(item.href + '/')
+    );
+
+    return (
+      <button
+        onClick={() => toggleGroup(group.label)}
+        className={`
+          w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
+          ${hasActivePage
+            ? 'bg-slate-800/80 text-white'
+            : 'text-slate-400 hover:bg-white/5 hover:text-slate-300'
+          }
+          ${isCollapsed ? 'justify-center' : ''}
+        `}
+        title={isCollapsed ? group.label : ''}
+      >
+        <Icon size={16} className={`flex-shrink-0 ${hasActivePage ? 'text-blue-400' : 'text-slate-500'}`} />
+        {!isCollapsed && (
+          <>
+            <span className="font-medium flex-1 text-left">{group.label}</span>
+            {isExpanded ? (
+              <ChevronUp size={14} className="text-slate-500" />
+            ) : (
+              <ChevronDown size={14} className="text-slate-500" />
+            )}
+          </>
+        )}
+      </button>
+    );
   };
 
   return (
@@ -218,32 +348,38 @@ export default function Sidebar() {
       {/* Navigation Menu */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          {menuStructure.map((item, index) => {
+            if (item.type === 'single') {
+              return (
+                <li key={item.href || index}>
+                  {renderMenuItem(item)}
+                </li>
+              );
+            } else if (item.type === 'group') {
+              const isExpanded = expandedGroups[item.label];
 
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all duration-200
-                    ${isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium shadow-lg shadow-blue-500/20 scale-105'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-white hover:scale-102'
-                    }
-                    ${isCollapsed ? 'justify-center' : ''}
-                  `}
-                  title={isCollapsed ? item.label : ''}
-                >
-                  <Icon size={18} className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  {!isCollapsed && <span>{item.label}</span>}
-                  {!isCollapsed && isActive && (
-                    <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
+              return (
+                <li key={item.label} className="mb-2">
+                  {renderGroupHeader(item)}
+                  {!isCollapsed && isExpanded && (
+                    <ul className="mt-1 ml-3 space-y-1 border-l-2 border-slate-700/50 pl-3">
+                      {item.items.map((subItem) => (
+                        <li key={subItem.href}>
+                          {renderMenuItem(subItem)}
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                </Link>
-              </li>
-            );
+                  {/* Show tooltip on hover when collapsed */}
+                  {isCollapsed && (
+                    <div className="hidden group-hover:block absolute left-full ml-2 top-0 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap z-50">
+                      {item.label}
+                    </div>
+                  )}
+                </li>
+              );
+            }
+            return null;
           })}
         </ul>
       </nav>
