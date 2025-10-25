@@ -16,7 +16,9 @@ import {
   Type,
   Plus,
   Eye,
-  Trash2
+  Trash2,
+  Sparkles,
+  AlignLeft
 } from 'lucide-react';
 
 export default function NoteBuilderPage() {
@@ -45,6 +47,8 @@ export default function NoteBuilderPage() {
   const [showTableBuilder, setShowTableBuilder] = useState(false);
   const [showGLBuilder, setShowGLBuilder] = useState(false);
   const [showFormulaBuilder, setShowFormulaBuilder] = useState(false);
+  const [showTextEditor, setShowTextEditor] = useState(false);
+  const [showAIAssist, setShowAIAssist] = useState(false);
 
   // Table builder states
   const [tableRows, setTableRows] = useState(3);
@@ -62,6 +66,12 @@ export default function NoteBuilderPage() {
   // Grid editor states
   const [noteGridData, setNoteGridData] = useState({});
   const [showGridEditor, setShowGridEditor] = useState(true);
+
+  // Text editor states
+  const [additionalText, setAdditionalText] = useState({});
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiMode, setAiMode] = useState('generate'); // generate, enhance, summarize
+  const [aiLoading, setAiLoading] = useState(false);
 
   const statementTabs = [
     { id: 'balance_sheet', label: 'Balance Sheet', classes: ['Assets', 'Liability', 'Liabilities', 'Equity'] },
@@ -302,6 +312,12 @@ export default function NoteBuilderPage() {
         }));
       }
 
+      // Append additional text if present
+      const additionalTextContent = additionalText[editingNote.noteRef] || '';
+      if (additionalTextContent.trim()) {
+        contentToSave += '\n\n' + additionalTextContent;
+      }
+
       const response = await fetch('/api/note-descriptions', {
         method: 'POST',
         headers: {
@@ -361,6 +377,13 @@ export default function NoteBuilderPage() {
     if (!content || content.trim() === '') {
       content = generateNoteMarkdown(note);
     }
+
+    // Append additional text if present
+    const additionalTextContent = additionalText[note.noteRef] || '';
+    if (additionalTextContent.trim()) {
+      content += '\n\n' + additionalTextContent;
+    }
+
     setViewingNote({ ...note, content });
     setShowViewModal(true);
   };
@@ -859,6 +882,101 @@ export default function NoteBuilderPage() {
     setFormulaText(prev => prev + `GL(${glCode})`);
   };
 
+  // AI Assist Functions
+  const callAIAssist = async () => {
+    if (!aiPrompt.trim() && aiMode !== 'enhance') {
+      showToast('Please enter a prompt', false);
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const response = await fetch('/api/ai-assist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          mode: aiMode,
+          context: {
+            noteName: editingNote.noteName,
+            className: editingNote.className,
+            subclassName: editingNote.subclassName,
+            currentText: additionalText[editingNote.noteRef] || ''
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate text');
+      }
+
+      const data = await response.json();
+
+      // Update additional text with AI-generated content
+      setAdditionalText(prev => ({
+        ...prev,
+        [editingNote.noteRef]: data.text
+      }));
+
+      showToast('AI text generated successfully!', true);
+      setAiPrompt('');
+    } catch (error) {
+      console.error('Error calling AI assist:', error);
+      showToast(`AI Error: ${error.message}`, false);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const enhanceWithAI = async () => {
+    const currentText = additionalText[editingNote.noteRef] || '';
+    if (!currentText.trim()) {
+      showToast('No text to enhance', false);
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const response = await fetch('/api/ai-assist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: currentText,
+          mode: 'enhance',
+          context: {
+            noteName: editingNote.noteName,
+            className: editingNote.className,
+            subclassName: editingNote.subclassName
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to enhance text');
+      }
+
+      const data = await response.json();
+
+      setAdditionalText(prev => ({
+        ...prev,
+        [editingNote.noteRef]: data.text
+      }));
+
+      showToast('Text enhanced successfully!', true);
+    } catch (error) {
+      console.error('Error enhancing text:', error);
+      showToast(`AI Error: ${error.message}`, false);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const renderNoteContent = (note) => {
     const content = note.content;
 
@@ -934,7 +1052,7 @@ export default function NoteBuilderPage() {
       return (
         <div className="mt-6 space-y-4">
           {lines.map((line, idx) => {
-            if (line.trim() === '') return null;
+            if (line.trim() === '') return <div key={idx} className="h-2" />;
             if (line.startsWith('Note ')) {
               return null; // Skip note header as it's already shown
             }
@@ -1089,6 +1207,8 @@ export default function NoteBuilderPage() {
                 setShowTableBuilder(false);
                 setShowGLBuilder(false);
                 setShowFormulaBuilder(false);
+                setShowTextEditor(false);
+                setShowAIAssist(false);
               }}
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
             >
@@ -1098,12 +1218,44 @@ export default function NoteBuilderPage() {
 
           {/* Toolbar */}
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  setShowTextEditor(!showTextEditor);
+                  setShowTableBuilder(false);
+                  setShowGLBuilder(false);
+                  setShowFormulaBuilder(false);
+                  setShowAIAssist(false);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  showTextEditor ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                <AlignLeft size={16} />
+                Add Text
+              </button>
+              <button
+                onClick={() => {
+                  setShowAIAssist(!showAIAssist);
+                  setShowTextEditor(false);
+                  setShowTableBuilder(false);
+                  setShowGLBuilder(false);
+                  setShowFormulaBuilder(false);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  showAIAssist ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50'
+                }`}
+              >
+                <Sparkles size={16} />
+                AI Assist
+              </button>
               <button
                 onClick={() => {
                   setShowTableBuilder(!showTableBuilder);
                   setShowGLBuilder(false);
                   setShowFormulaBuilder(false);
+                  setShowTextEditor(false);
+                  setShowAIAssist(false);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                   showTableBuilder ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
@@ -1117,6 +1269,8 @@ export default function NoteBuilderPage() {
                   setShowGLBuilder(!showGLBuilder);
                   setShowTableBuilder(false);
                   setShowFormulaBuilder(false);
+                  setShowTextEditor(false);
+                  setShowAIAssist(false);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                   showGLBuilder ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
@@ -1130,6 +1284,8 @@ export default function NoteBuilderPage() {
                   setShowFormulaBuilder(!showFormulaBuilder);
                   setShowTableBuilder(false);
                   setShowGLBuilder(false);
+                  setShowTextEditor(false);
+                  setShowAIAssist(false);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                   showFormulaBuilder ? 'bg-[#101828] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
@@ -1498,6 +1654,165 @@ export default function NoteBuilderPage() {
                 </button>
               </div>
             )}
+
+            {/* TEXT EDITOR */}
+            {showTextEditor && (
+              <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-bold text-green-900 mb-2">Add Additional Text</h4>
+                <p className="text-sm text-green-800 mb-3">
+                  Add explanatory text, accounting policies, or additional disclosures to this note.
+                </p>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Note Description / Additional Content
+                  </label>
+                  <textarea
+                    rows={10}
+                    placeholder="Enter additional text for this note. You can describe accounting policies, significant judgments, or provide explanatory information..."
+                    value={additionalText[editingNote.noteRef] || ''}
+                    onChange={(e) => setAdditionalText(prev => ({
+                      ...prev,
+                      [editingNote.noteRef]: e.target.value
+                    }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-[#101828] focus:ring-2 focus:ring-green-500 font-sans leading-relaxed"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={enhanceWithAI}
+                    disabled={aiLoading || !additionalText[editingNote.noteRef]?.trim()}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <Loader size={14} className="inline animate-spin mr-2" />
+                        Enhancing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} className="inline mr-2" />
+                        Enhance with AI
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600 italic">
+                  Tip: Write your text manually, then click "Enhance with AI" to improve clarity and professionalism. Or use the AI Assist tool to generate text from scratch.
+                </p>
+              </div>
+            )}
+
+            {/* AI ASSIST */}
+            {showAIAssist && (
+              <div className="space-y-4 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="text-purple-600" size={20} />
+                  <h4 className="font-bold text-purple-900">AI Assist</h4>
+                </div>
+                <p className="text-sm text-purple-800 mb-3">
+                  Let AI help you generate professional note descriptions and disclosures.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    AI Mode
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <button
+                      onClick={() => setAiMode('generate')}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        aiMode === 'generate'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      Generate
+                    </button>
+                    <button
+                      onClick={() => setAiMode('enhance')}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        aiMode === 'enhance'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      Enhance
+                    </button>
+                    <button
+                      onClick={() => setAiMode('summarize')}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        aiMode === 'summarize'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      Summarize
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Your Prompt
+                  </label>
+                  <textarea
+                    rows={6}
+                    placeholder={
+                      aiMode === 'generate'
+                        ? 'E.g., "Write a professional note description explaining our revenue recognition policy for software licenses"'
+                        : aiMode === 'enhance'
+                        ? 'Paste the text you want to enhance here...'
+                        : 'Paste the text you want to summarize here...'
+                    }
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-[#101828] focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="bg-white border border-purple-300 rounded-lg p-4">
+                  <h4 className="font-bold text-purple-900 mb-2">Context:</h4>
+                  <ul className="text-sm text-purple-800 space-y-1">
+                    <li>• <strong>Note:</strong> {editingNote.noteName}</li>
+                    <li>• <strong>Class:</strong> {editingNote.className}</li>
+                    <li>• <strong>Sub-class:</strong> {editingNote.subclassName}</li>
+                  </ul>
+                  <p className="text-xs text-purple-600 mt-2 italic">
+                    AI will use this context to generate relevant content
+                  </p>
+                </div>
+
+                <button
+                  onClick={callAIAssist}
+                  disabled={aiLoading || !aiPrompt.trim()}
+                  className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {aiLoading ? (
+                    <>
+                      <Loader size={16} className="inline animate-spin mr-2" />
+                      AI is thinking...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} className="inline mr-2" />
+                      Generate with AI
+                    </>
+                  )}
+                </button>
+
+                {additionalText[editingNote.noteRef] && (
+                  <div className="mt-4 p-4 bg-white border border-green-300 rounded-lg">
+                    <h4 className="font-bold text-green-900 mb-2">Generated Text Preview:</h4>
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                      {additionalText[editingNote.noteRef]}
+                    </div>
+                    <p className="text-xs text-green-600 mt-2">
+                      This text will be saved with your note. You can edit it in the "Add Text" section.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -1525,6 +1840,8 @@ export default function NoteBuilderPage() {
                 setShowTableBuilder(false);
                 setShowGLBuilder(false);
                 setShowFormulaBuilder(false);
+                setShowTextEditor(false);
+                setShowAIAssist(false);
               }}
               className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
