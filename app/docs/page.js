@@ -253,9 +253,9 @@ Manage ERP connections:
 
 ## Keyboard Shortcuts
 
-- `Ctrl/Cmd + K`: Global search
-- `Ctrl/Cmd + S`: Save current form
-- `Esc`: Close modals
+- Ctrl/Cmd + K: Global search
+- Ctrl/Cmd + S: Save current form
+- Esc: Close modals
 
 ## Tips
 
@@ -776,7 +776,7 @@ Your NetSuite Account ID is in the URL:
 https://[ACCOUNT_ID].app.netsuite.com/
 \`\`\`
 
-Example: If URL is \`https://1234567.app.netsuite.com/\`
+Example: If URL is https://1234567.app.netsuite.com/
 Account ID is: **1234567**
 
 ## Step 5: Configure in CLOE
@@ -1124,7 +1124,7 @@ Connect QuickBooks Online to CLOE using OAuth 2.0.
 4. Note down:
    - **Client ID**
    - **Client Secret**
-5. Set **Redirect URI**: \`https://your-cloe-domain.com/api/integrations/quickbooks/callback\`
+5. Set **Redirect URI**: https://your-cloe-domain.com/api/integrations/quickbooks/callback
 
 ## Step 3: Configure in CLOE
 
@@ -1342,14 +1342,14 @@ You'll need:
 From CLOE server, test Tally connection:
 
 **Windows**:
-\`\`\`
+CODE_BLOCK_START
 telnet [Tally-Host] 9000
-\`\`\`
+CODE_BLOCK_START
 
 **Linux**:
-\`\`\`bash
+CODE_BLOCK_BASH
 nc -zv [Tally-Host] 9000
-\`\`\`
+CODE_BLOCK_START
 
 Should return: "Connected"
 
@@ -2229,8 +2229,10 @@ export default function DocsPage() {
                       return <li key={idx} className="text-slate-700 ml-4">{line.slice(2)}</li>;
                     } else if (line.startsWith('**') && line.endsWith('**')) {
                       return <p key={idx} className="font-bold text-slate-900 my-2">{line.slice(2, -2)}</p>;
+                    } else if (line.startsWith('CODE_BLOCK')) {
+                      return null; // Skip code block markers
                     } else if (line.startsWith('```')) {
-                      return <pre key={idx} className="bg-slate-900 text-green-400 p-4 rounded-lg my-4 overflow-x-auto"><code>{line.slice(3)}</code></pre>;
+                      return null; // Skip any remaining backtick markers
                     } else if (line.trim() === '') {
                       return <br key={idx} />;
                     } else {
