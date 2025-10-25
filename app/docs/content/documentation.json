@@ -1,0 +1,98 @@
+{
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "color": "from-blue-500 to-cyan-500",
+      "articles": [
+        {
+          "id": "welcome",
+          "title": "Welcome to CLOE",
+          "description": "Learn the basics of financial consolidation with CLOE",
+          "readTime": "5 min"
+        },
+        {
+          "id": "first-consolidation",
+          "title": "Running Your First Consolidation",
+          "description": "Step-by-step guide to your first consolidated report",
+          "readTime": "15 min"
+        },
+        {
+          "id": "navigation",
+          "title": "Navigating the Platform",
+          "description": "Understanding the interface and navigation",
+          "readTime": "3 min"
+        }
+      ]
+    },
+    {
+      "id": "features",
+      "title": "Features Guide",
+      "color": "from-purple-500 to-pink-500",
+      "articles": [
+        {
+          "id": "dashboard",
+          "title": "Dashboard",
+          "description": "Understanding your consolidation dashboard",
+          "readTime": "5 min"
+        },
+        {
+          "id": "upload",
+          "title": "Data Upload",
+          "description": "Import trial balance and master data",
+          "readTime": "10 min"
+        }
+      ]
+    },
+    {
+      "id": "erp-integration",
+      "title": "ERP Integration",
+      "color": "from-green-500 to-emerald-500",
+      "articles": [
+        {
+          "id": "netsuite",
+          "title": "NetSuite Integration Setup",
+          "description": "Connect Oracle NetSuite to CLOE",
+          "readTime": "20 min"
+        },
+        {
+          "id": "sap",
+          "title": "SAP Integration Setup",
+          "description": "Connect SAP ERP to CLOE",
+          "readTime": "18 min"
+        },
+        {
+          "id": "quickbooks",
+          "title": "QuickBooks Integration Setup",
+          "description": "Connect QuickBooks Online to CLOE",
+          "readTime": "15 min"
+        },
+        {
+          "id": "tally",
+          "title": "Tally ERP Integration Setup",
+          "description": "Connect Tally ERP to CLOE",
+          "readTime": "16 min"
+        }
+      ]
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced Topics",
+      "color": "from-orange-500 to-red-500",
+      "articles": [
+        {
+          "id": "eliminations",
+          "title": "Intercompany Eliminations",
+          "description": "Automatic elimination of intercompany transactions",
+          "readTime": "12 min"
+        },
+        {
+          "id": "translations",
+          "title": "Currency Translation",
+          "description": "Multi-currency consolidation and translation",
+          "readTime": "15 min"
+        }
+      ]
+    }
+  ]
+}

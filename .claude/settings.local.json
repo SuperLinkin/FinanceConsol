@@ -47,7 +47,9 @@
       "Bash(git reset:*)",
       "Bash(dir /S /B *.js *.jsx *.ts *.tsx)",
       "Bash(psql:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(del \"C:\\Users\\Pranav Mv\\Documents\\financial-consolidation\\remove-backticks.js\")",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []
