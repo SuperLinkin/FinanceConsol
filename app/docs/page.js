@@ -772,9 +772,8 @@ Ensure your NetSuite role has:
 ## Step 4: Get Account ID
 
 Your NetSuite Account ID is in the URL:
-\`\`\`
+
 https://[ACCOUNT_ID].app.netsuite.com/
-\`\`\`
 
 Example: If URL is https://1234567.app.netsuite.com/
 Account ID is: **1234567**
@@ -2240,7 +2239,7 @@ export default function DocsPage() {
                       return <p key={idx} className="font-bold text-slate-900 my-2">{line.slice(2, -2)}</p>;
                     } else if (line.startsWith('CODE_BLOCK')) {
                       return null; // Skip code block markers
-                    } else if (line.startsWith('```')) {
+                    } else if (line.startsWith('')) {
                       return null; // Skip any remaining backtick markers
                     } else if (line.trim() === '') {
                       return <br key={idx} />;
