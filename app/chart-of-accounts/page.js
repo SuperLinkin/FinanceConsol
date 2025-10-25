@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, Edit2, Trash2, X, Save, Upload, Download } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, X, Save, Upload, Download, Database } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
+import ERPSyncPanel from '@/components/ERPSyncPanel';
 
 export default function ChartOfAccounts() {
   const [activeTab, setActiveTab] = useState('gl-codes'); // 'gl-codes', 'masters'
@@ -22,6 +23,7 @@ export default function ChartOfAccounts() {
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [showERPSyncPanel, setShowERPSyncPanel] = useState(false);
 
   const [accountForm, setAccountForm] = useState({
     account_code: '',
@@ -915,6 +917,14 @@ export default function ChartOfAccounts() {
 
                 <div className="flex items-center gap-4">
                   <button
+                    onClick={() => setShowERPSyncPanel(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Database size={18} />
+                    Sync from ERP
+                  </button>
+
+                  <button
                     onClick={downloadGLTemplate}
                     className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                   >
@@ -1598,6 +1608,17 @@ export default function ChartOfAccounts() {
           <p className="font-semibold">{toast.message}</p>
         </div>
       )}
+
+      {/* ERP Sync Panel */}
+      <ERPSyncPanel
+        isOpen={showERPSyncPanel}
+        onClose={() => setShowERPSyncPanel(false)}
+        syncType="chart_of_accounts"
+        onSyncComplete={() => {
+          fetchAccounts();
+          showToast('Chart of Accounts synced from ERP successfully', true);
+        }}
+      />
     </div>
   );
 }

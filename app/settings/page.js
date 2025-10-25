@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { ChevronDown, ChevronUp, Lock, Unlock, Check, X, Save, Shield, Plus, Edit, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Unlock, Check, X, Save, Shield, Plus, Edit, Trash2, Database } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import GroupStructureTab from '@/components/GroupStructureTab';
+import ERPSyncPanel from '@/components/ERPSyncPanel';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('group_structure');
@@ -17,6 +18,7 @@ export default function Settings() {
   const [expandedRegion, setExpandedRegion] = useState(null);
   const [selectedController, setSelectedController] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showERPSyncPanel, setShowERPSyncPanel] = useState(false);
 
   const [periodForm, setPeriodForm] = useState({
     period_name: '', period_type: 'Month-End', period_date: '', fiscal_year: new Date().getFullYear(), is_locked: false
@@ -271,22 +273,33 @@ export default function Settings() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-8 py-6">
-          {/* Tabs */}
-          <div className="flex gap-8 border-b-2 border-gray-300 mb-10">
-          {['Group Structure', 'Currencies', 'Regions', 'Controllers'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_'))}
-              className={`pb-4 px-2 text-base font-semibold transition-all duration-300 ${
-                activeTab === tab.toLowerCase().replace(' ', '_')
-                  ? 'text-slate-900 border-b-4 border-slate-900 -mb-0.5'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+          {/* Tabs with Sync Button */}
+          <div className="flex items-center justify-between border-b-2 border-gray-300 mb-10">
+            <div className="flex gap-8">
+              {['Group Structure', 'Currencies', 'Regions', 'Controllers'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_'))}
+                  className={`pb-4 px-2 text-base font-semibold transition-all duration-300 ${
+                    activeTab === tab.toLowerCase().replace(' ', '_')
+                      ? 'text-slate-900 border-b-4 border-slate-900 -mb-0.5'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {activeTab === 'group_structure' && (
+              <button
+                onClick={() => setShowERPSyncPanel(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors -mb-2"
+              >
+                <Database size={18} />
+                Sync Entities from ERP
+              </button>
+            )}
+          </div>
 
         {/* GROUP STRUCTURE TAB */}
         {activeTab === 'group_structure' && (
@@ -806,6 +819,17 @@ export default function Settings() {
         .animate-slideRight { animation: slideRight 0.3s ease; }
         .animate-slideUp { animation: slideUp 0.3s ease; }
       `}</style>
+
+      {/* ERP Sync Panel */}
+      <ERPSyncPanel
+        isOpen={showERPSyncPanel}
+        onClose={() => setShowERPSyncPanel(false)}
+        syncType="subsidiaries"
+        onSyncComplete={() => {
+          fetchAllData();
+          alert('Entities synced from ERP successfully');
+        }}
+      />
     </div>
   );
 }
