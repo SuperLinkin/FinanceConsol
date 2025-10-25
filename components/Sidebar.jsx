@@ -181,8 +181,8 @@ export default function Sidebar() {
         className={`
           flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
           ${isActive
-            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium shadow-lg shadow-blue-500/20'
-            : 'text-slate-300 hover:bg-white/5 hover:text-white'
+            ? 'bg-blue-600 text-white font-medium shadow-sm'
+            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
           }
           ${isCollapsed ? 'justify-center' : ''}
         `}
@@ -216,8 +216,8 @@ export default function Sidebar() {
           className={`
             w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
             ${hasActivePage
-              ? 'bg-slate-800/80 text-white'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-300'
+              ? 'bg-slate-700/70 text-white'
+              : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
             }
             ${isCollapsed ? 'justify-center' : ''}
           `}
@@ -228,9 +228,9 @@ export default function Sidebar() {
             <>
               <span className="font-medium flex-1 text-left">{group.label}</span>
               {isExpanded ? (
-                <ChevronUp size={14} className="text-slate-500" />
+                <ChevronUp size={14} className="text-slate-400" />
               ) : (
-                <ChevronDown size={14} className="text-slate-500" />
+                <ChevronDown size={14} className="text-slate-400" />
               )}
             </>
           )}
@@ -240,7 +240,7 @@ export default function Sidebar() {
         {isCollapsed && isHovered && (
           <div className="absolute left-full ml-2 top-0 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 py-2 z-50 min-w-[200px]">
             {/* Group Title */}
-            <div className="px-3 py-2 border-b border-slate-700">
+            <div className="px-4 py-2 border-b border-slate-700">
               <div className="flex items-center gap-2">
                 <Icon size={14} className="text-blue-400" />
                 <span className="text-xs font-semibold text-white">{group.label}</span>
@@ -257,10 +257,10 @@ export default function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={`
-                      flex items-center gap-3 px-3 py-2 text-sm transition-colors
+                      flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200
                       ${isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                        ? 'bg-blue-600 text-white font-medium'
+                        : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                       }
                     `}
                     onClick={() => setHoveredGroup(null)}
