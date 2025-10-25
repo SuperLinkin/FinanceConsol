@@ -292,19 +292,7 @@ export default function Settings() {
 
         {/* GROUP STRUCTURE TAB */}
         {activeTab === 'group_structure' && (
-          <>
-            {/* Sync Button */}
-            <div className="mb-6 flex justify-end">
-              <button
-                onClick={() => setShowERPSyncPanel(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
-              >
-                <Database size={18} />
-                Sync Entities from ERP
-              </button>
-            </div>
-            <GroupStructureTab />
-          </>
+          <GroupStructureTab onSyncClick={() => setShowERPSyncPanel(true)} />
         )}
 
         {/* CURRENCIES TAB */}

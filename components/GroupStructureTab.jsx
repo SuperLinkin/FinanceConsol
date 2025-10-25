@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, X, Download, Upload } from 'lucide-react';
+import { Search, X, Download, Upload, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-export default function GroupStructureTab() {
+export default function GroupStructureTab({ onSyncClick }) {
   const [entities, setEntities] = useState([]);
   const [currencies, setCurrencies] = useState([]);
   const [regions, setRegions] = useState([]);
@@ -372,6 +372,15 @@ export default function GroupStructureTab() {
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex justify-end gap-3">
+        {onSyncClick && (
+          <button
+            onClick={onSyncClick}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Database size={18} />
+            Sync Entities from ERP
+          </button>
+        )}
         <button
           onClick={handleDownloadTemplate}
           className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"

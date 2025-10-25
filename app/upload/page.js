@@ -760,13 +760,22 @@ export default function UploadPage() {
                   <h2 className="text-2xl font-bold text-slate-900">Bulk Upload - All Entities</h2>
                   <p className="text-sm text-gray-600 mt-1">Upload trial balance data for multiple entities in one file</p>
                 </div>
-                <button
-                  onClick={downloadBulkTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                >
-                  <Download size={18} />
-                  Download Template
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowERPSyncPanel(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Database size={18} />
+                    Sync from ERP
+                  </button>
+                  <button
+                    onClick={downloadBulkTemplate}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={18} />
+                    Download Template
+                  </button>
+                </div>
               </div>
 
               {/* How Bulk Upload Works */}
