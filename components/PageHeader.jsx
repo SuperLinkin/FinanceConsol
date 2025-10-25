@@ -1,3 +1,5 @@
+'use client';
+
 import { useRouter } from 'next/navigation';
 import { HelpCircle } from 'lucide-react';
 import UserProfileButton from './UserProfileButton';

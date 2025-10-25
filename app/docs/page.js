@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 
+export const dynamic = 'force-dynamic';
+
 const DOCUMENTATION_SECTIONS = [
   {
     id: 'getting-started',
