@@ -1123,7 +1123,7 @@ Connect QuickBooks Online to CLOE using OAuth 2.0.
 4. Note down:
    - **Client ID**
    - **Client Secret**
-5. Set **Redirect URI**: https://your-cloe-domain.com/api/integrations/quickbooks/callback
+5. Set **Redirect URI**: https://your-cloe-domain.com/api/integration-callbacks/quickbooks/callback
 
 ## Step 3: Configure in CLOE
 
