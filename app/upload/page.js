@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Upload, Download, CheckCircle, XCircle, Database, RefreshCw, Zap } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
+import ERPSyncPanel from '@/components/ERPSyncPanel';
 
 export default function UploadPage() {
   const [entities, setEntities] = useState([]);
@@ -24,16 +25,10 @@ export default function UploadPage() {
   const [groupReportingCurrency, setGroupReportingCurrency] = useState(null);
 
   // ERP Sync states
-  const [integrations, setIntegrations] = useState([]);
-  const [showERPSyncModal, setShowERPSyncModal] = useState(false);
-  const [syncType, setSyncType] = useState('trial_balance'); // 'trial_balance' or 'chart_of_accounts'
-  const [selectedIntegration, setSelectedIntegration] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
+  const [showERPSyncPanel, setShowERPSyncPanel] = useState(false);
 
   useEffect(() => {
     fetchEntities();
-    fetchIntegrations();
   }, []);
 
   const fetchEntities = async () => {
@@ -68,103 +63,6 @@ export default function UploadPage() {
     }
   };
 
-  const fetchIntegrations = async () => {
-    try {
-      const response = await fetch('/api/integrations');
-      const data = await response.json();
-      const activeIntegrations = (data || []).filter(i => i.status === 'connected' || i.status === 'configured');
-      setIntegrations(activeIntegrations);
-      console.log('[Upload Page] Loaded integrations:', activeIntegrations.length);
-    } catch (error) {
-      console.error('Error fetching integrations:', error);
-      setIntegrations([]);
-    }
-  };
-
-  const handleOpenERPSync = (type) => {
-    setSyncType(type);
-    setSelectedIntegration('');
-    setSyncResult(null);
-    setShowERPSyncModal(true);
-  };
-
-  const handleERPSync = async () => {
-    if (!selectedIntegration || !selectedEntity || !selectedPeriod) {
-      alert('Please select integration, entity, and period');
-      return;
-    }
-
-    setSyncing(true);
-    setSyncResult(null);
-
-    try {
-      const integration = integrations.find(i => i.id === selectedIntegration);
-
-      // Call the appropriate sync endpoint based on ERP system
-      let endpoint = '/api/integrations/sync';
-      let body = {
-        integration_id: selectedIntegration,
-        sync_type: syncType,
-        triggered_by: 'manual'
-      };
-
-      // For NetSuite, use the specific endpoint
-      if (integration.erp_system === 'netsuite') {
-        endpoint = '/api/integrations/netsuite/sync';
-
-        // Find entity mapping (NetSuite subsidiary ID)
-        const entityMapping = integration.entity_mapping || {};
-        const entity = entities.find(e => e.id === selectedEntity);
-        const subsidiaryId = Object.keys(entityMapping).find(
-          key => entityMapping[key] === selectedEntity
-        );
-
-        body = {
-          integration_id: selectedIntegration,
-          sync_type: syncType,
-          subsidiary_id: subsidiaryId,
-          period_id: null, // NetSuite will use start_date/end_date
-          start_date: new Date(new Date(selectedPeriod).getFullYear(), 0, 1).toISOString().split('T')[0],
-          end_date: selectedPeriod,
-          period_name: `Period ending ${selectedPeriod}`
-        };
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Sync failed');
-      }
-
-      const result = await response.json();
-
-      setSyncResult({
-        success: true,
-        message: result.message || 'Sync started successfully',
-        sync_id: result.sync_id
-      });
-
-      // Refresh page data after a delay
-      setTimeout(() => {
-        setShowERPSyncModal(false);
-        window.location.reload(); // Reload to show new data
-      }, 3000);
-
-    } catch (error) {
-      console.error('Error syncing from ERP:', error);
-      setSyncResult({
-        success: false,
-        message: `Sync failed: ${error.message}`
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleEntityChange = (entityId) => {
     setSelectedEntity(entityId);
@@ -1094,15 +992,13 @@ export default function UploadPage() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Upload Trial Balance</h2>
             <div className="flex items-center gap-3">
-              {integrations.length > 0 && (
-                <button
-                  onClick={() => handleOpenERPSync('trial_balance')}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  <Database size={18} />
-                  Sync from ERP
-                </button>
-              )}
+              <button
+                onClick={() => setShowERPSyncPanel(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                <Database size={18} />
+                Sync from ERP
+              </button>
               <button
                 onClick={downloadTBTemplate}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
@@ -1574,189 +1470,24 @@ export default function UploadPage() {
               <span className="font-bold mt-0.5">•</span>
               <span>For Chart of Accounts and Master Hierarchy uploads, go to the <strong>Chart of Accounts</strong> page</span>
             </li>
-            {integrations.length > 0 && (
-              <li className="flex items-start gap-2">
-                <span className="font-bold mt-0.5">•</span>
-                <span>Use <strong className="text-blue-700">"Sync from ERP"</strong> button to automatically pull data from your connected ERP system ({integrations[0].integration_name})</span>
-              </li>
-            )}
+            <li className="flex items-start gap-2">
+              <span className="font-bold mt-0.5">•</span>
+              <span>Use <strong className="text-blue-700">"Sync from ERP"</strong> button to automatically pull data from your connected ERP system</span>
+            </li>
           </ul>
           </div>
         </div>
       </div>
 
-      {/* ERP Sync Modal */}
-      {showERPSyncModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Database size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">Sync from ERP</h3>
-                    <p className="text-blue-100 text-sm">
-                      {syncType === 'trial_balance' ? 'Sync Trial Balance Data' : 'Sync Chart of Accounts'}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowERPSyncModal(false)}
-                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-                >
-                  <XCircle size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Integration Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Select ERP Integration *
-                </label>
-                <select
-                  value={selectedIntegration}
-                  onChange={(e) => setSelectedIntegration(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
-                  disabled={syncing}
-                >
-                  <option value="">Choose integration...</option>
-                  {integrations.map(integration => (
-                    <option key={integration.id} value={integration.id}>
-                      {integration.integration_name} ({integration.erp_system.toUpperCase()})
-                    </option>
-                  ))}
-                </select>
-                {integrations.length === 0 && (
-                  <p className="text-sm text-amber-600 mt-2">
-                    No integrations configured. Go to <strong>Platform → Integrations Hub</strong> to set up an ERP connection.
-                  </p>
-                )}
-              </div>
-
-              {/* Entity Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Select Entity *
-                </label>
-                <select
-                  value={selectedEntity}
-                  onChange={(e) => setSelectedEntity(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
-                  disabled={syncing}
-                >
-                  <option value="">Choose entity...</option>
-                  {entities.map(entity => (
-                    <option key={entity.id} value={entity.id}>
-                      {entity.entity_name} ({entity.entity_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Period Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Period End Date *
-                </label>
-                <input
-                  type="date"
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
-                  disabled={syncing}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Data will be synced for the full year ending on this date
-                </p>
-              </div>
-
-              {/* Info Box */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Zap className="text-blue-600 mt-0.5 flex-shrink-0" size={20} />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-blue-900 mb-1">How ERP Sync Works</h4>
-                    <ul className="text-xs text-blue-800 space-y-1">
-                      <li>• Connects to your ERP system securely via API</li>
-                      <li>• Fetches {syncType === 'trial_balance' ? 'trial balance data' : 'chart of accounts'} for the selected entity and period</li>
-                      <li>• Automatically maps accounts using your Chart of Accounts</li>
-                      <li>• Imports data directly into CLOE database</li>
-                      <li>• Process typically takes 30-60 seconds depending on data volume</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sync Result */}
-              {syncResult && (
-                <div className={`p-4 rounded-lg border-2 ${
-                  syncResult.success
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-red-50 border-red-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    {syncResult.success ? (
-                      <CheckCircle className="text-green-600 mt-0.5" size={24} />
-                    ) : (
-                      <XCircle className="text-red-600 mt-0.5" size={24} />
-                    )}
-                    <div className="flex-1">
-                      <h3 className={`font-bold mb-1 ${
-                        syncResult.success ? 'text-green-800' : 'text-red-800'
-                      }`}>
-                        {syncResult.success ? 'Sync Started Successfully!' : 'Sync Failed'}
-                      </h3>
-                      <p className="text-sm text-gray-700">{syncResult.message}</p>
-                      {syncResult.sync_id && (
-                        <p className="text-xs text-gray-600 mt-2">
-                          Sync ID: {syncResult.sync_id}
-                        </p>
-                      )}
-                      {syncResult.success && (
-                        <p className="text-xs text-green-700 mt-2 font-medium">
-                          Page will reload automatically to show synced data...
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
-                <button
-                  onClick={() => setShowERPSyncModal(false)}
-                  disabled={syncing}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleERPSync}
-                  disabled={!selectedIntegration || !selectedEntity || !selectedPeriod || syncing}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {syncing ? (
-                    <>
-                      <RefreshCw size={20} className="animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <Database size={20} />
-                      Start Sync
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ERP Sync Panel */}
+      <ERPSyncPanel
+        isOpen={showERPSyncPanel}
+        onClose={() => setShowERPSyncPanel(false)}
+        syncType="trial_balance"
+        onSyncComplete={() => {
+          window.location.reload(); // Reload to show synced data
+        }}
+      />
     </div>
   );
 }

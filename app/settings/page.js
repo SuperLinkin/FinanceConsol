@@ -273,37 +273,38 @@ export default function Settings() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-8 py-6">
-          {/* Tabs with Sync Button */}
-          <div className="flex items-center justify-between border-b-2 border-gray-300 mb-10">
-            <div className="flex gap-8">
-              {['Group Structure', 'Currencies', 'Regions', 'Controllers'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_'))}
-                  className={`pb-4 px-2 text-base font-semibold transition-all duration-300 ${
-                    activeTab === tab.toLowerCase().replace(' ', '_')
-                      ? 'text-slate-900 border-b-4 border-slate-900 -mb-0.5'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            {activeTab === 'group_structure' && (
+          {/* Tabs */}
+          <div className="flex gap-8 border-b-2 border-gray-300 mb-10">
+            {['Group Structure', 'Currencies', 'Regions', 'Controllers'].map(tab => (
               <button
-                onClick={() => setShowERPSyncPanel(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors -mb-2"
+                key={tab}
+                onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_'))}
+                className={`pb-4 px-2 text-base font-semibold transition-all duration-300 ${
+                  activeTab === tab.toLowerCase().replace(' ', '_')
+                    ? 'text-slate-900 border-b-4 border-slate-900 -mb-0.5'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
-                <Database size={18} />
-                Sync Entities from ERP
+                {tab}
               </button>
-            )}
+            ))}
           </div>
 
         {/* GROUP STRUCTURE TAB */}
         {activeTab === 'group_structure' && (
-          <GroupStructureTab />
+          <>
+            {/* Sync Button */}
+            <div className="mb-6 flex justify-end">
+              <button
+                onClick={() => setShowERPSyncPanel(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <Database size={18} />
+                Sync Entities from ERP
+              </button>
+            </div>
+            <GroupStructureTab />
+          </>
         )}
 
         {/* CURRENCIES TAB */}
