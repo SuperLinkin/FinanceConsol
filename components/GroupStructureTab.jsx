@@ -19,6 +19,14 @@ export default function GroupStructureTab({ onSyncClick }) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Entity Mapping States
+  const [showMappingModal, setShowMappingModal] = useState(false);
+  const [integrations, setIntegrations] = useState([]);
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [erpSubsidiaries, setErpSubsidiaries] = useState([]);
+  const [entityMappings, setEntityMappings] = useState({});
+  const [loadingErpData, setLoadingErpData] = useState(false);
+
   const [formData, setFormData] = useState({
     entity_code: '',
     entity_name: '',
@@ -360,6 +368,84 @@ export default function GroupStructureTab({ onSyncClick }) {
     }
   };
 
+  // Entity Mapping Functions
+  const fetchIntegrations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('erp_integrations')
+        .select('*')
+        .eq('status', 'connected')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setIntegrations(data || []);
+
+      if (data && data.length > 0) {
+        setSelectedIntegration(data[0].id);
+        loadEntityMapping(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching integrations:', error);
+    }
+  };
+
+  const loadEntityMapping = async (integration) => {
+    setLoadingErpData(true);
+    try {
+      // Load existing entity_mapping from integration
+      setEntityMappings(integration.entity_mapping || {});
+
+      // Fetch subsidiaries from ERP
+      if (integration.erp_system === 'netsuite') {
+        const response = await fetch('/api/integrations/netsuite/subsidiaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integration_id: integration.id })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setErpSubsidiaries(result.subsidiaries || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading ERP data:', error);
+    } finally {
+      setLoadingErpData(false);
+    }
+  };
+
+  const handleMappingChange = (erpEntityId, cloeEntityId) => {
+    setEntityMappings(prev => ({
+      ...prev,
+      [erpEntityId]: cloeEntityId
+    }));
+  };
+
+  const saveMappings = async () => {
+    if (!selectedIntegration) return;
+
+    try {
+      const { error } = await supabase
+        .from('erp_integrations')
+        .update({ entity_mapping: entityMappings })
+        .eq('id', selectedIntegration);
+
+      if (error) throw error;
+
+      alert('Entity mappings saved successfully!');
+      setShowMappingModal(false);
+    } catch (error) {
+      console.error('Error saving mappings:', error);
+      alert('Error saving mappings: ' + error.message);
+    }
+  };
+
+  const handleOpenMappingModal = async () => {
+    await fetchIntegrations();
+    setShowMappingModal(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -381,6 +467,13 @@ export default function GroupStructureTab({ onSyncClick }) {
             Sync Entities from ERP
           </button>
         )}
+        <button
+          onClick={handleOpenMappingModal}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+        >
+          <Database size={16} />
+          Map ERP Entities
+        </button>
         <button
           onClick={handleDownloadTemplate}
           className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
@@ -809,6 +902,190 @@ export default function GroupStructureTab({ onSyncClick }) {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Entity Mapping Modal */}
+      {showMappingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Map ERP Entities to CLOE Entities</h2>
+                <p className="text-purple-100 text-sm mt-1">
+                  Connect your ERP subsidiaries to CLOE entities for seamless data sync
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMappingModal(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              {integrations.length === 0 ? (
+                <div className="text-center py-12">
+                  <Database size={64} className="mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">No Connected Integrations</h3>
+                  <p className="text-gray-600 mb-6">
+                    Please add and connect an ERP integration first
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowMappingModal(false);
+                      window.location.href = '/integrations';
+                    }}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                  >
+                    Go to Integrations
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Integration Selector */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Select Integration
+                    </label>
+                    <select
+                      value={selectedIntegration || ''}
+                      onChange={(e) => {
+                        const integration = integrations.find(i => i.id === e.target.value);
+                        setSelectedIntegration(e.target.value);
+                        if (integration) loadEntityMapping(integration);
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent text-slate-900"
+                    >
+                      {integrations.map(integration => (
+                        <option key={integration.id} value={integration.id}>
+                          {integration.integration_name} ({integration.erp_system.toUpperCase()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {loadingErpData ? (
+                    <div className="text-center py-12">
+                      <div className="text-gray-600">Loading ERP subsidiaries...</div>
+                    </div>
+                  ) : erpSubsidiaries.length === 0 ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-yellow-800">
+                        No subsidiaries found in ERP. Please ensure the integration is configured correctly.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mapping Instructions */}
+                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded">
+                        <h4 className="font-semibold text-blue-900 mb-2">How Entity Mapping Works</h4>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                          <li>• Map each ERP subsidiary to its corresponding CLOE entity</li>
+                          <li>• This mapping is used during data sync to route data correctly</li>
+                          <li>• Leave unmapped if you don't want to sync a subsidiary</li>
+                        </ul>
+                      </div>
+
+                      {/* Mapping Table */}
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="bg-slate-900 text-white py-3 px-6">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="font-bold text-sm">ERP Subsidiary</div>
+                            <div className="font-bold text-sm">CLOE Entity</div>
+                          </div>
+                        </div>
+
+                        <div className="divide-y divide-gray-200">
+                          {erpSubsidiaries.map((subsidiary, index) => (
+                            <div
+                              key={subsidiary.id || index}
+                              className={`py-4 px-6 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                            >
+                              <div className="grid grid-cols-2 gap-6 items-center">
+                                {/* ERP Subsidiary */}
+                                <div>
+                                  <div className="font-semibold text-slate-900">
+                                    {subsidiary.name}
+                                  </div>
+                                  {subsidiary.id && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      ID: {subsidiary.id}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* CLOE Entity Dropdown */}
+                                <div>
+                                  <select
+                                    value={entityMappings[subsidiary.id] || ''}
+                                    onChange={(e) => handleMappingChange(subsidiary.id, e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent text-slate-900"
+                                  >
+                                    <option value="">-- Not Mapped --</option>
+                                    {entities.map(entity => (
+                                      <option key={entity.id} value={entity.id}>
+                                        {entity.entity_code} - {entity.entity_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Mapping Summary */}
+                      <div className="mt-6 bg-slate-50 rounded-lg p-4">
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div>
+                            <div className="text-2xl font-bold text-slate-900">
+                              {erpSubsidiaries.length}
+                            </div>
+                            <div className="text-sm text-gray-600">Total ERP Subsidiaries</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-green-600">
+                              {Object.values(entityMappings).filter(v => v).length}
+                            </div>
+                            <div className="text-sm text-gray-600">Mapped</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-gray-500">
+                              {erpSubsidiaries.length - Object.values(entityMappings).filter(v => v).length}
+                            </div>
+                            <div className="text-sm text-gray-600">Unmapped</div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            {integrations.length > 0 && erpSubsidiaries.length > 0 && (
+              <div className="bg-slate-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowMappingModal(false)}
+                  className="px-6 py-3 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveMappings}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                >
+                  Save Mappings
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
