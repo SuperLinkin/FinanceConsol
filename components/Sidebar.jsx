@@ -104,6 +104,7 @@ export default function Sidebar() {
   const [currentUser, setCurrentUser] = useState({ name: 'John Doe', email: 'john@example.com' });
   const [currentCompany, setCurrentCompany] = useState({ name: 'Acme Corporation', env: 'Production' });
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [hoveredGroup, setHoveredGroup] = useState(null);
 
   const userMenuRef = useRef(null);
   const companyMenuRef = useRef(null);
@@ -202,32 +203,80 @@ export default function Sidebar() {
     const hasActivePage = group.items.some(item =>
       pathname === item.href || pathname.startsWith(item.href + '/')
     );
+    const isHovered = hoveredGroup === group.label;
 
     return (
-      <button
-        onClick={() => toggleGroup(group.label)}
-        className={`
-          w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
-          ${hasActivePage
-            ? 'bg-slate-800/80 text-white'
-            : 'text-slate-400 hover:bg-white/5 hover:text-slate-300'
-          }
-          ${isCollapsed ? 'justify-center' : ''}
-        `}
-        title={isCollapsed ? group.label : ''}
+      <div
+        className="relative"
+        onMouseEnter={() => isCollapsed && setHoveredGroup(group.label)}
+        onMouseLeave={() => isCollapsed && setHoveredGroup(null)}
       >
-        <Icon size={16} className={`flex-shrink-0 ${hasActivePage ? 'text-blue-400' : 'text-slate-500'}`} />
-        {!isCollapsed && (
-          <>
-            <span className="font-medium flex-1 text-left">{group.label}</span>
-            {isExpanded ? (
-              <ChevronUp size={14} className="text-slate-500" />
-            ) : (
-              <ChevronDown size={14} className="text-slate-500" />
-            )}
-          </>
+        <button
+          onClick={() => !isCollapsed && toggleGroup(group.label)}
+          className={`
+            w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200
+            ${hasActivePage
+              ? 'bg-slate-800/80 text-white'
+              : 'text-slate-400 hover:bg-white/5 hover:text-slate-300'
+            }
+            ${isCollapsed ? 'justify-center' : ''}
+          `}
+          title={isCollapsed ? group.label : ''}
+        >
+          <Icon size={16} className={`flex-shrink-0 ${hasActivePage ? 'text-blue-400' : 'text-slate-500'}`} />
+          {!isCollapsed && (
+            <>
+              <span className="font-medium flex-1 text-left">{group.label}</span>
+              {isExpanded ? (
+                <ChevronUp size={14} className="text-slate-500" />
+              ) : (
+                <ChevronDown size={14} className="text-slate-500" />
+              )}
+            </>
+          )}
+        </button>
+
+        {/* Hover Menu for Collapsed Sidebar */}
+        {isCollapsed && isHovered && (
+          <div className="absolute left-full ml-2 top-0 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 py-2 z-50 min-w-[200px]">
+            {/* Group Title */}
+            <div className="px-3 py-2 border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <Icon size={14} className="text-blue-400" />
+                <span className="text-xs font-semibold text-white">{group.label}</span>
+              </div>
+            </div>
+            {/* Group Items */}
+            <div className="py-1">
+              {group.items.map((item) => {
+                const ItemIcon = item.icon;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`
+                      flex items-center gap-3 px-3 py-2 text-sm transition-colors
+                      ${isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                      }
+                    `}
+                    onClick={() => setHoveredGroup(null)}
+                  >
+                    <ItemIcon size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
+                    <span className="text-xs">{item.label}</span>
+                    {isActive && (
+                      <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full"></div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         )}
-      </button>
+      </div>
     );
   };
 
@@ -369,12 +418,6 @@ export default function Sidebar() {
                         </li>
                       ))}
                     </ul>
-                  )}
-                  {/* Show tooltip on hover when collapsed */}
-                  {isCollapsed && (
-                    <div className="hidden group-hover:block absolute left-full ml-2 top-0 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap z-50">
-                      {item.label}
-                    </div>
                   )}
                 </li>
               );
