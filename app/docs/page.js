@@ -1,14 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search, BookOpen, Rocket, Database, FileText, Settings, TrendingUp,
   BarChart3, Upload, GitBranch, MessageSquare, Send, X, CheckCircle,
   ArrowRight, Play, ChevronRight, ExternalLink, Zap, Shield, Users
 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
-
-export const dynamic = 'force-dynamic';
 
 const DOCUMENTATION_SECTIONS = [
   {
@@ -2056,8 +2054,9 @@ Complex translation issues:
 ];
 
 export default function DocsPage() {
+  const [mounted, setMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSection, setSelectedSection] = useState(DOCUMENTATION_SECTIONS[0].id);
+  const [selectedSection, setSelectedSection] = useState('getting-started');
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [ticketForm, setTicketForm] = useState({
@@ -2068,6 +2067,14 @@ export default function DocsPage() {
     email: ''
   });
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
 
   const currentSection = DOCUMENTATION_SECTIONS.find(s => s.id === selectedSection);
   const currentArticle = currentSection?.articles.find(a => a.id === selectedArticle);
