@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { NetSuiteConnector } from '@/lib/integrations/netsuite/connector';
 
@@ -7,7 +7,7 @@ import { NetSuiteConnector } from '@/lib/integrations/netsuite/connector';
 export async function POST(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = supabaseAdmin;
     const body = await request.json();
     const { integration_id, erp_system, connection_config, credentials } = body;
 

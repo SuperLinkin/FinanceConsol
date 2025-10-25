@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { verifySessionToken } from '@/lib/auth';
 
 // GET - Fetch all integrations for the company
 export async function GET(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin;
 
     const { data: integrations, error } = await supabase
       .from('erp_integrations')
@@ -55,7 +67,18 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin;
     const body = await request.json();
 
     const { data, error } = await supabase
@@ -80,7 +103,18 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin;
     const body = await request.json();
     const { id, ...updateData } = body;
 
@@ -107,7 +141,18 @@ export async function PUT(request) {
 export async function DELETE(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const token = cookieStore.get('session_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifySessionToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

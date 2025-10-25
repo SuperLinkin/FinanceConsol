@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 
 // POST - Trigger a sync operation
 export async function POST(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = supabaseAdmin;
     const body = await request.json();
     const { integration_id, sync_type = 'full', triggered_by = 'manual' } = body;
 
@@ -113,7 +113,7 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
     const integration_id = searchParams.get('integration_id');
     const limit = parseInt(searchParams.get('limit') || '20');

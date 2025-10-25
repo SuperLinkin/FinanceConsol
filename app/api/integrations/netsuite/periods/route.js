@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { NetSuiteConnector } from '@/lib/integrations/netsuite/connector';
 
@@ -7,7 +7,7 @@ import { NetSuiteConnector } from '@/lib/integrations/netsuite/connector';
 export async function GET(request) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = supabaseAdmin;
     const { searchParams } = new URL(request.url);
     const integration_id = searchParams.get('integration_id');
 

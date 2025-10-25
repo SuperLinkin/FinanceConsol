@@ -44,7 +44,8 @@
       "Bash(git mv:*)",
       "Bash(mv:*)",
       "Bash(rmdir:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(dir /S /B *.js *.jsx *.ts *.tsx)"
     ],
     "deny": [],
     "ask": []
